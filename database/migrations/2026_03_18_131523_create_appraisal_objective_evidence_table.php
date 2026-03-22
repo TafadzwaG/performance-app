@@ -13,6 +13,16 @@ return new class extends Migration
     {
         Schema::create('appraisal_objective_evidence', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('appraisal_objective_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('uploaded_by_user_id')->constrained('users')->cascadeOnDelete();
+            $table->string('evidence_type')->index();
+            $table->string('disk')->nullable();
+            $table->string('path')->nullable();
+            $table->text('url')->nullable();
+            $table->string('original_name')->nullable();
+            $table->string('mime_type')->nullable();
+            $table->unsignedBigInteger('size')->nullable();
+            $table->text('notes')->nullable();
             $table->timestamps();
         });
     }

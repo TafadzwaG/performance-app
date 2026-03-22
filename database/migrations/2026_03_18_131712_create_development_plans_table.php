@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('development_plans', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('appraisal_id')->unique()->constrained()->cascadeOnDelete();
+            $table->longText('strengths')->nullable();
+            $table->longText('improvement_areas')->nullable();
+            $table->longText('follow_up_notes')->nullable();
             $table->timestamps();
         });
     }

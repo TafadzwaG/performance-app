@@ -1,0 +1,49 @@
+<?php
+
+namespace App\Services\Performance;
+
+use App\Models\AppraisalObjective;
+use App\Models\AppraisalObjectiveEvidence;
+use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+
+class EvidenceStorageService
+{
+    public function storeFile(AppraisalObjective $objective, UploadedFile $file, User $user, ?string $notes = null): AppraisalObjectiveEvidence
+    {
+        $path = $file->store("performance/evidence/{$objective->id}", 'public');
+
+        return AppraisalObjectiveEvidence::create([
+            'appraisal_objective_id' => $objective->id,
+            'uploaded_by_user_id' => $user->id,
+            'evidence_type' => 'file',
+            'disk' => 'public',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+            'notes' => $notes,
+        ]);
+    }
+
+    public function storeLink(AppraisalObjective $objective, string $url, User $user, ?string $notes = null): AppraisalObjectiveEvidence
+    {
+        return AppraisalObjectiveEvidence::create([
+            'appraisal_objective_id' => $objective->id,
+            'uploaded_by_user_id' => $user->id,
+            'evidence_type' => 'link',
+            'url' => $url,
+            'notes' => $notes,
+        ]);
+    }
+
+    public function delete(AppraisalObjectiveEvidence $evidence): void
+    {
+        if ($evidence->disk && $evidence->path) {
+            Storage::disk($evidence->disk)->delete($evidence->path);
+        }
+
+        $evidence->delete();
+    }
+}

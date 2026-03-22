@@ -1,0 +1,283 @@
+<?php
+
+namespace App\Services\Performance;
+
+use App\Enums\AppraisalStatus;
+use App\Enums\ApprovalAction;
+use App\Enums\ApprovalStage;
+use App\Enums\CommentType;
+use App\Enums\WorkflowStage;
+use App\Events\Performance\AppraisalStatusChanged;
+use App\Models\Appraisal;
+use App\Models\AppraisalApproval;
+use App\Models\AppraisalComment;
+use App\Models\AppraisalStatusHistory;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+
+class AppraisalWorkflowService
+{
+    public function __construct(
+        private readonly AppraisalScoringService $scoringService,
+    ) {
+    }
+
+    public function submitGoalPlan(Appraisal $appraisal, User $actor): Appraisal
+    {
+        return DB::transaction(function () use ($appraisal, $actor) {
+            $appraisal->loadMissing('objectives');
+
+            $weightTotal = (float) $appraisal->objectives
+                ->where('include_in_business_score', true)
+                ->sum('weight');
+
+            if (round($weightTotal, 2) !== 100.0) {
+                throw ValidationException::withMessages([
+                    'objectives' => 'Business objective weights must total 100 before submission.',
+                ]);
+            }
+
+            return $this->transition(
+                $appraisal,
+                $actor,
+                AppraisalStatus::SelfAssessmentPending,
+                ApprovalStage::GoalSetting,
+                ApprovalAction::Submitted,
+                'Goal plan submitted.',
+                ['goal_submitted_at' => now(), 'reopened_stage' => null]
+            );
+        });
+    }
+
+    public function submitSelfAssessment(Appraisal $appraisal, User $actor): Appraisal
+    {
+        return DB::transaction(function () use ($appraisal, $actor) {
+            $appraisal->loadMissing(['objectives', 'competencyRatings']);
+
+            Validator::make(
+                ['objectives' => $appraisal->objectives->toArray()],
+                ['objectives.*.self_rating_scale_level_id' => ['required']]
+            )->validate();
+
+            return $this->transition(
+                $appraisal,
+                $actor,
+                AppraisalStatus::ManagerReviewPending,
+                ApprovalStage::SelfAssessment,
+                ApprovalAction::Submitted,
+                'Self assessment submitted.',
+                ['self_assessment_submitted_at' => now(), 'reopened_stage' => null],
+                'self_submitted'
+            );
+        });
+    }
+
+    public function submitManagerReview(Appraisal $appraisal, User $actor, ?string $comments = null): Appraisal
+    {
+        return DB::transaction(function () use ($appraisal, $actor, $comments) {
+            $appraisal->loadMissing(['objectives', 'competencyRatings']);
+
+            Validator::make(
+                ['objectives' => $appraisal->objectives->toArray()],
+                ['objectives.*.manager_rating_scale_level_id' => ['required']]
+            )->validate();
+
+            if ($appraisal->competencyRatings()->exists()) {
+                Validator::make(
+                    ['ratings' => $appraisal->competencyRatings->toArray()],
+                    ['ratings.*.manager_rating_scale_level_id' => ['required']]
+                )->validate();
+            }
+
+            if ($comments) {
+                AppraisalComment::create([
+                    'appraisal_id' => $appraisal->id,
+                    'author_user_id' => $actor->id,
+                    'comment_type' => CommentType::General,
+                    'body' => $comments,
+                ]);
+            }
+
+            return $this->transition(
+                $appraisal,
+                $actor,
+                AppraisalStatus::ApprovalPending,
+                ApprovalStage::ManagerReview,
+                ApprovalAction::Forwarded,
+                'Manager review completed.',
+                ['manager_reviewed_at' => now(), 'reopened_stage' => null],
+                'approval_requested'
+            );
+        });
+    }
+
+    public function sendBack(Appraisal $appraisal, User $actor, WorkflowStage $reopenStage, string $reason, ApprovalStage $stage, bool $rejected = false): Appraisal
+    {
+        return DB::transaction(function () use ($appraisal, $actor, $reopenStage, $reason, $stage, $rejected) {
+            $previousStatus = $appraisal->status;
+
+            $appraisal->forceFill([
+                'status' => AppraisalStatus::SentBack,
+                'reopened_stage' => $reopenStage,
+            ])->save();
+
+            AppraisalComment::create([
+                'appraisal_id' => $appraisal->id,
+                'author_user_id' => $actor->id,
+                'comment_type' => CommentType::SendBack,
+                'body' => $reason,
+            ]);
+
+            AppraisalApproval::create([
+                'appraisal_id' => $appraisal->id,
+                'actor_user_id' => $actor->id,
+                'stage' => $stage,
+                'action' => $rejected ? ApprovalAction::Rejected : ApprovalAction::SentBack,
+                'comments' => $reason,
+                'snapshot' => $this->snapshot($appraisal),
+                'acted_at' => now(),
+            ]);
+
+            $this->recordStatusHistory($appraisal, $actor, $previousStatus, AppraisalStatus::SentBack, $reason);
+
+            event(new AppraisalStatusChanged($appraisal, $actor, 'sent_back'));
+
+            return $appraisal->refresh();
+        });
+    }
+
+    public function approve(Appraisal $appraisal, User $actor, ?string $comments = null): Appraisal
+    {
+        return DB::transaction(function () use ($appraisal, $actor, $comments) {
+            $scores = $this->scoringService->calculate($appraisal);
+            $previousStatus = $appraisal->status;
+
+            $appraisal->forceFill([
+                'status' => AppraisalStatus::Approved,
+                'business_score' => $scores['business_score'],
+                'values_score' => $scores['values_score'],
+                'overall_score' => $scores['overall_score'],
+                'overall_rating_scale_level_id' => $scores['overall_level']?->id,
+                'approved_at' => now(),
+                'reopened_stage' => null,
+            ])->save();
+
+            AppraisalApproval::create([
+                'appraisal_id' => $appraisal->id,
+                'actor_user_id' => $actor->id,
+                'stage' => ApprovalStage::Approval,
+                'action' => ApprovalAction::Approved,
+                'comments' => $comments,
+                'snapshot' => $this->snapshot($appraisal),
+                'acted_at' => now(),
+            ]);
+
+            $this->recordStatusHistory($appraisal, $actor, $previousStatus, AppraisalStatus::Approved, $comments);
+
+            event(new AppraisalStatusChanged($appraisal, $actor, 'approved'));
+
+            return $appraisal->refresh();
+        });
+    }
+
+    public function finalize(Appraisal $appraisal, User $actor, ?string $comments = null): Appraisal
+    {
+        return DB::transaction(function () use ($appraisal, $actor, $comments) {
+            $appraisal = $this->scoringService->refresh($appraisal);
+            $previousStatus = $appraisal->status;
+
+            $appraisal->forceFill([
+                'status' => AppraisalStatus::Finalized,
+                'finalized_at' => now(),
+            ])->save();
+
+            AppraisalApproval::create([
+                'appraisal_id' => $appraisal->id,
+                'actor_user_id' => $actor->id,
+                'stage' => ApprovalStage::Finalization,
+                'action' => ApprovalAction::Finalized,
+                'comments' => $comments,
+                'snapshot' => $this->snapshot($appraisal),
+                'acted_at' => now(),
+            ]);
+
+            $this->recordStatusHistory($appraisal, $actor, $previousStatus, AppraisalStatus::Finalized, $comments);
+
+            event(new AppraisalStatusChanged($appraisal, $actor, 'finalized'));
+
+            return $appraisal->refresh();
+        });
+    }
+
+    private function transition(
+        Appraisal $appraisal,
+        User $actor,
+        AppraisalStatus $toStatus,
+        ApprovalStage $stage,
+        ApprovalAction $action,
+        ?string $comments,
+        array $attributes = [],
+        ?string $eventName = null,
+    ): Appraisal {
+        $previousStatus = $appraisal->status;
+
+        $appraisal->forceFill(array_merge($attributes, ['status' => $toStatus]))->save();
+
+        AppraisalApproval::create([
+            'appraisal_id' => $appraisal->id,
+            'actor_user_id' => $actor->id,
+            'stage' => $stage,
+            'action' => $action,
+            'comments' => $comments,
+            'snapshot' => $this->snapshot($appraisal),
+            'acted_at' => now(),
+        ]);
+
+        $this->recordStatusHistory($appraisal, $actor, $previousStatus, $toStatus, $comments);
+
+        if ($eventName) {
+            event(new AppraisalStatusChanged($appraisal, $actor, $eventName));
+        }
+
+        return $appraisal->refresh();
+    }
+
+    private function recordStatusHistory(Appraisal $appraisal, User $actor, ?AppraisalStatus $fromStatus, AppraisalStatus $toStatus, ?string $reason): void
+    {
+        AppraisalStatusHistory::create([
+            'appraisal_id' => $appraisal->id,
+            'actor_user_id' => $actor->id,
+            'from_status' => $fromStatus,
+            'to_status' => $toStatus,
+            'reason' => $reason,
+            'metadata' => $this->snapshot($appraisal),
+            'changed_at' => now(),
+        ]);
+    }
+
+    private function snapshot(Appraisal $appraisal): array
+    {
+        $appraisal->loadMissing(['objectives', 'competencyRatings', 'overallRatingLevel']);
+
+        return [
+            'status' => $appraisal->status?->value,
+            'business_score' => $appraisal->business_score,
+            'values_score' => $appraisal->values_score,
+            'overall_score' => $appraisal->overall_score,
+            'overall_rating' => $appraisal->overallRatingLevel?->label,
+            'objectives' => $appraisal->objectives->map(fn ($objective) => [
+                'title' => $objective->title,
+                'weight' => $objective->weight,
+                'self_rating' => $objective->self_rating_score,
+                'manager_rating' => $objective->manager_rating_score,
+            ])->values()->all(),
+            'competencies' => $appraisal->competencyRatings->map(fn ($rating) => [
+                'competency_id' => $rating->competency_id,
+                'self_rating' => $rating->self_rating_score,
+                'manager_rating' => $rating->manager_rating_score,
+            ])->values()->all(),
+        ];
+    }
+}

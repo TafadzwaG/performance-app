@@ -13,6 +13,13 @@ return new class extends Migration
     {
         Schema::create('appraisal_approvals', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('appraisal_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('actor_user_id')->constrained('users')->cascadeOnDelete();
+            $table->string('stage')->index();
+            $table->string('action')->index();
+            $table->longText('comments')->nullable();
+            $table->json('snapshot')->nullable();
+            $table->timestamp('acted_at')->nullable()->index();
             $table->timestamps();
         });
     }
