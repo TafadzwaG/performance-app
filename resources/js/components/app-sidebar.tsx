@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BarChart3, BookOpen, ClipboardList, FileText, Folder, LayoutGrid, RefreshCw, Settings2, Shield, Users } from 'lucide-react';
+import { BarChart3, BookOpen, Briefcase, Building2, ClipboardList, FileText, Folder, LayoutGrid, RefreshCw, Shield, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const footerNavItems: NavItem[] = [
@@ -27,18 +27,21 @@ export function AppSidebar() {
             url: '/dashboard',
             icon: LayoutGrid,
         },
-        ...(can(
-            'performance.setup.departments.view',
-            'performance.setup.job_titles.view',
-            'performance.setup.perspectives.view',
-            'performance.setup.competencies.view',
-            'performance.setup.rating_scales.view',
-        )
+        ...(can('performance.setup.departments.view')
             ? [
                   {
-                      title: 'Setup',
+                      title: 'Departments',
                       url: '/performance/setup/departments',
-                      icon: Settings2,
+                      icon: Building2,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('performance.setup.job_titles.view')
+            ? [
+                  {
+                      title: 'Job Titles',
+                      url: '/performance/setup/job-titles',
+                      icon: Briefcase,
                   } satisfies NavItem,
               ]
             : []),

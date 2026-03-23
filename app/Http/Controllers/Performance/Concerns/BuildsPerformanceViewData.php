@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Performance\Concerns;
 
+use App\Enums\EmploymentStatus;
 use App\Models\Appraisal;
 use App\Models\AppraisalTemplate;
 use App\Models\Competency;
@@ -158,6 +159,48 @@ trait BuildsPerformanceViewData
             ->all();
     }
 
+    protected function employmentStatusOptions(): array
+    {
+        return collect(EmploymentStatus::cases())
+            ->map(fn (EmploymentStatus $status) => [
+                'value' => $status->value,
+                'label' => str($status->value)->replace('_', ' ')->headline()->toString(),
+            ])
+            ->all();
+    }
+
+    protected function genderOptions(): array
+    {
+        return $this->staticOptions([
+            'male' => 'Male',
+            'female' => 'Female',
+            'other' => 'Other',
+            'prefer_not_to_say' => 'Prefer Not To Say',
+        ]);
+    }
+
+    protected function maritalStatusOptions(): array
+    {
+        return $this->staticOptions([
+            'single' => 'Single',
+            'married' => 'Married',
+            'divorced' => 'Divorced',
+            'widowed' => 'Widowed',
+            'separated' => 'Separated',
+        ]);
+    }
+
+    protected function employmentTypeOptions(): array
+    {
+        return $this->staticOptions([
+            'permanent' => 'Permanent',
+            'contract' => 'Contract',
+            'temporary' => 'Temporary',
+            'intern' => 'Intern',
+            'consultant' => 'Consultant',
+        ]);
+    }
+
     protected function permissionGroups(): array
     {
         $permissions = Permission::query()->orderBy('name')->get(['id', 'name']);
@@ -207,5 +250,16 @@ trait BuildsPerformanceViewData
             'developmentPlan.actions.owner',
             'overallRatingLevel',
         ]);
+    }
+
+    protected function staticOptions(array $values): array
+    {
+        return collect($values)
+            ->map(fn (string $label, string $value) => [
+                'value' => $value,
+                'label' => $label,
+            ])
+            ->values()
+            ->all();
     }
 }

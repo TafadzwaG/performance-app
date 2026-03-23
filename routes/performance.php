@@ -68,7 +68,7 @@ Route::middleware('auth')->prefix('performance')->as('performance.')->group(func
 
     Route::resource('employees', EmployeeProfileController::class)
         ->parameters(['employees' => 'employee_profile'])
-        ->only(['index', 'store', 'show', 'edit', 'update'])
+        ->only(['index', 'create', 'store', 'show', 'edit', 'update'])
         ->names('employees');
 
     Route::resource('appraisals', AppraisalController::class)

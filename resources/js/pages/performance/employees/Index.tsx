@@ -1,21 +1,28 @@
 import PaginationLinks from '@/components/performance/PaginationLinks';
 import PerformancePage from '@/components/performance/PerformancePage';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import type { BreadcrumbItem } from '@/types';
-import type { EmployeeProfile, Option, Paginated } from '@/types/performance';
+import type { EmployeeProfile, Paginated } from '@/types/performance';
 import { Link, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
+import {
+    Briefcase,
+    Eye,
+    Filter,
+    PencilLine,
+    Plus,
+    Search,
+    ShieldCheck,
+    Users,
+} from 'lucide-react';
 
 interface Props {
     employeeProfiles: Paginated<EmployeeProfile>;
     filters: { search: string };
     can: { create: boolean };
-    departmentOptions: Option[];
-    jobTitleOptions: Option[];
-    userOptions: Option[];
-    roleOptions: Option[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -23,156 +30,302 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Employees', href: route('performance.employees.index') },
 ];
 
-export default function EmployeesIndex({ employeeProfiles, filters, can, departmentOptions, jobTitleOptions, userOptions, roleOptions }: Props) {
+function getInitials(name?: string | null) {
+    return (name ?? 'U')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('');
+}
+
+function maskNationalId(value?: string | null) {
+    if (!value) return '-';
+
+    const clean = value.trim();
+    if (clean.length <= 4) return clean;
+
+    return `••• •• ${clean.slice(-4)}`;
+}
+
+export default function EmployeesIndex({ employeeProfiles, filters, can }: Props) {
     const searchForm = useForm({ search: filters.search ?? '' });
-    const createForm = useForm<{ user_id: string; employee_number: string; department_id: string; job_title_id: string; line_manager_user_id: string; approving_manager_user_id: string; employment_status: string; hire_date: string; is_active: boolean; role_ids: number[] }>({
-        user_id: '',
-        employee_number: '',
-        department_id: '',
-        job_title_id: '',
-        line_manager_user_id: '',
-        approving_manager_user_id: '',
-        employment_status: 'active',
-        hire_date: '',
-        is_active: true,
-        role_ids: [],
-    });
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        searchForm.get(route('performance.employees.index'), { preserveState: true, replace: true });
+        searchForm.get(route('performance.employees.index'), {
+            preserveState: true,
+            replace: true,
+        });
     };
 
-    const submitCreate = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        createForm.post(route('performance.employees.store'));
-    };
+    const totalOnPage = employeeProfiles.data.length;
+    const totalRecords = employeeProfiles.total ?? totalOnPage;
+    const activeCount = employeeProfiles.data.filter((profile) => profile.is_active).length;
+    const reviewEligibleCount = employeeProfiles.data.filter((profile) => profile.is_review_eligible ?? true).length;
+
+    const from = employeeProfiles.from ?? 0;
+    const to = employeeProfiles.to ?? totalOnPage;
 
     return (
-        <PerformancePage title="Employees" description="Link application users to employee profiles, managers, and role assignments." breadcrumbs={breadcrumbs}>
-            {can.create ? (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Create Employee Profile</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={submitCreate} className="grid gap-4 md:grid-cols-3">
-                            <select className="rounded-md border bg-background px-3 py-2 text-sm" value={createForm.data.user_id} onChange={(event) => createForm.setData('user_id', event.target.value)}>
-                                <option value="">User</option>
-                                {userOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <Input value={createForm.data.employee_number} onChange={(event) => createForm.setData('employee_number', event.target.value)} placeholder="Employee number" />
-                            <select className="rounded-md border bg-background px-3 py-2 text-sm" value={createForm.data.department_id} onChange={(event) => createForm.setData('department_id', event.target.value)}>
-                                <option value="">Department</option>
-                                {departmentOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <select className="rounded-md border bg-background px-3 py-2 text-sm" value={createForm.data.job_title_id} onChange={(event) => createForm.setData('job_title_id', event.target.value)}>
-                                <option value="">Job title</option>
-                                {jobTitleOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <select className="rounded-md border bg-background px-3 py-2 text-sm" value={createForm.data.line_manager_user_id} onChange={(event) => createForm.setData('line_manager_user_id', event.target.value)}>
-                                <option value="">Line manager</option>
-                                {userOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <select className="rounded-md border bg-background px-3 py-2 text-sm" value={createForm.data.approving_manager_user_id} onChange={(event) => createForm.setData('approving_manager_user_id', event.target.value)}>
-                                <option value="">Approving manager</option>
-                                {userOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <select className="rounded-md border bg-background px-3 py-2 text-sm" value={createForm.data.employment_status} onChange={(event) => createForm.setData('employment_status', event.target.value)}>
-                                <option value="active">Active</option>
-                                <option value="probation">Probation</option>
-                                <option value="contract">Contract</option>
-                                <option value="exited">Exited</option>
-                            </select>
-                            <Input type="date" value={createForm.data.hire_date} onChange={(event) => createForm.setData('hire_date', event.target.value)} />
-                            <select
-                                multiple
-                                className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm"
-                                value={createForm.data.role_ids.map(String)}
-                                onChange={(event) => createForm.setData('role_ids', Array.from(event.target.selectedOptions).map((option) => Number(option.value)))}
-                            >
-                                {roleOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <div className="md:col-span-3">
-                                <Button type="submit" disabled={createForm.processing}>
-                                    Save Employee Profile
-                                </Button>
+        <PerformancePage
+            title="Employees"
+            description="Manage employee records, reporting lines, and performance readiness."
+            breadcrumbs={breadcrumbs}
+            primaryAction={
+                can.create
+                    ? {
+                          label: 'New Employee',
+                          href: route('performance.employees.create'),
+                          icon: <Plus className="h-4 w-4" />,
+                      }
+                    : undefined
+            }
+        >
+            <div className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-3">
+                    <Card className="border shadow-sm">
+                        <CardContent className="p-6">
+                            <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                Employees On This Page
+                            </p>
+                            <div className="flex items-baseline gap-2">
+                                <h3 className="text-3xl font-bold tracking-tight text-foreground">{totalOnPage}</h3>
+                                <span className="text-xs text-muted-foreground">of {totalRecords} total</span>
                             </div>
-                        </form>
-                    </CardContent>
-                </Card>
-            ) : null}
-            <Card>
-                <CardContent className="space-y-4 p-6">
-                    <form onSubmit={submitSearch} className="flex gap-2">
-                        <Input value={searchForm.data.search} onChange={(event) => searchForm.setData('search', event.target.value)} placeholder="Search employees" />
-                        <Button type="submit" variant="outline">
-                            Filter
-                        </Button>
-                    </form>
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="min-w-full text-sm">
-                            <thead className="bg-muted/50 text-left">
-                                <tr>
-                                    <th className="p-3">Employee</th>
-                                    <th className="p-3">Department</th>
-                                    <th className="p-3">Job Title</th>
-                                    <th className="p-3">Line Manager</th>
-                                    <th className="p-3">Actions</th>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border shadow-sm">
+                        <CardContent className="p-6">
+                            <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                Active Employees
+                            </p>
+                            <div className="flex items-baseline gap-2">
+                                <h3 className="text-3xl font-bold tracking-tight text-foreground">{activeCount}</h3>
+                                <span className="text-xs text-muted-foreground">visible records</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border shadow-sm">
+                        <CardContent className="p-6">
+                            <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                Review Eligible
+                            </p>
+                            <div className="flex items-baseline gap-2">
+                                <h3 className="text-3xl font-bold tracking-tight text-foreground">
+                                    {reviewEligibleCount}
+                                </h3>
+                                <span className="text-xs text-muted-foreground">ready this cycle</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                    <div className="flex flex-col gap-4 border-b px-6 py-5 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 className="text-lg font-semibold tracking-tight text-foreground">Employee Directory</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Search profiles by employee number, name, email, or national ID.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <form onSubmit={submitSearch} className="flex gap-2">
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        value={searchForm.data.search}
+                                        onChange={(event) => searchForm.setData('search', event.target.value)}
+                                        placeholder="Search directory..."
+                                        className="w-[240px] pl-9"
+                                    />
+                                </div>
+
+                                <Button type="submit" variant="outline" disabled={searchForm.processing}>
+                                    <Filter className="mr-2 h-4 w-4" />
+                                    Filter
+                                </Button>
+                            </form>
+
+                            {can.create ? (
+                                <Button asChild>
+                                    <Link href={route('performance.employees.create')}>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Add New Employee
+                                    </Link>
+                                </Button>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-left text-sm">
+                            <thead>
+                                <tr className="bg-muted/30">
+                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                        Employee
+                                    </th>
+                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                        National ID
+                                    </th>
+                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                        Department
+                                    </th>
+                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                        Job Title
+                                    </th>
+                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                        Line Manager
+                                    </th>
+                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                        Status
+                                    </th>
+                                    <th className="px-6 py-4 text-right text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                        Actions
+                                    </th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {employeeProfiles.data.map((profile) => (
-                                    <tr key={profile.id} className="border-t">
-                                        <td className="p-3">
-                                            <div className="font-medium">{profile.user?.name}</div>
-                                            <div className="text-xs text-muted-foreground">{profile.employee_number}</div>
-                                        </td>
-                                        <td className="p-3">{profile.department?.name ?? '-'}</td>
-                                        <td className="p-3">{profile.job_title?.name ?? '-'}</td>
-                                        <td className="p-3">{profile.line_manager?.name ?? '-'}</td>
-                                        <td className="p-3">
-                                            <div className="flex gap-2">
-                                                <Button asChild variant="outline" size="sm">
-                                                    <Link href={route('performance.employees.show', profile.id)}>View</Link>
-                                                </Button>
-                                                <Button asChild variant="outline" size="sm">
-                                                    <Link href={route('performance.employees.edit', profile.id)}>Edit</Link>
-                                                </Button>
+
+                            <tbody className="divide-y">
+                                {employeeProfiles.data.length > 0 ? (
+                                    employeeProfiles.data.map((profile) => (
+                                        <tr
+                                            key={profile.id}
+                                            className="group transition-colors hover:bg-muted/20"
+                                        >
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/30 text-xs font-semibold text-foreground">
+                                                        {getInitials(profile.user?.name)}
+                                                    </div>
+
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-sm font-semibold text-foreground">
+                                                            {profile.user?.name ?? 'Unknown user'}
+                                                        </p>
+                                                        <p className="truncate text-xs text-muted-foreground">
+                                                            {profile.employee_number}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                                                <span className="font-mono tracking-tight">
+                                                    {maskNationalId(profile.national_id)}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                                                {profile.department?.name ?? '-'}
+                                            </td>
+
+                                            <td className="px-6 py-4 text-sm font-medium text-foreground">
+                                                {profile.job_title?.name ?? '-'}
+                                            </td>
+
+                                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                                                {profile.line_manager?.name ?? '-'}
+                                            </td>
+
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-wrap gap-2">
+                                                    <Badge variant={profile.is_active ? 'default' : 'secondary'}>
+                                                        {profile.employment_status}
+                                                    </Badge>
+
+                                                    {profile.is_review_eligible ?? true ? (
+                                                        <Badge variant="outline">Review Eligible</Badge>
+                                                    ) : null}
+                                                </div>
+                                            </td>
+
+                                            <td className="px-6 py-4">
+                                                <div className="flex justify-end gap-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+                                                    <Button asChild variant="ghost" size="icon">
+                                                        <Link href={route('performance.employees.show', profile.id)}>
+                                                            <Eye className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
+
+                                                    <Button asChild variant="ghost" size="icon">
+                                                        <Link href={route('performance.employees.edit', profile.id)}>
+                                                            <PencilLine className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={7} className="px-6 py-14 text-center">
+                                            <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
+                                                <div className="rounded-full border bg-muted p-3 text-muted-foreground">
+                                                    <Users className="h-5 w-5" />
+                                                </div>
+                                                <div className="font-medium">No employee profiles found</div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Adjust the search term or create a new employee profile.
+                                                </p>
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
+                                )}
                             </tbody>
                         </table>
                     </div>
-                    <PaginationLinks paginated={employeeProfiles} />
-                </CardContent>
-            </Card>
+
+                    <div className="flex flex-col gap-4 border-t bg-muted/10 px-6 py-4 md:flex-row md:items-center md:justify-between">
+                        <p className="text-xs font-medium text-muted-foreground">
+                            Showing {from} to {to} of {totalRecords} entries
+                        </p>
+
+                        <PaginationLinks paginated={employeeProfiles} />
+                    </div>
+                </section>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                    <Card className="border shadow-sm">
+                        <CardContent className="flex gap-4 p-6">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border bg-muted/30 text-foreground">
+                                <ShieldCheck className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <h4 className="text-sm font-semibold uppercase tracking-tight text-foreground">
+                                    Profile Coverage
+                                </h4>
+                                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                                    Use employee profiles to connect users, reporting lines, and appraisal ownership in
+                                    one place.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border shadow-sm">
+                        <CardContent className="flex gap-4 p-6">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border bg-muted/30 text-foreground">
+                                <Briefcase className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <h4 className="text-sm font-semibold uppercase tracking-tight text-foreground">
+                                    Performance Setup
+                                </h4>
+                                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                                    Work location, employment type, eligibility, and manager assignments are maintained
+                                    on the employee profile.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </PerformancePage>
     );
 }

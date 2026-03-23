@@ -4,13 +4,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
-import type { EmployeeProfile, EmployeeProfileFormData, Option } from '@/types/performance';
+import type { EmployeeProfileFormData, Option } from '@/types/performance';
 import { useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
-import { Briefcase, PencilLine, Save, ShieldCheck } from 'lucide-react';
+import { Briefcase, Save, ShieldCheck, UserPlus } from 'lucide-react';
 
 interface Props {
-    employeeProfile: EmployeeProfile;
     formDefaults: EmployeeProfileFormData;
     departmentOptions: Option[];
     jobTitleOptions: Option[];
@@ -23,8 +22,13 @@ interface Props {
     can: { assignRoles: boolean };
 }
 
-export default function EmployeeEdit({
-    employeeProfile,
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Performance', href: '/performance/dashboard' },
+    { title: 'Employees', href: route('performance.employees.index') },
+    { title: 'Create', href: route('performance.employees.create') },
+];
+
+export default function EmployeeCreate({
     formDefaults,
     departmentOptions,
     jobTitleOptions,
@@ -36,27 +40,17 @@ export default function EmployeeEdit({
     employmentTypeOptions,
     can,
 }: Props) {
-    const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Performance', href: '/performance/dashboard' },
-        { title: 'Employees', href: route('performance.employees.index') },
-        {
-            title: employeeProfile.user?.name ?? employeeProfile.employee_number,
-            href: route('performance.employees.show', employeeProfile.id),
-        },
-        { title: 'Edit', href: route('performance.employees.edit', employeeProfile.id) },
-    ];
-
     const form = useForm<EmployeeProfileFormData>(formDefaults);
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.put(route('performance.employees.update', employeeProfile.id));
+        form.post(route('performance.employees.store'));
     };
 
     return (
         <PerformancePage
-            title="Edit Employee Profile"
-            description="Update identity, reporting, employment, and performance-readiness details."
+            title="Create Employee Profile"
+            description="Add a full employee profile with identity, contact, employment, and performance setup information."
             breadcrumbs={breadcrumbs}
         >
             <form onSubmit={submit} className="space-y-6">
@@ -64,15 +58,16 @@ export default function EmployeeEdit({
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-3">
                             <Badge variant="secondary" className="w-fit">
-                                Employee administration
+                                Employee onboarding
                             </Badge>
 
                             <div>
                                 <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                                    Edit Employee Profile
+                                    Create Employee Profile
                                 </h1>
                                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                                    Update employee identity, contact, reporting line, and performance setup details.
+                                    Initialize a new employee record with identity, contact, employment, and
+                                    performance-readiness details.
                                 </p>
                             </div>
                         </div>
@@ -81,13 +76,11 @@ export default function EmployeeEdit({
                             <Card className="shadow-none">
                                 <CardContent className="flex items-center gap-3 p-4">
                                     <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/30">
-                                        <PencilLine className="h-5 w-5 text-muted-foreground" />
+                                        <UserPlus className="h-5 w-5 text-muted-foreground" />
                                     </div>
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Employee</p>
-                                        <p className="text-sm font-semibold text-foreground">
-                                            {employeeProfile.employee_number}
-                                        </p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Users</p>
+                                        <p className="text-sm font-semibold text-foreground">{userOptions.length}</p>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -98,9 +91,9 @@ export default function EmployeeEdit({
                                         <Briefcase className="h-5 w-5 text-muted-foreground" />
                                     </div>
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Department</p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Departments</p>
                                         <p className="text-sm font-semibold text-foreground">
-                                            {employeeProfile.department?.name ?? '-'}
+                                            {departmentOptions.length}
                                         </p>
                                     </div>
                                 </CardContent>
@@ -112,10 +105,8 @@ export default function EmployeeEdit({
                                         <ShieldCheck className="h-5 w-5 text-muted-foreground" />
                                     </div>
                                     <div>
-                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
-                                        <p className="text-sm font-semibold text-foreground">
-                                            {employeeProfile.is_active ? 'Active' : 'Inactive'}
-                                        </p>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Roles</p>
+                                        <p className="text-sm font-semibold text-foreground">{roleOptions.length}</p>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -125,7 +116,7 @@ export default function EmployeeEdit({
 
                 <EmployeeProfileForm
                     form={form}
-                    mode="edit"
+                    mode="create"
                     departmentOptions={departmentOptions}
                     jobTitleOptions={jobTitleOptions}
                     userOptions={userOptions}
@@ -140,7 +131,7 @@ export default function EmployeeEdit({
                 <div className="flex items-center justify-end border-t pt-6">
                     <Button type="submit" disabled={form.processing}>
                         <Save className="mr-2 h-4 w-4" />
-                        Update Employee Profile
+                        Save Employee Profile
                     </Button>
                 </div>
             </form>

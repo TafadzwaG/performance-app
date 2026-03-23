@@ -16,12 +16,32 @@ class EmployeeProfile extends Model
     protected $fillable = [
         'user_id',
         'employee_number',
+        'national_id',
+        'date_of_birth',
+        'gender',
+        'marital_status',
+        'personal_phone',
+        'home_address_line_1',
+        'home_address_line_2',
+        'city',
+        'state_province',
+        'postal_code',
+        'country',
+        'emergency_contact_name',
+        'emergency_contact_phone',
         'department_id',
         'job_title_id',
         'line_manager_user_id',
         'approving_manager_user_id',
         'employment_status',
+        'employment_type',
+        'work_location',
         'hire_date',
+        'probation_end_date',
+        'confirmation_date',
+        'is_review_eligible',
+        'review_eligibility_date',
+        'notes',
         'is_active',
     ];
 
@@ -29,7 +49,12 @@ class EmployeeProfile extends Model
     {
         return [
             'employment_status' => EmploymentStatus::class,
+            'date_of_birth' => 'date',
             'hire_date' => 'date',
+            'probation_end_date' => 'date',
+            'confirmation_date' => 'date',
+            'review_eligibility_date' => 'date',
+            'is_review_eligible' => 'boolean',
             'is_active' => 'boolean',
         ];
     }

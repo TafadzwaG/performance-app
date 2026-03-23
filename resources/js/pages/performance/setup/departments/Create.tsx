@@ -1,11 +1,11 @@
 import PerformancePage from '@/components/performance/PerformancePage';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import type { BreadcrumbItem } from '@/types';
 import { useForm } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -29,8 +29,12 @@ export default function DepartmentCreate() {
     return (
         <PerformancePage title="Create Department" description="Add a department for employee setup and reporting." breadcrumbs={breadcrumbs}>
             <Card>
-                <CardContent className="p-6">
-                    <form onSubmit={submit} className="grid gap-4">
+                <CardHeader>
+                    <CardTitle>Department Details</CardTitle>
+                    <CardDescription>Capture the department code, name, and active status.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
                         <label className="grid gap-2 text-sm">
                             Name
                             <Input value={data.name} onChange={(event) => setData('name', event.target.value)} />
@@ -41,17 +45,19 @@ export default function DepartmentCreate() {
                             <Input value={data.code} onChange={(event) => setData('code', event.target.value)} />
                             <InputError message={errors.code} />
                         </label>
-                        <label className="grid gap-2 text-sm">
+                        <label className="grid gap-2 text-sm md:col-span-2">
                             Description
                             <textarea className="min-h-28 rounded-md border bg-background px-3 py-2" value={data.description} onChange={(event) => setData('description', event.target.value)} />
                         </label>
-                        <label className="flex items-center gap-2 text-sm">
+                        <label className="flex items-center gap-2 text-sm md:col-span-2">
                             <input type="checkbox" checked={data.is_active} onChange={(event) => setData('is_active', event.target.checked)} />
                             Active
                         </label>
-                        <Button type="submit" disabled={processing}>
-                            Save Department
-                        </Button>
+                        <div className="md:col-span-2 flex justify-end">
+                            <Button type="submit" disabled={processing}>
+                                Save Department
+                            </Button>
+                        </div>
                     </form>
                 </CardContent>
             </Card>

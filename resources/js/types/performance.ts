@@ -1,3 +1,5 @@
+import type { FormDataConvertible } from '@inertiajs/core';
+
 export interface Option {
     value: number | string;
     label: string;
@@ -162,12 +164,32 @@ export interface EmployeeProfile {
     id: number;
     user_id: number;
     employee_number: string;
+    national_id?: string | null;
+    date_of_birth?: string | null;
+    gender?: string | null;
+    marital_status?: string | null;
+    personal_phone?: string | null;
+    home_address_line_1?: string | null;
+    home_address_line_2?: string | null;
+    city?: string | null;
+    state_province?: string | null;
+    postal_code?: string | null;
+    country?: string | null;
+    emergency_contact_name?: string | null;
+    emergency_contact_phone?: string | null;
     department_id?: number | null;
     job_title_id?: number | null;
     line_manager_user_id?: number | null;
     approving_manager_user_id?: number | null;
     employment_status: string;
+    employment_type?: string | null;
+    work_location?: string | null;
     hire_date?: string | null;
+    probation_end_date?: string | null;
+    confirmation_date?: string | null;
+    is_review_eligible?: boolean;
+    review_eligibility_date?: string | null;
+    notes?: string | null;
     is_active: boolean;
     user?: BasicUser | null;
     department?: Department | null;
@@ -175,6 +197,40 @@ export interface EmployeeProfile {
     line_manager?: BasicUser | null;
     approving_manager?: BasicUser | null;
     appraisals?: Appraisal[];
+}
+
+export interface EmployeeProfileFormData {
+    [key: string]: FormDataConvertible;
+    user_id: string;
+    employee_number: string;
+    national_id: string;
+    date_of_birth: string;
+    gender: string;
+    marital_status: string;
+    personal_phone: string;
+    home_address_line_1: string;
+    home_address_line_2: string;
+    city: string;
+    state_province: string;
+    postal_code: string;
+    country: string;
+    emergency_contact_name: string;
+    emergency_contact_phone: string;
+    department_id: string;
+    job_title_id: string;
+    line_manager_user_id: string;
+    approving_manager_user_id: string;
+    employment_status: string;
+    employment_type: string;
+    work_location: string;
+    hire_date: string;
+    probation_end_date: string;
+    confirmation_date: string;
+    is_review_eligible: boolean;
+    review_eligibility_date: string;
+    notes: string;
+    is_active: boolean;
+    role_ids: number[];
 }
 
 export interface ReviewCycle {
