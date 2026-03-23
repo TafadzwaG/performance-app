@@ -19,8 +19,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Templates', href: route('performance.templates.index') },
 ];
 
-function parseVersionNumber(version?: string | null) {
-    if (!version) return null;
+function parseVersionNumber(version?: string | number | null) {
+    if (version === null || version === undefined || version === '') return null;
 
     const cleaned = String(version).replace(/[^\d.]/g, '');
     const parsed = Number.parseFloat(cleaned);

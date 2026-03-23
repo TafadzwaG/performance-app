@@ -1,11 +1,15 @@
 import PerformancePage from '@/components/performance/PerformancePage';
 import InputError from '@/components/input-error';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import type { BreadcrumbItem } from '@/types';
 import type { Department } from '@/types/performance';
 import { useForm } from '@inertiajs/react';
+import { Building2, Eye, FilePenLine, Info, Lightbulb, PencilLine, Save, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 import type { FormEvent } from 'react';
 
 export default function DepartmentEdit({ department }: { department: Department }) {
@@ -29,40 +33,242 @@ export default function DepartmentEdit({ department }: { department: Department 
     };
 
     return (
-        <PerformancePage title="Edit Department" description="Update department details and status." breadcrumbs={breadcrumbs}>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Edit Department</CardTitle>
-                    <CardDescription>Maintain naming, code, and descriptive context for this department.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={submit} className="grid gap-4 md:grid-cols-2">
-                        <label className="grid gap-2 text-sm">
-                            Name
-                            <Input value={data.name} onChange={(event) => setData('name', event.target.value)} />
-                            <InputError message={errors.name} />
-                        </label>
-                        <label className="grid gap-2 text-sm">
-                            Code
-                            <Input value={data.code} onChange={(event) => setData('code', event.target.value)} />
-                            <InputError message={errors.code} />
-                        </label>
-                        <label className="grid gap-2 text-sm md:col-span-2">
-                            Description
-                            <textarea className="min-h-28 rounded-md border bg-background px-3 py-2" value={data.description} onChange={(event) => setData('description', event.target.value)} />
-                        </label>
-                        <label className="flex items-center gap-2 text-sm md:col-span-2">
-                            <input type="checkbox" checked={data.is_active} onChange={(event) => setData('is_active', event.target.checked)} />
-                            Active
-                        </label>
-                        <div className="md:col-span-2 flex justify-end">
+        <PerformancePage
+            title="Edit Department"
+            description="Update department details and status."
+            breadcrumbs={breadcrumbs}
+        >
+            <form onSubmit={submit} className="space-y-6">
+                <div className="rounded-2xl border bg-background p-6 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="space-y-3">
+                            <Badge variant="secondary" className="w-fit">
+                                Operating structure
+                            </Badge>
+
+                            <div>
+                                <h1 className="text-3xl font-bold tracking-tight text-foreground">Edit Department</h1>
+                                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                                    Maintain naming, code, lifecycle state, and descriptive context for this
+                                    department record.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
                             <Button type="submit" disabled={processing}>
+                                <Save className="mr-2 h-4 w-4" />
                                 Update Department
                             </Button>
                         </div>
-                    </form>
-                </CardContent>
-            </Card>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-12 gap-6">
+                    <div className="col-span-12 space-y-6 lg:col-span-8">
+                        <Card className="shadow-sm">
+                            <CardHeader className="border-b bg-muted/20">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background">
+                                            <FilePenLine className="h-5 w-5 text-muted-foreground" />
+                                        </div>
+
+                                        <div>
+                                            <CardTitle className="text-lg">Identity & Classification</CardTitle>
+                                            <CardDescription>
+                                                Maintain the naming and descriptive structure of this department.
+                                            </CardDescription>
+                                        </div>
+                                    </div>
+
+                                    <Badge variant="outline">Editable</Badge>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="p-6">
+                                <div className="grid gap-6 md:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="name">Department Name</Label>
+                                        <Input
+                                            id="name"
+                                            value={data.name}
+                                            onChange={(event) => setData('name', event.target.value)}
+                                        />
+                                        <InputError message={errors.name} />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="code">Department Code</Label>
+                                        <Input
+                                            id="code"
+                                            value={data.code}
+                                            onChange={(event) => setData('code', event.target.value)}
+                                        />
+                                        <InputError message={errors.code} />
+                                    </div>
+
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Label htmlFor="description">Description & Scope</Label>
+                                        <textarea
+                                            id="description"
+                                            className="min-h-32 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                            value={data.description}
+                                            onChange={(event) => setData('description', event.target.value)}
+                                        />
+                                        <InputError message={errors.description} />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="shadow-sm">
+                            <CardHeader className="border-b bg-muted/20">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background">
+                                        <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+                                    </div>
+
+                                    <div>
+                                        <CardTitle className="text-lg">Lifecycle & Status</CardTitle>
+                                        <CardDescription>
+                                            Maintain whether this department remains available across performance
+                                            processes.
+                                        </CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="p-6">
+                                <div className="flex items-center justify-between rounded-lg border bg-muted/10 p-4">
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-foreground">Active Status</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Should this department remain available for employees and templates?
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox
+                                            checked={data.is_active}
+                                            onCheckedChange={(checked) => setData('is_active', checked === true)}
+                                        />
+                                        <span className="text-sm font-medium text-foreground">
+                                            {data.is_active ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="col-span-12 space-y-6 lg:col-span-4">
+                        <Card className="shadow-sm">
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
+                                    <Lightbulb className="h-4.5 w-4.5 text-muted-foreground" />
+                                    <CardTitle className="text-base">Planning Insight</CardTitle>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="space-y-4 text-sm text-muted-foreground">
+                                <p className="leading-6">
+                                    Stable department definitions keep employee mapping, templates, and reporting lines
+                                    consistent over time.
+                                </p>
+
+                                <div className="flex items-start gap-3 rounded-lg border bg-muted/10 p-3">
+                                    <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <p className="text-xs leading-5">
+                                        Updating a department code or name can affect downstream references, so keep
+                                        changes aligned with your operating model.
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="text-base">Current Record</CardTitle>
+                                <CardDescription>Operational context for this department entry.</CardDescription>
+                            </CardHeader>
+
+                            <CardContent className="space-y-4">
+                                <div className="flex items-end justify-between border-b pb-4">
+                                    <div>
+                                        <span className="block text-2xl font-bold text-foreground">{department.id}</span>
+                                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                                            Record ID
+                                        </span>
+                                    </div>
+                                    <PencilLine className="h-5 w-5 text-muted-foreground" />
+                                </div>
+
+                                <div className="flex items-end justify-between border-b pb-4">
+                                    <div>
+                                        <span className="block text-2xl font-bold text-foreground">
+                                            {data.is_active ? 'Live' : 'Paused'}
+                                        </span>
+                                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                                            Lifecycle
+                                        </span>
+                                    </div>
+                                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                                </div>
+
+                                <div>
+                                    <span className="block text-2xl font-bold text-foreground">
+                                        {data.code ? data.code.split('-').filter(Boolean).length : 0}
+                                    </span>
+                                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                                        Code Segments
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="relative overflow-hidden shadow-sm">
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
+                                    <Eye className="h-4.5 w-4.5 text-muted-foreground" />
+                                    <CardTitle className="text-base">Registry Preview</CardTitle>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="space-y-3">
+                                <div className="h-4 w-3/4 rounded bg-muted" />
+                                <div className="h-3 w-1/2 rounded bg-muted/70" />
+
+                                <div className="mt-4 rounded-lg border bg-muted/20 p-4">
+                                    <p className="text-sm font-semibold text-foreground">
+                                        {data.name || 'Department name'}
+                                    </p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        {data.code || 'Department code'}
+                                    </p>
+                                    <p className="mt-2 text-[11px] text-muted-foreground">
+                                        {data.is_active ? 'Available for assignment' : 'Not currently assignable'}
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="shadow-sm">
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
+                                    <Users className="h-4.5 w-4.5 text-muted-foreground" />
+                                    <CardTitle className="text-base">Usage Readiness</CardTitle>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="text-sm text-muted-foreground">
+                                Active departments remain available to employee profiles, appraisal templates, and goal
+                                library mapping throughout the system.
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </form>
         </PerformancePage>
     );
 }
