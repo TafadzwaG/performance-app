@@ -1,6 +1,6 @@
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import type { BreadcrumbItem } from '@/types';
 import type { AccessUserRecord, Option } from '@/types/performance';
@@ -24,8 +24,8 @@ export default function UserEdit({ userRecord, roleOptions, permissionGroups, se
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Performance', href: '/performance/dashboard' },
         { title: 'Users', href: route('access.users.index') },
-        { title: userRecord.name, href: route('access.users.show', userRecord.id) },
-        { title: 'Edit', href: route('access.users.edit', userRecord.id) },
+        { title: userRecord.name, href: route('access.users.show', { user: userRecord.id }) },
+        { title: 'Edit', href: route('access.users.edit', { user: userRecord.id }) },
     ];
 
     const { data, setData, put, processing } = useForm<{
@@ -46,13 +46,18 @@ export default function UserEdit({ userRecord, roleOptions, permissionGroups, se
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        put(route('access.users.update', userRecord.id));
+        put(route('access.users.update', { user: userRecord.id }));
     };
 
     return (
         <PerformancePage title="Edit User" description="Update basic account details and access assignments." breadcrumbs={breadcrumbs}>
             <Card>
-                <CardContent className="p-6">
+                <CardHeader>
+                    <CardTitle>Edit User</CardTitle>
+                    <CardDescription>Update identity details, role membership, and direct permissions.</CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-6 p-6 pt-0">
                     <form onSubmit={submit} className="space-y-6">
                         <div className="grid gap-4 md:grid-cols-2">
                             <label className="grid gap-2 text-sm">
