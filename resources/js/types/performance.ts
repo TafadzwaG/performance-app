@@ -86,6 +86,7 @@ export interface Competency {
     is_active: boolean;
     department?: Department | null;
     job_title?: JobTitle | null;
+    appraisal_competency_ratings_count?: number;
 }
 
 export interface TemplateItem {
@@ -152,12 +153,35 @@ export interface BasicUser {
     name: string;
     email: string;
     email_verified_at?: string | null;
+    force_password_change?: boolean;
+    password_changed_at?: string | null;
+    welcome_notification_sent_at?: string | null;
     roles?: Array<{ id: number; name: string }>;
     permissions?: Array<{ id: number; name: string }>;
 }
 
 export interface AccessUserRecord extends BasicUser {
     employee_profile?: EmployeeProfile | null;
+}
+
+export interface AuditTrailRecord {
+    id: number;
+    user_id?: number | null;
+    impersonator_user_id?: number | null;
+    action: string;
+    method: string;
+    route_name?: string | null;
+    url: string;
+    ip_address?: string | null;
+    user_agent?: string | null;
+    subject_type?: string | null;
+    subject_id?: number | null;
+    subject_label?: string | null;
+    request_payload?: Record<string, unknown> | null;
+    response_status: number;
+    occurred_at: string;
+    user?: BasicUser | null;
+    impersonator?: BasicUser | null;
 }
 
 export interface EmployeeProfile {

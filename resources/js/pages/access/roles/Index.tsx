@@ -6,42 +6,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { BreadcrumbItem } from '@/types';
 import type { Paginated, RoleRecord } from '@/types/performance';
 import { Link } from '@inertiajs/react';
-import {
-    Activity,
-    ClipboardCheck,
-    Database,
-    Fingerprint,
-    Key,
-    Lock,
-    Plus,
-    Settings2,
-    ShieldAlert,
-    ShieldCheck,
-    User,
-    UserCog,
-    Users,
-} from 'lucide-react';
+import { Eye, KeyRound, Pencil, Plus, Shield, UserCog, Users } from 'lucide-react';
 
-const RoleIcon = ({ name, id, className }: { name: string; id: number; className?: string }) => {
-    const normalized = name.toLowerCase();
+function formatPermissionName(value: string) {
+    return value
+        .replaceAll('.', ' / ')
+        .replaceAll('_', ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
-    if (normalized.includes('super admin')) return <ShieldAlert className={className} />;
-    if (normalized.includes('hr admin')) return <UserCog className={className} />;
-    if (normalized.includes('approving manager')) return <ClipboardCheck className={className} />;
-    if (normalized.includes('manager')) return <Users className={className} />;
-    if (normalized.includes('employee')) return <User className={className} />;
-
-    const library = [Fingerprint, Key, ShieldCheck];
-    const Icon = library[id % library.length];
-
-    return <Icon className={className} />;
-};
-
-const formatPermission = (name: string) => {
-    const parts = name.split('.');
-    const label = parts.length > 1 ? parts.slice(1).join(' ') : name;
-    return label.replace(/_/g, ' ');
-};
+function getInitials(name: string) {
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('') || 'R';
+}
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -49,14 +30,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function RolesIndex({ roles }: { roles: Paginated<RoleRecord> }) {
-    const totalRoles = roles?.total ?? roles?.data?.length ?? 0;
-    const from = roles?.from ?? 0;
-    const to = roles?.to ?? roles?.data?.length ?? 0;
+    const rolesOnPage = roles.data.length;
+    const totalRoles = roles.total ?? rolesOnPage;
+    const rolesWithUsers = roles.data.filter((role) => (role.users?.length ?? 0) > 0).length;
+    const totalAssignedUsers = roles.data.reduce((sum, role) => sum + (role.users?.length ?? 0), 0);
+    const totalPermissionLinks = roles.data.reduce((sum, role) => sum + (role.permissions?.length ?? 0), 0);
 
     return (
         <PerformancePage
-            title="Roles & Access"
-            description="Manage organizational roles and granular permission sets."
+            title="Roles"
+            description="Manage role definitions, permission bundles, and assigned users."
             breadcrumbs={breadcrumbs}
             primaryAction={{
                 label: 'New Role',
@@ -64,50 +47,91 @@ export default function RolesIndex({ roles }: { roles: Paginated<RoleRecord> }) 
                 icon: <Plus className="h-4 w-4" />,
             }}
         >
-            <div className="w-full max-w-none space-y-6">
-                {/* Header */}
-                <div className="rounded-2xl border bg-background p-6 shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                        <div className="space-y-2">
-                            <div className="inline-flex items-center gap-2 rounded-full border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                                <ShieldCheck className="h-3.5 w-3.5" />
-                                Role Directory
+            <div className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-4">
+                    <Card>
+                        <CardContent className="flex items-center gap-4 p-5">
+                            <div className="rounded-lg border bg-muted p-3 text-foreground">
+                                <Shield className="h-4 w-4" />
                             </div>
-
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight text-foreground">Roles & Access</h1>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    Manage organizational roles, permission assignments, and user access coverage.
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Total Roles
                                 </p>
+                                <p className="text-lg font-semibold">{totalRoles}</p>
                             </div>
-                        </div>
+                        </CardContent>
+                    </Card>
 
-                        <Button asChild>
-                            <Link href={route('access.roles.create')}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                New Role
-                            </Link>
-                        </Button>
-                    </div>
+                    <Card>
+                        <CardContent className="flex items-center gap-4 p-5">
+                            <div className="rounded-lg border bg-muted p-3 text-foreground">
+                                <Users className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Roles With Users
+                                </p>
+                                <p className="text-lg font-semibold">{rolesWithUsers}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="flex items-center gap-4 p-5">
+                            <div className="rounded-lg border bg-muted p-3 text-foreground">
+                                <UserCog className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    User Assignments
+                                </p>
+                                <p className="text-lg font-semibold">{totalAssignedUsers}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="flex items-center gap-4 p-5">
+                            <div className="rounded-lg border bg-muted p-3 text-foreground">
+                                <KeyRound className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Permission Links
+                                </p>
+                                <p className="text-lg font-semibold">{totalPermissionLinks}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
 
-                {/* Table */}
-                <Card className="w-full shadow-sm">
+                <Card>
+                    <CardHeader>
+                        <CardDescription className="text-[11px] font-medium uppercase tracking-[0.18em]">
+                            Access Directory
+                        </CardDescription>
+                        <CardTitle>Role Catalogue</CardTitle>
+                    </CardHeader>
+
                     <CardContent className="p-0">
-                        <div className="w-full overflow-x-auto">
+                        <div className="overflow-x-auto">
                             <table className="min-w-full text-left text-sm">
-                                <thead className="border-b bg-muted/40">
+                                <thead className="border-b bg-muted/30">
                                     <tr>
-                                        <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                            Role Identity
+                                        <th className="px-5 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                            Role
                                         </th>
-                                        <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                        <th className="px-5 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                             Permissions
                                         </th>
-                                        <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                            Users
+                                        <th className="px-5 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                            Assigned Users
                                         </th>
-                                        <th className="px-6 py-4 text-right text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                        <th className="px-5 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                            Guard
+                                        </th>
+                                        <th className="px-5 py-3 text-right text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                             Actions
                                         </th>
                                     </tr>
@@ -116,92 +140,65 @@ export default function RolesIndex({ roles }: { roles: Paginated<RoleRecord> }) 
                                 <tbody>
                                     {roles.data.length > 0 ? (
                                         roles.data.map((role) => (
-                                            <tr
-                                                key={role.id}
-                                                className="border-t transition-colors hover:bg-muted/30"
-                                            >
-                                                <td className="px-6 py-5">
+                                            <tr key={role.id} className="border-t transition-colors hover:bg-muted/20">
+                                                <td className="px-5 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="flex h-11 w-11 items-center justify-center rounded-xl border bg-muted/40 text-foreground">
-                                                            <RoleIcon
-                                                                name={role.name}
-                                                                id={role.id}
-                                                                className="h-5 w-5 stroke-[2px]"
-                                                            />
+                                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border bg-muted text-sm font-medium text-foreground">
+                                                            {getInitials(role.name)}
                                                         </div>
-
                                                         <div className="min-w-0">
-                                                            <div className="truncate font-semibold text-foreground">
-                                                                {role.name}
-                                                            </div>
-                                                            <div className="truncate text-xs text-muted-foreground">
-                                                                ID: ROLE-{role.id} • {role.guard_name}
-                                                            </div>
+                                                            <div className="truncate font-medium text-foreground">{role.name}</div>
+                                                            <div className="text-xs text-muted-foreground">Role ID #{role.id}</div>
                                                         </div>
                                                     </div>
                                                 </td>
 
-                                                <td className="px-6 py-5">
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {role.permissions && role.permissions.length > 0 ? (
-                                                            <>
-                                                                {role.permissions.slice(0, 3).map((perm) => (
-                                                                    <Badge key={perm.id} variant="secondary">
-                                                                        {formatPermission(perm.name)}
-                                                                    </Badge>
-                                                                ))}
-
-                                                                {role.permissions.length > 3 && (
-                                                                    <span className="rounded-md border bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-                                                                        +{role.permissions.length - 3} more
-                                                                    </span>
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-sm text-muted-foreground">
-                                                                No active permissions
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                <td className="px-5 py-4">
+                                                    {role.permissions && role.permissions.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {role.permissions.slice(0, 3).map((permission) => (
+                                                                <Badge key={permission.id} variant="secondary">
+                                                                    {formatPermissionName(permission.name)}
+                                                                </Badge>
+                                                            ))}
+                                                            {role.permissions.length > 3 ? (
+                                                                <Badge variant="outline">+{role.permissions.length - 3} more</Badge>
+                                                            ) : null}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">No permissions assigned</span>
+                                                    )}
                                                 </td>
 
-                                                <td className="px-6 py-5">
-                                                    <div className="flex items-center">
-                                                        {role.users && role.users.length > 0 ? (
-                                                            <div className="flex -space-x-2">
-                                                                {role.users.slice(0, 3).map((user) => (
-                                                                    <div
-                                                                        key={user.id}
-                                                                        title={user.email}
-                                                                        className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-bold uppercase text-foreground shadow-sm"
-                                                                    >
-                                                                        {user.name.charAt(0)}
-                                                                    </div>
-                                                                ))}
-
-                                                                {role.users.length > 3 && (
-                                                                    <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-medium text-muted-foreground shadow-sm">
-                                                                        +{role.users.length - 3}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-sm text-muted-foreground">No users</span>
-                                                        )}
-                                                    </div>
+                                                <td className="px-5 py-4">
+                                                    {role.users && role.users.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {role.users.slice(0, 2).map((user) => (
+                                                                <Badge key={user.id} variant="outline">
+                                                                    {user.name}
+                                                                </Badge>
+                                                            ))}
+                                                            {role.users.length > 2 ? (
+                                                                <Badge variant="outline">+{role.users.length - 2} more</Badge>
+                                                            ) : null}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">No users assigned</span>
+                                                    )}
                                                 </td>
 
-                                                <td className="px-6 py-5">
+                                                <td className="px-5 py-4 text-sm text-foreground">{role.guard_name ?? 'web'}</td>
+
+                                                <td className="px-5 py-4">
                                                     <div className="flex justify-end gap-2">
                                                         <Button asChild variant="ghost" size="icon">
-                                                            <Link href={route('access.roles.edit', role.id)}>
-                                                                <Settings2 className="h-4 w-4" />
+                                                            <Link href={route('access.roles.show', { role: role.id })}>
+                                                                <Eye className="h-4 w-4" />
                                                             </Link>
                                                         </Button>
-
-                                                        <Button asChild variant="outline" size="sm">
-                                                            <Link href={route('access.roles.show', role.id)}>
-                                                                Manage Access
+                                                        <Button asChild variant="ghost" size="icon">
+                                                            <Link href={route('access.roles.edit', { role: role.id })}>
+                                                                <Pencil className="h-4 w-4" />
                                                             </Link>
                                                         </Button>
                                                     </div>
@@ -210,16 +207,14 @@ export default function RolesIndex({ roles }: { roles: Paginated<RoleRecord> }) 
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-14 text-center">
+                                            <td colSpan={5} className="px-6 py-14 text-center">
                                                 <div className="mx-auto max-w-md space-y-2">
-                                                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-foreground">
-                                                        <ShieldCheck className="h-5 w-5" />
+                                                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-muted text-muted-foreground">
+                                                        <Shield className="h-5 w-5" />
                                                     </div>
-                                                    <h3 className="text-base font-semibold text-foreground">
-                                                        No roles found
-                                                    </h3>
+                                                    <h3 className="text-base font-semibold text-foreground">No roles found</h3>
                                                     <p className="text-sm text-muted-foreground">
-                                                        There are no roles available to display right now.
+                                                        Create a role to start assigning permissions and users.
                                                     </p>
                                                 </div>
                                             </td>
@@ -229,67 +224,54 @@ export default function RolesIndex({ roles }: { roles: Paginated<RoleRecord> }) 
                             </table>
                         </div>
 
-                        <div className="flex flex-col gap-4 border-t bg-background px-6 py-4 md:flex-row md:items-center md:justify-between">
-                            <div className="text-xs text-muted-foreground">
-                                Showing <span className="font-semibold text-foreground">{from}</span> to{' '}
-                                <span className="font-semibold text-foreground">{to}</span> of{' '}
-                                <span className="font-semibold text-foreground">{totalRoles}</span> system roles
+                        {roles.links.length > 0 ? (
+                            <div className="border-t px-5 py-4">
+                                <PaginationLinks paginated={roles} />
                             </div>
-
-                            <PaginationLinks paginated={roles} />
-                        </div>
+                        ) : null}
                     </CardContent>
                 </Card>
 
-                {/* Bottom insight cards */}
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <Card className="shadow-sm">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2 text-foreground">
-                                <Database className="h-4.5 w-4.5" />
-                                <CardTitle className="text-sm">Total Roles</CardTitle>
-                            </div>
-                            <CardDescription>
-                                Defined role entries in the current system.
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <Card>
+                        <CardHeader>
+                            <CardDescription className="text-[11px] font-medium uppercase tracking-[0.18em]">
+                                Current Page Summary
                             </CardDescription>
+                            <CardTitle>Role Coverage</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-foreground">{totalRoles}</div>
-                            <p className="mt-1 text-xs text-muted-foreground">Defined in system architecture.</p>
+
+                        <CardContent className="space-y-3">
+                            <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+                                <span className="text-sm text-foreground">Roles on this page</span>
+                                <span className="font-medium text-foreground">{rolesOnPage}</span>
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+                                <span className="text-sm text-foreground">Roles with assigned users</span>
+                                <span className="font-medium text-foreground">{rolesWithUsers}</span>
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+                                <span className="text-sm text-foreground">Roles without users</span>
+                                <span className="font-medium text-foreground">{rolesOnPage - rolesWithUsers}</span>
+                            </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="shadow-sm">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2 text-foreground">
-                                <Lock className="h-4.5 w-4.5" />
-                                <CardTitle className="text-sm">Auth Guard</CardTitle>
-                            </div>
-                            <CardDescription>
-                                Active authentication provider context.
+                    <Card>
+                        <CardHeader>
+                            <CardDescription className="text-[11px] font-medium uppercase tracking-[0.18em]">
+                                Operational Note
                             </CardDescription>
+                            <CardTitle>Permission-Driven Access</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-foreground">Web</div>
-                            <p className="mt-1 text-xs text-muted-foreground">Active provider session verified.</p>
-                        </CardContent>
-                    </Card>
 
-                    <Card className="shadow-sm">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2 text-foreground">
-                                <Activity className="h-4.5 w-4.5" />
-                                <CardTitle className="text-sm">Sync Status</CardTitle>
-                            </div>
-                            <CardDescription>
-                                System role synchronization status.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-foreground">Live</div>
-                            <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                                <div className="h-full w-full rounded-full bg-foreground/70" />
-                            </div>
+                        <CardContent className="space-y-3 text-sm text-muted-foreground">
+                            <p>
+                                Roles in this module are database-managed and resolve access through assigned permissions rather than hardcoded role checks.
+                            </p>
+                            <p>
+                                Use role details to review permission bundles and user membership before making changes.
+                            </p>
                         </CardContent>
                     </Card>
                 </div>

@@ -24,8 +24,10 @@ use App\Http\Controllers\Performance\Setup\PerspectiveController;
 use App\Http\Controllers\Performance\Setup\RatingScaleController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('auth')->prefix('performance')->as('performance.')->group(function () {
-    Route::get('dashboard', DashboardController::class)->name('dashboard');
+Route::middleware(['auth', 'password.change'])->prefix('performance')->as('performance.')->group(function () {
+    Route::get('dashboard', DashboardController::class)
+        ->middleware('employee.profile.complete')
+        ->name('dashboard');
 
     Route::resource('setup/departments', DepartmentController::class)
         ->parameters(['departments' => 'department'])

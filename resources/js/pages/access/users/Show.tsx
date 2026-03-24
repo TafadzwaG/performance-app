@@ -1,12 +1,13 @@
+import GeneratedCredentialsAlert from '@/components/access/users/GeneratedCredentialsAlert';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 import type { AccessUserRecord } from '@/types/performance';
-import { Link } from '@inertiajs/react';
-import { BadgeCheck, Briefcase, Building2, ChevronRight, ExternalLink, KeyRound, Mail, Shield, User2, Users } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { ArrowLeft, BadgeCheck, Briefcase, Building2, ChevronRight, ExternalLink, KeyRound, Lock, Mail, Shield, SquarePen, User2, Users } from 'lucide-react';
 
 interface PermissionRecord {
     id: number;
@@ -41,6 +42,7 @@ export default function UserShow({
     userRecord: AccessUserRecord;
     effectivePermissions: PermissionRecord[];
 }) {
+    const { flash } = usePage<SharedData>().props;
     const linkedEmployee = userRecord.employee_profile;
     const roles = userRecord.roles ?? [];
     const directPermissions = userRecord.permissions ?? [];
@@ -54,15 +56,23 @@ export default function UserShow({
             secondaryActions={
                 <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline">
-                        <Link href={route('access.users.edit', { user: userRecord.id })}>Edit User</Link>
+                        <Link href={route('access.users.index')}>
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Back to Users
+                        </Link>
                     </Button>
                     <Button asChild variant="secondary">
-                        <Link href={route('access.users.edit', { user: userRecord.id })}>Manage Access</Link>
+                        <Link href={route('access.users.edit', { user: userRecord.id })}>
+                            <SquarePen className="mr-2 h-4 w-4" />
+                            Manage Access
+                        </Link>
                     </Button>
                 </div>
             }
         >
             <div className="space-y-6">
+                <GeneratedCredentialsAlert credentials={flash.generatedCredentials} />
+
                 <Card>
                     <CardHeader className="gap-4">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -96,6 +106,13 @@ export default function UserShow({
                                     Email Not Verified
                                 </Badge>
                             )}
+
+                            {userRecord.force_password_change ? (
+                                <Badge variant="outline" className="w-fit">
+                                    <Lock className="mr-1 h-3.5 w-3.5" />
+                                    Password Change Required
+                                </Badge>
+                            ) : null}
                         </div>
                     </CardHeader>
                 </Card>

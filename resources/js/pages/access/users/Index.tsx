@@ -1,14 +1,15 @@
+import GeneratedCredentialsAlert from '@/components/access/users/GeneratedCredentialsAlert';
 import PaginationLinks from '@/components/performance/PaginationLinks';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 import type { AccessUserRecord, Paginated } from '@/types/performance';
-import { Link, useForm } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent } from 'react';
-import { Activity, Briefcase, Eye, Filter, Pencil, Search, ShieldCheck, UserPlus, Users } from 'lucide-react';
+import { Activity, Briefcase, Download, Eye, Filter, LogIn, Pencil, RotateCcw, Search, ShieldCheck, UserPlus, Users } from 'lucide-react';
 
 interface Props {
     users?: Paginated<AccessUserRecord> | null;
@@ -31,10 +32,15 @@ function permissionTone(count: number) {
 }
 
 export default function UsersIndex({ users, filters }: Props) {
+    const { auth, flash } = usePage<SharedData>().props;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Performance', href: '/performance/dashboard' },
         { title: 'Users', href: route('access.users.index') },
     ];
+    const canCreateUsers = auth.permissions.includes('access.users.create');
+    const canImportUsers = auth.permissions.includes('access.users.import');
+    const canImpersonateUsers = auth.permissions.includes('access.users.impersonate');
+    const isImpersonating = auth.impersonation?.isImpersonating ?? false;
 
     const safeUsers: Paginated<AccessUserRecord> = {
         data: users?.data ?? [],
@@ -67,6 +73,16 @@ export default function UsersIndex({ users, filters }: Props) {
     const usersWithRoles = safeUsers.data.filter((user) => (user.roles?.length ?? 0) > 0).length;
     const totalDirectPermissions = safeUsers.data.reduce((sum, user) => sum + (user.permissions?.length ?? 0), 0);
 
+    const startImpersonation = (user: AccessUserRecord) => {
+        router.post(
+            route('access.users.impersonate.store', { user: user.id }),
+            {},
+            {
+                preserveScroll: true,
+            },
+        );
+    };
+
     return (
         <PerformancePage
             title="Users"
@@ -74,6 +90,8 @@ export default function UsersIndex({ users, filters }: Props) {
             breadcrumbs={breadcrumbs}
         >
             <div className="space-y-6">
+                <GeneratedCredentialsAlert credentials={flash.generatedCredentials} />
+
                 <Card>
                     <CardHeader className="gap-4">
                         <div className="inline-flex w-fit items-center gap-2 rounded-md border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -89,10 +107,33 @@ export default function UsersIndex({ users, filters }: Props) {
                                 </CardDescription>
                             </div>
 
-                            <Button type="button" variant="outline" disabled>
-                                <UserPlus className="mr-2 h-4 w-4" />
-                                Create User Route Pending
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                                {canImportUsers ? (
+                                    <Button asChild type="button" variant="outline">
+                                        <Link href={route('access.users.import.create')}>
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Import Users
+                                        </Link>
+                                    </Button>
+                                ) : null}
+
+                                {canCreateUsers ? (
+                                    <>
+                                        <Button asChild type="button" variant="outline">
+                                            <Link href={route('access.users.bulk_create')}>
+                                                <Users className="mr-2 h-4 w-4" />
+                                                Add Multiple
+                                            </Link>
+                                        </Button>
+                                        <Button asChild type="button">
+                                            <Link href={route('access.users.create')}>
+                                                <UserPlus className="mr-2 h-4 w-4" />
+                                                Create User
+                                            </Link>
+                                        </Button>
+                                    </>
+                                ) : null}
+                            </div>
                         </div>
                     </CardHeader>
                 </Card>
@@ -116,7 +157,10 @@ export default function UsersIndex({ users, filters }: Props) {
                             </Button>
 
                             <Button asChild variant="outline">
-                                <Link href={route('access.users.index')}>Reset</Link>
+                                <Link href={route('access.users.index')}>
+                                    <RotateCcw className="mr-2 h-4 w-4" />
+                                    Reset
+                                </Link>
                             </Button>
                         </form>
 
@@ -215,6 +259,19 @@ export default function UsersIndex({ users, filters }: Props) {
                                                                 <Pencil className="h-4 w-4" />
                                                             </Link>
                                                         </Button>
+
+                                                        {canImpersonateUsers && !isImpersonating && auth.user.id !== user.id && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                title={`Impersonate ${user.name}`}
+                                                                onClick={() => startImpersonation(user)}
+                                                            >
+                                                                <LogIn className="mr-2 h-4 w-4" />
+                                                                Impersonate
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

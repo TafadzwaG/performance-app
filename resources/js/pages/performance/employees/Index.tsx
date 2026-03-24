@@ -72,15 +72,7 @@ export default function EmployeesIndex({ employeeProfiles, filters, can }: Props
             title="Employees"
             description="Manage employee records, reporting lines, and performance readiness."
             breadcrumbs={breadcrumbs}
-            primaryAction={
-                can.create
-                    ? {
-                          label: 'New Employee',
-                          href: route('performance.employees.create'),
-                          icon: <Plus className="h-4 w-4" />,
-                      }
-                    : undefined
-            }
+          
         >
             <div className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-3">

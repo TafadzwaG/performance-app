@@ -29,13 +29,13 @@ export default function PerformancePage({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={title} />
-            <div className="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex h-full flex-1 flex-col gap-5 rounded-lg p-3 md:p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <Heading title={title} description={description} />
                     <div className="flex flex-wrap items-center gap-2">
                         {secondaryActions}
                         {primaryAction ? (
-                            <Button asChild>
+                            <Button asChild size="sm">
                                 <Link href={primaryAction.href} className="inline-flex items-center gap-2">
                                     {primaryAction.icon}
                                     <span>{primaryAction.label}</span>

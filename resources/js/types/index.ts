@@ -4,6 +4,13 @@ export interface Auth {
     user: User;
     roles: string[];
     permissions: string[];
+    requiresPasswordChange: boolean;
+    hasEmployeeProfile: boolean;
+    requiresEmployeeProfileCompletion: boolean;
+    impersonation: {
+        isImpersonating: boolean;
+        impersonator: Pick<User, 'id' | 'name' | 'email'> | null;
+    };
 }
 
 export interface BreadcrumbItem {
@@ -21,12 +28,17 @@ export interface NavItem {
     url: string;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    items?: NavItem[];
 }
 
 export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    flash: {
+        success?: string | null;
+        generatedCredentials?: Array<{ name: string; email: string; password: string }> | null;
+    };
     [key: string]: unknown;
 }
 

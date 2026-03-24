@@ -1,32 +1,46 @@
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+} from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
-import { BarChart3, BookOpen, Briefcase, Building2, ClipboardList, FileText, Folder, LayoutGrid, RefreshCw, Shield, Users } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import {
+    BarChart3,
+    BookOpen,
+    Briefcase,
+    Building2,
+    CircleHelp,
+    ClipboardList,
+    FileText,
+    Gauge,
+    History,
+    LayoutGrid,
+    LogOut,
+    RefreshCw,
+    Shield,
+    SlidersHorizontal,
+    Target,
+    Users,
+} from 'lucide-react';
 import AppLogo from './app-logo';
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        url: '/users',
-        icon: Folder,
-    },
-   
-];
 
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
     const permissions = auth.permissions ?? [];
     const can = (...required: string[]) => required.some((permission) => permissions.includes(permission));
-
-    const mainNavItems: NavItem[] = [
-        {
-            title: 'Dashboard',
-            url: '/dashboard',
-            icon: LayoutGrid,
-        },
+    const impersonation = auth.impersonation;
+    const setupItems: NavItem[] = [
         ...(can('performance.setup.departments.view')
             ? [
                   {
@@ -42,6 +56,68 @@ export function AppSidebar() {
                       title: 'Job Titles',
                       url: '/performance/setup/job-titles',
                       icon: Briefcase,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('performance.setup.perspectives.view')
+            ? [
+                  {
+                      title: 'Perspectives',
+                      url: '/performance/setup/perspectives',
+                      icon: Target,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('performance.setup.competencies.view')
+            ? [
+                  {
+                      title: 'Competencies',
+                      url: '/performance/setup/competencies',
+                      icon: Gauge,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('performance.setup.rating_scales.view')
+            ? [
+                  {
+                      title: 'Rating Scales',
+                      url: '/performance/setup/rating-scales',
+                      icon: SlidersHorizontal,
+                  } satisfies NavItem,
+              ]
+            : []),
+    ];
+
+    const footerNavItems: NavItem[] = [
+        {
+            title: 'Help & Docs',
+            url: route('access.help.index'),
+            icon: CircleHelp,
+        } satisfies NavItem,
+        ...(can('access.audit_trails.view')
+            ? [
+                  {
+                      title: 'Audit Trail',
+                      url: route('access.audit-trails.index'),
+                      icon: History,
+                  } satisfies NavItem,
+              ]
+            : []),
+    ];
+
+    const mainNavItems: NavItem[] = [
+        {
+            title: 'Dashboard',
+            url: '/dashboard',
+            icon: LayoutGrid,
+        },
+        ...(setupItems.length > 0
+            ? [
+                  {
+                      title: 'Setup',
+                      url: '/performance/setup/departments',
+                      icon: Building2,
+                      items: setupItems,
                   } satisfies NavItem,
               ]
             : []),
@@ -117,7 +193,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('access.users.view', 'access.users.update')
+        ...(can('access.users.view', 'access.users.create', 'access.users.update', 'access.users.import')
             ? [
                   {
                       title: 'Access Users',
@@ -152,6 +228,35 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
+                {impersonation?.isImpersonating && (
+                    <SidebarGroup className="pb-0">
+                        <SidebarGroupLabel>Impersonation</SidebarGroupLabel>
+                        <SidebarGroupContent className="space-y-2">
+                            <div className="rounded-md border border-sidebar-border/70 bg-sidebar-accent/40 px-2.5 py-2 text-xs leading-5 text-sidebar-foreground/80 group-data-[collapsible=icon]:hidden">
+                                <div className="font-medium text-sidebar-foreground">Impersonating {auth.user.name}</div>
+                                <div>Original session: {impersonation.impersonator?.name ?? 'Unknown user'}</div>
+                            </div>
+
+                            <SidebarMenu>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
+                                        type="button"
+                                        tooltip="Stop impersonating"
+                                        onClick={() =>
+                                            router.delete(route('access.impersonation.destroy'), {
+                                                preserveScroll: true,
+                                            })
+                                        }
+                                    >
+                                        <LogOut />
+                                        <span>Stop Impersonating</span>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            </SidebarMenu>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+                )}
+
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 

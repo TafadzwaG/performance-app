@@ -1,9 +1,10 @@
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import InputError from '@/components/input-error';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { type BreadcrumbItem } from '@/types';
 import { Transition } from '@headlessui/react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
 
 import HeadingSmall from '@/components/heading-small';
@@ -19,6 +20,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function Password() {
+    const { forcePasswordChangeRequired = false } = usePage<{ forcePasswordChangeRequired?: boolean }>().props;
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
 
@@ -55,6 +57,15 @@ export default function Password() {
             <SettingsLayout>
                 <div className="space-y-6">
                     <HeadingSmall title="Update password" description="Ensure your account is using a long, random password to stay secure" />
+
+                    {forcePasswordChangeRequired ? (
+                        <Alert className="border-foreground/10 bg-muted/30">
+                            <AlertTitle>Password change required</AlertTitle>
+                            <AlertDescription>
+                                Your account requires a password change before you can continue using the system.
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
 
                     <form onSubmit={updatePassword} className="space-y-6">
                         <div className="grid gap-2">

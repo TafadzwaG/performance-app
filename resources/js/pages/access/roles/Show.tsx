@@ -1,284 +1,262 @@
-import PerformancePage from '@/components/performance/PerformancePage';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import PerformancePage from '@/components/performance/PerformancePage';
 import type { BreadcrumbItem } from '@/types';
 import type { RoleRecord } from '@/types/performance';
 import { Link } from '@inertiajs/react';
-import {
-    ArrowRight,
-    BarChart3,
-    Calendar,
-    ChevronRight,
-    Clock,
-    Download,
-    Edit,
-    Globe2,
-    History,
-    LayoutGrid,
-    Mail,
-    MapPin,
-    MoreVertical,
-    Settings,
-    Shield,
-    ShieldCheck,
-    UserPlus
-} from 'lucide-react';
+import { ChevronRight, KeyRound, Shield, UserCog, Users } from 'lucide-react';
 
 interface PermissionGroup {
     group: string;
     permissions: Array<{ id: number; name: string }>;
 }
 
+function formatPermissionName(value: string) {
+    return value
+        .replaceAll('.', ' / ')
+        .replaceAll('_', ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getInitials(name: string) {
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('') || 'R';
+}
+
 const breadcrumbs = (role: RoleRecord): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
     { title: 'Roles', href: route('access.roles.index') },
-    { title: role.name, href: route('access.roles.show', role.id) },
+    { title: role.name, href: route('access.roles.show', { role: role.id }) },
 ];
 
-const getGroupIcon = (group: string) => {
-    const name = group.toLowerCase();
-    if (name.includes('system') || name.includes('config')) return <Settings className="h-5 w-5" />;
-    if (name.includes('reporting') || name.includes('analytics')) return <BarChart3 className="h-5 w-5" />;
-    return <LayoutGrid className="h-5 w-5" />;
-};
-
-const getGroupDescription = (group: string) => {
-    const name = group.toLowerCase();
-    if (name.includes('system') || name.includes('config')) return 'Global settings and environment parameters';
-    if (name.includes('reporting') || name.includes('analytics')) return 'Data visualization and export capabilities';
-    return 'User control and asset allocation';
-};
-
 export default function RoleShow({ role, permissionGroups }: { role: RoleRecord; permissionGroups: PermissionGroup[] }) {
-    const totalPermissions = role.permissions?.length || 0;
+    const assignedPermissions = role.permissions ?? [];
+    const assignedUsers = role.users ?? [];
+    const coveredGroups = permissionGroups
+        .map((group) => ({
+            ...group,
+            assignedPermissions: group.permissions.filter((permission) => assignedPermissions.some((item) => item.id === permission.id)),
+        }))
+        .filter((group) => group.assignedPermissions.length > 0);
 
     return (
         <PerformancePage
             title={role.name}
             description="Role summary with assigned permissions and users."
             breadcrumbs={breadcrumbs(role)}
-            primaryAction={{
-                label: 'Edit',
-                href: route('access.roles.edit', role.id),
-                icon: <Edit className="h-4 w-4" />
-            }}
-        >
-            {/* fullPageWidthContainer */}
-            <div className="w-full p-6 lg:p-10 font-body text-on-surface bg-surface min-h-screen">
-                
-                {/* breadcrumbsAndHeader */}
-                <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-                    <div className="space-y-1">
-                        <nav className="flex items-center gap-2 font-label text-xs font-semibold uppercase tracking-[0.05em] text-slate-500">
-                            <span>Organization</span>
-                            <ChevronRight className="h-[14px] w-[14px]" />
-                            <span>Roles</span>
-                            <ChevronRight className="h-[14px] w-[14px]" />
-                            <span className="text-blue-600">{role.name}</span>
-                        </nav>
-                        <h1 className="font-headline text-3xl font-extrabold tracking-tight text-slate-900">
-                            {role.name}
-                            <span className="ml-2 rounded bg-slate-100 px-2 py-0.5 text-sm font-normal text-slate-500">
-                                ID: ROLE-{role.id}
-                            </span>
-                        </h1>
-                    </div>
-                    <div className="flex gap-3">
-                        <Button className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-200 active:scale-95 shadow-none border-none">
-                            <Download className="h-[18px] w-[18px]" />
-                            Export
-                        </Button>
-                        <Link href={route('access.roles.edit', role.id)}>
-                            {/* solidBlueButtonNoGradient */}
-                            <Button className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 border-none">
-                                <Edit className="h-[18px] w-[18px]" />
-                                Edit Role
-                            </Button>
-                        </Link>
-                    </div>
+            secondaryActions={
+                <div className="flex flex-wrap gap-2">
+                    <Button asChild variant="outline">
+                        <Link href={route('access.roles.index')}>Back to Roles</Link>
+                    </Button>
+                    <Button asChild>
+                        <Link href={route('access.roles.edit', { role: role.id })}>Edit Role</Link>
+                    </Button>
                 </div>
+            }
+        >
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader className="gap-4">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>Access</span>
+                            <ChevronRight className="h-3 w-3" />
+                            <span>Roles</span>
+                            <ChevronRight className="h-3 w-3" />
+                            <span className="font-medium text-foreground">{role.name}</span>
+                        </div>
 
-                {/* mainBentoGrid */}
-                <div className="grid grid-cols-12 gap-6">
-                    
-                    {/* permissionsSection */}
-                    <div className="col-span-12 space-y-6 lg:col-span-8">
-                        <div className="rounded-xl bg-white p-8 shadow-sm border border-slate-100">
-                            <div className="mb-8 flex items-center justify-between">
-                                <h3 className="flex items-center gap-2 font-headline text-lg font-bold text-slate-900">
-                                    <Shield className="h-5 w-5 text-blue-600" />
-                                    Role Permissions
-                                </h3>
-                                <span className="font-label text-xs font-bold uppercase tracking-widest text-slate-500">
-                                    {totalPermissions} Active Rules
-                                </span>
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="flex h-14 w-14 items-center justify-center rounded-xl border bg-muted text-lg font-semibold text-foreground">
+                                    {getInitials(role.name)}
+                                </div>
+
+                                <div className="min-w-0 space-y-1">
+                                    <CardTitle className="truncate text-3xl font-semibold">{role.name}</CardTitle>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Shield className="h-4 w-4" />
+                                        <span>Guard: {role.guard_name ?? 'web'}</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="space-y-10">
-                                {permissionGroups.map((group) => (
-                                    <div key={group.group} className="group">
-                                        <div className="mb-4 flex items-center gap-4">
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-50 transition-colors group-hover:bg-blue-50">
-                                                <div className="text-slate-500 transition-colors group-hover:text-blue-600">
-                                                    {getGroupIcon(group.group)}
+                            <Badge variant="secondary" className="w-fit">
+                                {assignedPermissions.length} permission{assignedPermissions.length === 1 ? '' : 's'}
+                            </Badge>
+                        </div>
+                    </CardHeader>
+                </Card>
+
+                <div className="grid gap-6 md:grid-cols-3">
+                    <Card>
+                        <CardContent className="flex items-center gap-4 p-5">
+                            <div className="rounded-lg border bg-muted p-3 text-foreground">
+                                <KeyRound className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Permissions
+                                </p>
+                                <p className="text-lg font-semibold">{assignedPermissions.length}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="flex items-center gap-4 p-5">
+                            <div className="rounded-lg border bg-muted p-3 text-foreground">
+                                <Users className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Assigned Users
+                                </p>
+                                <p className="text-lg font-semibold">{assignedUsers.length}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="flex items-center gap-4 p-5">
+                            <div className="rounded-lg border bg-muted p-3 text-foreground">
+                                <Shield className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Covered Groups
+                                </p>
+                                <p className="text-lg font-semibold">{coveredGroups.length}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="grid gap-6 xl:grid-cols-12">
+                    <Card className="xl:col-span-7">
+                        <CardHeader>
+                            <CardDescription className="text-[11px] font-medium uppercase tracking-[0.18em]">
+                                Permission Coverage
+                            </CardDescription>
+                            <CardTitle>Assigned Permissions</CardTitle>
+                        </CardHeader>
+
+                        <CardContent className="space-y-4">
+                            {coveredGroups.length > 0 ? (
+                                coveredGroups.map((group) => (
+                                    <div key={group.group} className="rounded-lg border">
+                                        <div className="flex items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+                                            <div>
+                                                <div className="font-medium text-foreground">{group.group}</div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {group.assignedPermissions.length} assigned permission
+                                                    {group.assignedPermissions.length === 1 ? '' : 's'}
                                                 </div>
                                             </div>
-                                            <div>
-                                                <h4 className="font-bold text-slate-900">{group.group}</h4>
-                                                <p className="text-sm text-slate-500">{getGroupDescription(group.group)}</p>
-                                            </div>
+
+                                            <Badge variant="outline">{group.assignedPermissions.length}</Badge>
                                         </div>
-                                        
-                                        <div className="grid grid-cols-1 gap-4 pl-14 md:grid-cols-2">
-                                            {group.permissions.map((permission) => {
-                                                const isAssigned = (role.permissions ?? []).some((p) => p.id === permission.id);
-                                                
-                                                return (
-                                                    <div 
-                                                        key={permission.id} 
-                                                        className="flex items-center justify-between rounded-lg border border-slate-200 p-3 transition-all hover:border-blue-300"
-                                                    >
-                                                        <span className="text-sm font-medium text-slate-700">{permission.name.replace(/_/g, ' ')}</span>
-                                                        {isAssigned ? (
-                                                            /* greenToggleForActiveState */
-                                                            <div className="relative h-5 w-10 rounded-full bg-green-500 transition-colors">
-                                                                <div className="absolute right-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm"></div>
-                                                            </div>
-                                                        ) : (
-                                                            /* greyToggleForInactiveState */
-                                                            <div className="relative h-5 w-10 rounded-full bg-slate-200 transition-colors">
-                                                                <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm"></div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
+
+                                        <div className="flex flex-wrap gap-2 p-4">
+                                            {group.assignedPermissions.map((permission) => (
+                                                <Badge key={permission.id} variant="secondary">
+                                                    {formatPermissionName(permission.name)}
+                                                </Badge>
+                                            ))}
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                                ))
+                            ) : (
+                                <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+                                    This role does not currently have any assigned permissions.
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
 
-                    {/* sidebarColumn */}
-                    <div className="col-span-12 space-y-6 lg:col-span-4">
-                        {/* assignedUsers */}
-                        <div className="rounded-xl bg-white p-8 shadow-sm border border-slate-100">
-                            <div className="mb-6 flex items-center justify-between">
-                                <h3 className="font-headline text-lg font-bold text-slate-900">Assigned Users</h3>
-                                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                                    {role.users?.length ?? 0} Active
-                                </span>
-                            </div>
-                            
-                            <div className="mb-8 space-y-4">
-                                {(role.users ?? []).map((user) => (
-                                    <div key={user.id} className="group flex items-center justify-between rounded-lg p-3 transition-colors hover:bg-slate-50">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-slate-700 font-bold">
-                                                {user.name.charAt(0)}
+                    <Card className="xl:col-span-5">
+                        <CardHeader>
+                            <CardDescription className="text-[11px] font-medium uppercase tracking-[0.18em]">
+                                Membership
+                            </CardDescription>
+                            <CardTitle>Assigned Users</CardTitle>
+                        </CardHeader>
+
+                        <CardContent className="space-y-3">
+                            {assignedUsers.length > 0 ? (
+                                assignedUsers.map((user) => (
+                                    <div key={user.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-sm font-medium text-foreground">
+                                                {getInitials(user.name)}
                                             </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-slate-900">{user.name}</p>
-                                                {/* addedMailIconHere */}
-                                                <p className="flex items-center gap-1 text-[11px] text-slate-500">
-                                                    <Mail className="h-3 w-3" />
-                                                    {user.email}
-                                                </p>
+                                            <div className="min-w-0">
+                                                <div className="truncate text-sm font-medium text-foreground">{user.name}</div>
+                                                <div className="truncate text-xs text-muted-foreground">{user.email}</div>
                                             </div>
                                         </div>
-                                        <MoreVertical className="h-5 w-5 cursor-pointer text-slate-400 opacity-0 transition-opacity group-hover:opacity-100" />
+
+                                        <Button asChild size="sm" variant="ghost">
+                                            <Link href={route('access.users.show', { user: user.id })}>View</Link>
+                                        </Button>
                                     </div>
-                                ))}
-                                {(!role.users || role.users.length === 0) && (
-                                    <p className="text-sm text-slate-500 italic text-center py-4">No users assigned to this role.</p>
-                                )}
-                            </div>
-                            
-                            <button className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-3 text-sm font-semibold text-slate-600 transition-all hover:border-blue-400 hover:text-blue-600">
-                                <UserPlus className="h-5 w-5" />
-                                Assign New User
-                            </button>
-                        </div>
-
-                        {/* geographicReachWithSolidBlueInsteadOfGradient */}
-                        <div className="rounded-xl bg-blue-50 border border-blue-100 p-6 shadow-sm">
-                            <h4 className="mb-4 flex items-center gap-2 text-sm font-bold text-blue-900">
-                                <Globe2 className="h-[18px] w-[18px]" />
-                                Geographic Reach
-                            </h4>
-                            <p className="mb-4 text-sm text-blue-800/80">
-                                This role is globally scoped across all primary datacenter regions.
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {/* addedMapPinIconsHere */}
-                                <span className="flex items-center gap-1 rounded bg-white px-2 py-1 text-[10px] font-bold text-blue-700 shadow-sm">
-                                    <MapPin className="h-3 w-3" /> NA-EAST-1
-                                </span>
-                                <span className="flex items-center gap-1 rounded bg-white px-2 py-1 text-[10px] font-bold text-blue-700 shadow-sm">
-                                    <MapPin className="h-3 w-3" /> EU-CENT-1
-                                </span>
-                                <span className="flex items-center gap-1 rounded bg-white px-2 py-1 text-[10px] font-bold text-blue-700 shadow-sm">
-                                    <MapPin className="h-3 w-3" /> AP-SOUTH-2
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* bottomInformationalCards */}
-                    <div className="col-span-12 grid grid-cols-1 gap-6 pt-4 md:grid-cols-3">
-                        
-                        <div className="rounded-xl border-l-4 border-blue-500 bg-white p-6 shadow-sm">
-                            <p className="mb-2 font-label text-xs font-bold uppercase tracking-widest text-slate-500">Registration</p>
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                                    <Calendar className="h-5 w-5" />
+                                ))
+                            ) : (
+                                <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+                                    No users are currently assigned to this role.
                                 </div>
-                                <div>
-                                    <h4 className="font-headline text-lg font-bold text-slate-900">Oct 12, 2023</h4>
-                                    {/* addedClockIconHere */}
-                                    <p className="flex items-center gap-1 text-xs text-slate-500">
-                                        <Clock className="h-3 w-3" />
-                                        Last updated 4d ago
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border-l-4 border-emerald-500 bg-white p-6 shadow-sm">
-                            <p className="mb-2 font-label text-xs font-bold uppercase tracking-widest text-slate-500">Compliance Tier</p>
-                            <div className="space-y-3">
-                                <div className="flex items-end justify-between">
-                                    {/* addedShieldCheckIconHere */}
-                                    <h4 className="flex items-center gap-2 font-headline text-lg font-bold text-slate-900">
-                                        <ShieldCheck className="h-5 w-5 text-emerald-500" />
-                                        Tier 3 (High)
-                                    </h4>
-                                    <span className="text-xs font-bold text-emerald-600">85% Secure</span>
-                                </div>
-                                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                                    <div className="h-full w-[85%] bg-emerald-500"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border-l-4 border-slate-300 bg-white p-6 shadow-sm">
-                            <p className="mb-2 font-label text-xs font-bold uppercase tracking-widest text-slate-500">Audit History</p>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                                        <History className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-headline text-lg font-bold text-slate-900">246 Logs</h4>
-                                        <p className="text-xs text-slate-500">Review pending</p>
-                                    </div>
-                                </div>
-                                <ArrowRight className="h-5 w-5 cursor-pointer text-slate-400 transition-colors hover:text-blue-600" />
-                            </div>
-                        </div>
-
-                    </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
+
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-lg border bg-muted p-2 text-foreground">
+                                <UserCog className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <CardDescription className="text-[11px] font-medium uppercase tracking-[0.18em]">
+                                    Operational Notes
+                                </CardDescription>
+                                <CardTitle className="text-lg">Role Behavior</CardTitle>
+                            </div>
+                        </div>
+                    </CardHeader>
+
+                    <CardContent className="grid gap-4 md:grid-cols-3">
+                        <div className="rounded-lg border bg-muted/20 p-4">
+                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                Permission Model
+                            </div>
+                            <div className="mt-2 text-sm text-foreground">
+                                This role resolves access through database-managed permissions only.
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg border bg-muted/20 p-4">
+                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                Runtime Scope
+                            </div>
+                            <div className="mt-2 text-sm text-foreground">
+                                Changes to this role affect all users assigned to it after synchronization.
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg border bg-muted/20 p-4">
+                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                Access Guard
+                            </div>
+                            <div className="mt-2 text-sm text-foreground">{role.guard_name ?? 'web'}</div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </PerformancePage>
     );

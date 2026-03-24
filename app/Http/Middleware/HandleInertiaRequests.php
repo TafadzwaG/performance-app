@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Lab404\Impersonate\Services\ImpersonateManager;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -37,15 +38,38 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
+        $impersonationManager = app(ImpersonateManager::class);
+        $impersonator = $impersonationManager->isImpersonating()
+            ? $impersonationManager->getImpersonator()
+            : null;
 
         return array_merge(parent::share($request), [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
+            'flash' => [
+                'success' => $request->session()->get('success'),
+                'generatedCredentials' => $request->session()->get('generated_credentials'),
+            ],
             'auth' => [
                 'user' => $request->user(),
                 'roles' => $request->user()?->getRoleNames()->values()->all() ?? [],
                 'permissions' => $request->user()?->getAllPermissions()->pluck('name')->values()->all() ?? [],
+                'requiresPasswordChange' => (bool) $request->user()?->force_password_change,
+                'hasEmployeeProfile' => (bool) $request->user()?->employeeProfile()->exists(),
+                'requiresEmployeeProfileCompletion' => $request->user()
+                    ? ! $request->user()->employeeProfile()->exists()
+                    : false,
+                'impersonation' => [
+                    'isImpersonating' => $impersonationManager->isImpersonating(),
+                    'impersonator' => $impersonator
+                        ? [
+                            'id' => $impersonator->id,
+                            'name' => $impersonator->name,
+                            'email' => $impersonator->email,
+                        ]
+                        : null,
+                ],
             ],
         ]);
     }

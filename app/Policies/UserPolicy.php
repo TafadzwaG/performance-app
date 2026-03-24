@@ -6,6 +6,11 @@ use App\Models\User;
 
 class UserPolicy
 {
+    public function create(User $user): bool
+    {
+        return $user->can('access.users.create');
+    }
+
     public function viewAny(User $user): bool
     {
         return $user->can('access.users.view');
@@ -19,5 +24,18 @@ class UserPolicy
     public function update(User $user, User $managedUser): bool
     {
         return $user->can('access.users.update');
+    }
+
+    public function impersonate(User $user, User $managedUser): bool
+    {
+        return $user->id !== $managedUser->id
+            && ! app('impersonate')->isImpersonating()
+            && $user->canImpersonate()
+            && $managedUser->canBeImpersonated();
+    }
+
+    public function import(User $user): bool
+    {
+        return $user->can('access.users.import');
     }
 }

@@ -1,13 +1,34 @@
 <?php
 
+use App\Http\Controllers\Access\AuditTrailController;
+use App\Http\Controllers\Access\HelpController;
 use App\Http\Controllers\Access\RoleController;
 use App\Http\Controllers\Access\UserController;
+use App\Http\Controllers\Access\UserImpersonationController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('auth')->prefix('access')->as('access.')->group(function () {
+Route::middleware(['auth', 'password.change'])->prefix('access')->as('access.')->group(function () {
+    Route::get('help', [HelpController::class, 'index'])->name('help.index');
+    Route::get('help/download/{document}/{format}', [HelpController::class, 'download'])->name('help.download');
+
+    Route::get('audit-trails', [AuditTrailController::class, 'index'])
+        ->middleware('permission:access.audit_trails.view')
+        ->name('audit-trails.index');
+
+    Route::get('users/bulk-create', [UserController::class, 'bulkCreate'])->name('users.bulk_create');
+    Route::post('users/bulk-create', [UserController::class, 'bulkStore'])->name('users.bulk_store');
+    Route::get('users/import', [UserController::class, 'importCreate'])->name('users.import.create');
+    Route::post('users/import', [UserController::class, 'importStore'])->name('users.import.store');
+    Route::get('users/import/template', [UserController::class, 'downloadImportTemplate'])->name('users.import.template');
+
     Route::resource('users', UserController::class)
         ->parameters(['users' => 'user'])
-        ->only(['index', 'show', 'edit', 'update']);
+        ->only(['index', 'create', 'store', 'show', 'edit', 'update']);
+
+    Route::post('users/{user}/impersonate', [UserImpersonationController::class, 'store'])
+        ->name('users.impersonate.store');
+    Route::delete('impersonation', [UserImpersonationController::class, 'destroy'])
+        ->name('impersonation.destroy');
 
     Route::resource('roles', RoleController::class)
         ->parameters(['roles' => 'role'])

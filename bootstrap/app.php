@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Middleware\RequirePasswordChange;
+use App\Http\Middleware\RequireEmployeeProfileCompletion;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RecordAuditTrail;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,12 +22,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            RecordAuditTrail::class,
         ]);
 
         $middleware->alias([
             'permission' => PermissionMiddleware::class,
             'role' => RoleMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'password.change' => RequirePasswordChange::class,
+            'employee.profile.complete' => RequireEmployeeProfileCompletion::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

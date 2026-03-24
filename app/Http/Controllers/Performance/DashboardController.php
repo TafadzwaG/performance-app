@@ -17,28 +17,45 @@ class DashboardController extends Controller
 
     public function __invoke(Request $request): Response
     {
-        $metrics = $this->reportQueryService->dashboard($request->user());
+        $dashboard = $this->reportQueryService->dashboard($request->user());
 
         $myAppraisals = $request->user()
             ->employeeProfile?->appraisals()
             ->with('reviewCycle')
             ->latest('updated_at')
-            ->limit(5)
+            ->limit(6)
             ->get() ?? collect();
 
         $teamAppraisals = $request->user()
             ->managedEmployeeProfiles()
-            ->with(['appraisals' => fn ($query) => $query->where('status', 'manager_review_pending')->latest('updated_at')])
+            ->with(['appraisals' => fn ($query) => $query->with('reviewCycle')->where('status', 'manager_review_pending')->latest('updated_at')])
             ->get()
             ->pluck('appraisals')
             ->flatten()
-            ->take(5)
+            ->take(6)
+            ->values();
+
+        $approvalQueue = $request->user()
+            ->approvingEmployeeProfiles()
+            ->with(['appraisals' => fn ($query) => $query->with('reviewCycle')->where('status', 'approval_pending')->latest('updated_at')])
+            ->get()
+            ->pluck('appraisals')
+            ->flatten()
+            ->take(6)
+            ->values();
+
+        $overdueQueue = $this->reportQueryService
+            ->overdueReviews()
+            ->load('reviewCycle')
+            ->take(6)
             ->values();
 
         return Inertia::render('performance/dashboard/Index', [
-            'metrics' => $metrics,
+            'dashboard' => $dashboard,
             'myAppraisals' => $myAppraisals,
             'teamPending' => $teamAppraisals,
+            'approvalQueue' => $approvalQueue,
+            'overdueQueue' => $overdueQueue,
         ]);
     }
 }

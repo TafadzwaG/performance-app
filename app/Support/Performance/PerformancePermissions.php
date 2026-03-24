@@ -99,7 +99,13 @@ class PerformancePermissions
             ],
             'Access Users' => [
                 'access.users.view',
+                'access.users.create',
                 'access.users.update',
+                'access.users.import',
+                'access.users.impersonate',
+            ],
+            'Audit Trail' => [
+                'access.audit_trails.view',
             ],
         ];
     }
@@ -176,7 +182,10 @@ class PerformancePermissions
                 'access.roles.assign_users',
                 'access.permissions.view',
                 'access.users.view',
+                'access.users.create',
                 'access.users.update',
+                'access.users.import',
+                'access.audit_trails.view',
             ],
             'Manager' => [
                 'performance.dashboard.view',
