@@ -10,6 +10,7 @@ use App\Http\Requests\Performance\SubmitManagerReviewRequest;
 use App\Models\Appraisal;
 use App\Models\RatingScaleLevel;
 use App\Services\Performance\AppraisalWorkflowService;
+use App\Services\Performance\AppraisalScoringService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ class AppraisalManagerReviewController extends Controller
 
     public function __construct(
         private readonly AppraisalWorkflowService $workflowService,
+        private readonly AppraisalScoringService $scoringService,
     ) {
     }
 
@@ -96,5 +98,14 @@ class AppraisalManagerReviewController extends Controller
         );
 
         return to_route('performance.appraisals.show', $appraisal);
+    }
+
+    public function recalculateScore(Appraisal $appraisal): RedirectResponse
+    {
+        $this->authorize('managerReview', $appraisal);
+
+        $this->scoringService->refresh($appraisal);
+
+        return to_route('performance.appraisals.manager_review', $appraisal);
     }
 }

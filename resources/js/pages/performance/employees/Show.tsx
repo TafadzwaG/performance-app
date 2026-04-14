@@ -2,10 +2,21 @@ import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate } from '@/lib/date-utils';
 import type { BreadcrumbItem } from '@/types';
-import type { EmployeeProfile } from '@/types/performance';
-import { Link } from '@inertiajs/react';
+import type { EmployeeProfile, Option } from '@/types/performance';
+import { Link, useForm } from '@inertiajs/react';
 import {
     Briefcase,
     CalendarDays,
@@ -20,7 +31,10 @@ import {
     UserCog,
     Users,
     PencilLine,
+    PieChart,
+    UserRoundCog,
 } from 'lucide-react';
+import { useState } from 'react';
 
 const breadcrumbs = (profile: EmployeeProfile): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -28,10 +42,22 @@ const breadcrumbs = (profile: EmployeeProfile): BreadcrumbItem[] => [
     { title: profile.user?.name ?? profile.employee_number, href: route('performance.employees.show', profile.id) },
 ];
 
-export default function EmployeeShow({ employeeProfile }: { employeeProfile: EmployeeProfile }) {
+export default function EmployeeShow({
+    employeeProfile,
+    managerOptions,
+    can,
+}: {
+    employeeProfile: EmployeeProfile;
+    managerOptions: Option[];
+    can: { assignManagers: boolean };
+}) {
     const userName = employeeProfile.user?.name ?? employeeProfile.employee_number;
     const roles = employeeProfile.user?.roles ?? [];
     const appraisals = employeeProfile.appraisals ?? [];
+    const [lineManagerModalOpen, setLineManagerModalOpen] = useState(false);
+    const managerForm = useForm({
+        line_manager_user_id: employeeProfile.line_manager_user_id ? String(employeeProfile.line_manager_user_id) : 'none',
+    });
 
     return (
         <PerformancePage
@@ -146,9 +172,76 @@ export default function EmployeeShow({ employeeProfile }: { employeeProfile: Emp
 
                         <Card className="shadow-sm">
                             <CardHeader className="pb-3">
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <UserCog className="h-4.5 w-4.5" />
-                                    <CardTitle className="text-sm font-medium">Reporting Line</CardTitle>
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                        <UserCog className="h-4.5 w-4.5" />
+                                        <CardTitle className="text-sm font-medium">Reporting Line</CardTitle>
+                                    </div>
+
+                                    {can.assignManagers ? (
+                                        <Dialog open={lineManagerModalOpen} onOpenChange={setLineManagerModalOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button type="button" variant="outline" size="sm">
+                                                    <UserRoundCog className="mr-2 h-4 w-4" />
+                                                    Assign Line Manager
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Assign Line Manager</DialogTitle>
+                                                    <DialogDescription>
+                                                        Select a line manager for {userName}. This updates reporting and appraisal routing.
+                                                    </DialogDescription>
+                                                </DialogHeader>
+
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="line-manager-select">Line Manager</Label>
+                                                    <Select
+                                                        value={managerForm.data.line_manager_user_id}
+                                                        onValueChange={(value) => managerForm.setData('line_manager_user_id', value)}
+                                                    >
+                                                        <SelectTrigger id="line-manager-select">
+                                                            <SelectValue placeholder="Select line manager" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">Unassign</SelectItem>
+                                                            {managerOptions.map((option) => (
+                                                                <SelectItem key={String(option.value)} value={String(option.value)}>
+                                                                    {option.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                <DialogFooter>
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            managerForm
+                                                                .transform((data) => ({
+                                                                    ...data,
+                                                                    line_manager_user_id:
+                                                                        data.line_manager_user_id === 'none'
+                                                                            ? null
+                                                                            : data.line_manager_user_id,
+                                                                }))
+                                                                .patch(
+                                                                    route('performance.employees.line_manager.update', employeeProfile.id),
+                                                                    {
+                                                                        preserveScroll: true,
+                                                                        onSuccess: () => setLineManagerModalOpen(false),
+                                                                    },
+                                                                )
+                                                        }
+                                                        disabled={managerForm.processing}
+                                                    >
+                                                        Save Manager
+                                                    </Button>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+                                    ) : null}
                                 </div>
                             </CardHeader>
 
@@ -167,6 +260,61 @@ export default function EmployeeShow({ employeeProfile }: { employeeProfile: Emp
                     </div>
 
                     <div className="space-y-6 lg:col-span-8">
+                        <Card className="shadow-sm">
+                            <CardHeader>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <History className="h-4.5 w-4.5" />
+                                    <CardTitle className="text-base">Appraisal History</CardTitle>
+                                </div>
+                                <CardDescription>
+                                    Cycle history and current performance workflow state.
+                                </CardDescription>
+                            </CardHeader>
+
+                            <CardContent className="space-y-3">
+                                {appraisals.length > 0 ? (
+                                    appraisals.map((appraisal) => (
+                                        <div
+                                            key={appraisal.id}
+                                            className="flex flex-col gap-4 rounded-xl border bg-muted/10 p-4 md:flex-row md:items-center md:justify-between"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background text-muted-foreground">
+                                                    <CalendarDays className="h-4.5 w-4.5" />
+                                                </div>
+
+                                                <div>
+                                                    <div className="font-medium text-foreground">
+                                                        {appraisal.cycle_name_snapshot}
+                                                    </div>
+                                                    <div className="mt-1 text-xs text-muted-foreground">
+                                                        Status: {formatValue(appraisal.status)}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right">
+                                                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                                                        Performance Score
+                                                    </div>
+                                                    <div className="mt-1 text-sm font-semibold text-foreground">
+                                                        {appraisal.overall_score !== undefined &&
+                                                        appraisal.overall_score !== null
+                                                            ? `${Number(appraisal.overall_score).toFixed(1)}%`
+                                                            : '-'}
+                                                    </div>
+                                                </div>
+                                                <ScoreDonut score={appraisal.overall_score} />
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No appraisal history recorded yet.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+
                         <div className="grid gap-6 md:grid-cols-2">
                             <Card className="shadow-sm">
                                 <CardHeader>
@@ -308,57 +456,6 @@ export default function EmployeeShow({ employeeProfile }: { employeeProfile: Emp
                             </Card>
                         </div>
 
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <History className="h-4.5 w-4.5" />
-                                    <CardTitle className="text-base">Appraisal History</CardTitle>
-                                </div>
-                                <CardDescription>
-                                    Cycle history and current performance workflow state.
-                                </CardDescription>
-                            </CardHeader>
-
-                            <CardContent className="space-y-3">
-                                {appraisals.length > 0 ? (
-                                    appraisals.map((appraisal) => (
-                                        <div
-                                            key={appraisal.id}
-                                            className="flex flex-col gap-4 rounded-xl border bg-muted/10 p-4 md:flex-row md:items-center md:justify-between"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background text-muted-foreground">
-                                                    <CalendarDays className="h-4.5 w-4.5" />
-                                                </div>
-
-                                                <div>
-                                                    <div className="font-medium text-foreground">
-                                                        {appraisal.cycle_name_snapshot}
-                                                    </div>
-                                                    <div className="mt-1 text-xs text-muted-foreground">
-                                                        Status: {formatValue(appraisal.status)}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="text-left md:text-right">
-                                                <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                                                    Performance Score
-                                                </div>
-                                                <div className="mt-1 text-lg font-semibold text-foreground">
-                                                    {appraisal.overall_score !== undefined &&
-                                                    appraisal.overall_score !== null
-                                                        ? appraisal.overall_score
-                                                        : '-'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">No appraisal history recorded yet.</p>
-                                )}
-                            </CardContent>
-                        </Card>
                     </div>
                 </div>
             </div>
@@ -437,4 +534,37 @@ function maskNationalId(value?: string | null) {
     if (value.length <= 4) return value;
 
     return `***-**-${value.slice(-4)}`;
+}
+
+function ScoreDonut({ score }: { score?: number | null }) {
+    const numericScore = score === null || score === undefined ? null : Number(score);
+    const normalized = numericScore === null || Number.isNaN(numericScore)
+        ? null
+        : Math.max(0, Math.min(100, numericScore));
+
+    const colorClass =
+        normalized === null
+            ? 'var(--muted-foreground)'
+            : normalized >= 80
+              ? 'var(--chart-2)'
+              : normalized >= 60
+                ? 'var(--chart-4)'
+                : 'var(--destructive)';
+
+    return (
+        <div className="relative h-12 w-12 shrink-0 rounded-full border border-border/60 bg-muted/20 p-1">
+            <div
+                className="h-full w-full rounded-full"
+                style={{
+                    background:
+                        normalized === null
+                            ? 'conic-gradient(var(--muted) 100%, transparent 0)'
+                            : `conic-gradient(${colorClass} ${normalized}%, var(--muted) ${normalized}% 100%)`,
+                }}
+            />
+            <div className="absolute inset-2 flex items-center justify-center rounded-full bg-background text-[10px] font-semibold text-foreground">
+                {normalized === null ? <PieChart className="h-3 w-3 text-muted-foreground" /> : `${Math.round(normalized)}`}
+            </div>
+        </div>
+    );
 }

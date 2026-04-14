@@ -43,9 +43,24 @@ class AppraisalPlanController extends Controller
         $this->authorize('plan', $appraisal);
 
         DB::transaction(function () use ($request, $appraisal) {
-            $keptIds = [];
+            $objectives = $request->validated('objectives', []);
+            $incomingIds = collect($objectives)
+                ->pluck('id')
+                ->filter()
+                ->map(static fn ($id) => (int) $id)
+                ->values();
 
-            foreach ($request->validated('objectives', []) as $index => $objectiveData) {
+            // Remove rows no longer present before re-sequencing to avoid unique collisions.
+            if ($incomingIds->isEmpty()) {
+                $appraisal->objectives()->delete();
+            } else {
+                $appraisal->objectives()->whereNotIn('id', $incomingIds)->delete();
+            }
+
+            // Move remaining rows out of the target range so we can safely assign final sort_order values.
+            $appraisal->objectives()->increment('sort_order', 1000);
+
+            foreach ($objectives as $index => $objectiveData) {
                 $objective = isset($objectiveData['id'])
                     ? $appraisal->objectives()->whereKey($objectiveData['id'])->firstOrFail()
                     : new AppraisalObjective(['appraisal_id' => $appraisal->id]);
@@ -62,13 +77,9 @@ class AppraisalPlanController extends Controller
                     'evidence_source' => $objectiveData['evidence_source'] ?? null,
                     'due_date' => $objectiveData['due_date'] ?? null,
                     'include_in_business_score' => (bool) ($objectiveData['include_in_business_score'] ?? true),
-                    'sort_order' => $index,
+                    'sort_order' => $index + 1,
                 ])->save();
-
-                $keptIds[] = $objective->id;
             }
-
-            $appraisal->objectives()->whereNotIn('id', $keptIds)->delete();
         });
 
         return to_route('performance.appraisals.plan', $appraisal);

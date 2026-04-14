@@ -9,6 +9,13 @@ use App\Enums\WorkflowStage;
 
 class AppraisalPolicy
 {
+    private function hasGlobalAppraisalManagementAccess(User $user): bool
+    {
+        return $user->can('performance.appraisals.view_all')
+            || $user->can('performance.appraisals.finalize')
+            || $user->can('performance.review_cycles.assign_employees');
+    }
+
     public function viewAny(User $user): bool
     {
         return $user->can('performance.appraisals.view_all')
@@ -40,7 +47,11 @@ class AppraisalPolicy
     public function plan(User $user, Appraisal $appraisal): bool
     {
         return ($user->can('performance.appraisals.plan_own') && $appraisal->employee_user_id === $user->id)
-            || ($user->can('performance.appraisals.plan_manage') && $appraisal->line_manager_user_id === $user->id)
+            || ($user->can('performance.appraisals.plan_manage') && (
+                $appraisal->line_manager_user_id === $user->id
+                || $appraisal->approving_manager_user_id === $user->id
+                || $this->hasGlobalAppraisalManagementAccess($user)
+            ))
             || $user->can('performance.review_cycles.assign_employees');
     }
 
@@ -51,7 +62,12 @@ class AppraisalPolicy
 
     public function managerReview(User $user, Appraisal $appraisal): bool
     {
-        return $user->can('performance.appraisals.manager_review') && $appraisal->line_manager_user_id === $user->id;
+        return $user->can('performance.appraisals.manager_review')
+            && (
+                $appraisal->line_manager_user_id === $user->id
+                || $appraisal->approving_manager_user_id === $user->id
+                || $this->hasGlobalAppraisalManagementAccess($user)
+            );
     }
 
     public function approve(User $user, Appraisal $appraisal): bool
@@ -60,7 +76,11 @@ class AppraisalPolicy
             || ($appraisal->status === AppraisalStatus::SentBack && $appraisal->reopened_stage === WorkflowStage::Approval);
 
         return $user->can('performance.appraisals.approve')
-            && $appraisal->approving_manager_user_id === $user->id
+            && (
+                $appraisal->approving_manager_user_id === $user->id
+                || $appraisal->line_manager_user_id === $user->id
+                || $this->hasGlobalAppraisalManagementAccess($user)
+            )
             && $atApprovalStage;
     }
 

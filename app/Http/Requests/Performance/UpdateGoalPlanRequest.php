@@ -15,7 +15,7 @@ class UpdateGoalPlanRequest extends FormRequest
     {
         return [
             'objectives' => ['required', 'array', 'min:1'],
-            'objectives.*.id' => ['nullable', 'exists:appraisal_objectives,id'],
+            'objectives.*.id' => ['nullable', 'distinct', 'exists:appraisal_objectives,id'],
             'objectives.*.perspective_id' => ['required', 'exists:perspectives,id'],
             'objectives.*.goal_library_item_id' => ['nullable', 'exists:goal_library_items,id'],
             'objectives.*.objective_type' => ['nullable', 'string', 'max:50'],

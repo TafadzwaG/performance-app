@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Performance;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Performance\StoreEmployeeProfileRequest;
+use App\Http\Requests\Performance\UpdateEmployeeLineManagerRequest;
 use App\Http\Requests\Performance\UpdateEmployeeProfileRequest;
 use App\Models\EmployeeProfile;
 use App\Models\Role;
@@ -28,7 +29,15 @@ class EmployeeProfileController extends Controller
         $search = (string) $request->string('search');
 
         $employeeProfiles = EmployeeProfile::query()
-            ->with(['user.roles', 'department', 'jobTitle', 'lineManager', 'approvingManager'])
+            ->with([
+                'user.roles',
+                'department',
+                'jobTitle',
+                'lineManager',
+                'approvingManager',
+                'latestAppraisal.reviewCycle',
+                'latestAppraisal.overallRatingLevel',
+            ])
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($builder) use ($search) {
                     $builder->where('employee_number', 'like', "%{$search}%")
@@ -76,7 +85,7 @@ class EmployeeProfileController extends Controller
         return to_route('performance.employees.show', $profile);
     }
 
-    public function show(EmployeeProfile $employeeProfile): Response
+    public function show(Request $request, EmployeeProfile $employeeProfile): Response
     {
         $employeeProfile->load([
             'user.roles.permissions',
@@ -90,6 +99,11 @@ class EmployeeProfileController extends Controller
 
         return Inertia::render('performance/employees/Show', [
             'employeeProfile' => $employeeProfile,
+            'managerOptions' => $this->managerUserOptions(),
+            'can' => [
+                'assignManagers' => $request->user()->can('performance.employees.assign_managers')
+                    || $request->user()->can('performance.employees.update'),
+            ],
         ]);
     }
 
@@ -119,6 +133,23 @@ class EmployeeProfileController extends Controller
         }
 
         return to_route('performance.employees.show', $employeeProfile);
+    }
+
+    public function updateLineManager(UpdateEmployeeLineManagerRequest $request, EmployeeProfile $employeeProfile): RedirectResponse
+    {
+        $this->authorize('update', $employeeProfile);
+        abort_unless(
+            $request->user()->can('performance.employees.assign_managers')
+            || $request->user()->can('performance.employees.update'),
+            403,
+        );
+
+        $employeeProfile->update([
+            'line_manager_user_id' => $request->validated('line_manager_user_id'),
+        ]);
+
+        return to_route('performance.employees.show', $employeeProfile)
+            ->with('success', 'Line manager updated successfully.');
     }
 
     private function employeeFormPageData(Request $request): array

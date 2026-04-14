@@ -44,6 +44,9 @@ export interface SharedData {
     };
     flash: {
         success?: string | null;
+        info?: string | null;
+        warning?: string | null;
+        error?: string | null;
         generatedCredentials?: Array<{ name: string; email: string; password: string }> | null;
     };
     [key: string]: unknown;

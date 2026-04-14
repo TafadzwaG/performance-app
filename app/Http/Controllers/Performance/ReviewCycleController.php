@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Performance;
 
+use App\Enums\AppraisalStatus;
 use App\Enums\ReviewCycleStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
@@ -10,6 +11,7 @@ use App\Http\Requests\Performance\UpdateReviewCycleRequest;
 use App\Models\ReviewCycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -66,10 +68,18 @@ class ReviewCycleController extends Controller
     public function show(Request $request, ReviewCycle $reviewCycle): Response
     {
         $reviewCycle->loadCount('appraisals');
-        $statusCounts = $reviewCycle->appraisals()
+        $existingCounts = DB::table('appraisals')
+            ->where('review_cycle_id', $reviewCycle->id)
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
-            ->pluck('total', 'status');
+            ->pluck('total', 'status')
+            ->map(fn (mixed $total): int => (int) $total)
+            ->all();
+
+        $statusCounts = collect(AppraisalStatus::cases())
+            ->mapWithKeys(fn (AppraisalStatus $status) => [$status->value => 0])
+            ->merge($existingCounts)
+            ->all();
 
         return Inertia::render('performance/review-cycles/Show', [
             'reviewCycle' => $reviewCycle,

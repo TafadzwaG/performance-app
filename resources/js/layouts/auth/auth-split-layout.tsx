@@ -1,4 +1,5 @@
 import BrandLogo from '@/components/brand-logo';
+import ThemedToaster from '@/components/ui/themed-toaster';
 import performanceImage from '@/assets/performance.png';
 import tjtLogo from '@/assets/tjtlogo.png';
 import { type SharedData } from '@/types';
@@ -15,6 +16,7 @@ export default function AuthLayout({ children, title, description }: AuthLayoutP
 
     return (
         <div className="relative grid h-dvh flex-col items-center justify-center bg-background px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
+            <ThemedToaster />
             <div className="pointer-events-none absolute right-4 top-4 z-30">
                 <div className="inline-flex items-center gap-2 rounded-md border border-border bg-background/90 px-2.5 py-1.5 text-xs text-foreground shadow-sm backdrop-blur">
                     <span className="font-medium">Powered By</span>

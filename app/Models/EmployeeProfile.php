@@ -6,6 +6,7 @@ use App\Enums\EmploymentStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -87,5 +88,10 @@ class EmployeeProfile extends Model
     public function appraisals(): HasMany
     {
         return $this->hasMany(Appraisal::class);
+    }
+
+    public function latestAppraisal(): HasOne
+    {
+        return $this->hasOne(Appraisal::class)->latestOfMany('updated_at');
     }
 }

@@ -21,6 +21,8 @@ interface DevelopmentPlanFormProps {
     onActionChange: (index: number, field: string, value: string | number | null) => void;
     onAddAction: () => void;
     onRemoveAction: (index: number) => void;
+    canManagePlan: boolean;
+    canUpdateProgress: boolean;
 }
 
 export default function DevelopmentPlanForm({
@@ -33,6 +35,8 @@ export default function DevelopmentPlanForm({
     onActionChange,
     onAddAction,
     onRemoveAction,
+    canManagePlan,
+    canUpdateProgress,
 }: DevelopmentPlanFormProps) {
     return (
         <div className="space-y-6">
@@ -49,6 +53,7 @@ export default function DevelopmentPlanForm({
                             className="min-h-44 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             value={strengths}
                             onChange={(event) => onChange('strengths', event.target.value)}
+                            disabled={!canManagePlan}
                             placeholder="List key strengths, successful behaviors, and professional assets..."
                         />
                     </CardContent>
@@ -66,6 +71,7 @@ export default function DevelopmentPlanForm({
                             className="min-h-44 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             value={improvementAreas}
                             onChange={(event) => onChange('improvement_areas', event.target.value)}
+                            disabled={!canManagePlan}
                             placeholder="Record improvement areas, coaching themes, or skill gaps..."
                         />
                     </CardContent>
@@ -83,6 +89,7 @@ export default function DevelopmentPlanForm({
                             className="min-h-44 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             value={followUpNotes}
                             onChange={(event) => onChange('follow_up_notes', event.target.value)}
+                            disabled={!canManagePlan && !canUpdateProgress}
                             placeholder="Add follow-up context, meeting notes, or future review reminders..."
                         />
                     </CardContent>
@@ -99,7 +106,7 @@ export default function DevelopmentPlanForm({
                             </CardDescription>
                         </div>
 
-                        <Button type="button" variant="outline" onClick={onAddAction}>
+                        <Button type="button" variant="outline" onClick={onAddAction} disabled={!canManagePlan}>
                             <Plus className="mr-2 h-4 w-4" />
                             Add Action
                         </Button>
@@ -118,7 +125,7 @@ export default function DevelopmentPlanForm({
                                     Add the first development action to assign ownership, due dates, and progress
                                     tracking.
                                 </p>
-                                <Button type="button" variant="outline" onClick={onAddAction}>
+                                <Button type="button" variant="outline" onClick={onAddAction} disabled={!canManagePlan}>
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add Action
                                 </Button>
@@ -141,6 +148,7 @@ export default function DevelopmentPlanForm({
                                             variant="outline"
                                             size="sm"
                                             onClick={() => onRemoveAction(index)}
+                                            disabled={!canManagePlan}
                                         >
                                             <Trash2 className="mr-2 h-4 w-4" />
                                             Remove
@@ -162,6 +170,7 @@ export default function DevelopmentPlanForm({
                                                     onChange={(event) =>
                                                         onActionChange(index, 'action', event.target.value)
                                                     }
+                                                    disabled={!canManagePlan}
                                                     placeholder="Describe the development action"
                                                 />
                                             </div>
@@ -183,15 +192,26 @@ export default function DevelopmentPlanForm({
                                                             event.target.value ? Number(event.target.value) : null,
                                                         )
                                                     }
+                                                    disabled={!canManagePlan}
                                                 >
                                                     <option value="">Owner</option>
-                                                    {userOptions.map((option) => (
-                                                        <option key={option.value} value={option.value}>
-                                                            {option.label}
-                                                        </option>
-                                                    ))}
+                                                    {userOptions.map((option) => {
+                                                        const meta = option as Option & {
+                                                            is_appraisal_owner?: boolean;
+                                                            is_line_manager?: boolean;
+                                                        };
+                                                        const prefix = `${meta.is_appraisal_owner ? '★ ' : ''}${meta.is_line_manager ? '◆ ' : ''}`;
+
+                                                        return (
+                                                            <option key={option.value} value={option.value}>
+                                                                {prefix}
+                                                                {option.label}
+                                                            </option>
+                                                        );
+                                                    })}
                                                 </select>
                                             </div>
+                                            <p className="text-[11px] text-muted-foreground">★ Appraisal Owner • ◆ Line Manager</p>
                                         </div>
 
                                         <div className="space-y-2 xl:col-span-2">
@@ -207,6 +227,7 @@ export default function DevelopmentPlanForm({
                                                     onChange={(event) =>
                                                         onActionChange(index, 'due_date', event.target.value)
                                                     }
+                                                    disabled={!canManagePlan}
                                                 />
                                             </div>
                                         </div>
@@ -219,6 +240,7 @@ export default function DevelopmentPlanForm({
                                                 className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none ring-offset-background transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                                 value={action.status ?? 'pending'}
                                                 onChange={(event) => onActionChange(index, 'status', event.target.value)}
+                                                disabled={!canManagePlan && !canUpdateProgress}
                                             >
                                                 <option value="pending">Pending</option>
                                                 <option value="in_progress">In progress</option>
@@ -237,6 +259,7 @@ export default function DevelopmentPlanForm({
                                             onChange={(event) =>
                                                 onActionChange(index, 'follow_up_status', event.target.value)
                                             }
+                                            disabled={!canManagePlan && !canUpdateProgress}
                                             placeholder="Add progress updates, blockers, or next follow-up details"
                                         />
                                     </div>

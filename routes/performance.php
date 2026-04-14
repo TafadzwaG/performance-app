@@ -74,6 +74,8 @@ Route::middleware(['auth', 'password.change'])->prefix('performance')->as('perfo
         ->parameters(['employees' => 'employee_profile'])
         ->only(['index', 'create', 'store', 'show', 'edit', 'update'])
         ->names('employees');
+    Route::patch('employees/{employee_profile}/line-manager', [EmployeeProfileController::class, 'updateLineManager'])
+        ->name('employees.line_manager.update');
 
     Route::resource('appraisals', AppraisalController::class)
         ->parameters(['appraisals' => 'appraisal'])
@@ -88,12 +90,14 @@ Route::middleware(['auth', 'password.change'])->prefix('performance')->as('perfo
     Route::get('appraisals/{appraisal}/manager-review', [AppraisalManagerReviewController::class, 'edit'])->name('appraisals.manager_review');
     Route::put('appraisals/{appraisal}/manager-review', [AppraisalManagerReviewController::class, 'update'])->name('appraisals.manager_review.update');
     Route::post('appraisals/{appraisal}/manager-review/submit', [AppraisalManagerReviewController::class, 'submit'])->name('appraisals.manager_review.submit');
+    Route::post('appraisals/{appraisal}/manager-review/recalculate-score', [AppraisalManagerReviewController::class, 'recalculateScore'])->name('appraisals.manager_review.recalculate_score');
     Route::post('appraisals/{appraisal}/manager-review/send-back', [AppraisalManagerReviewController::class, 'sendBack'])->name('appraisals.manager_review.send_back');
     Route::get('appraisals/{appraisal}/approval', [AppraisalApprovalController::class, 'edit'])->name('appraisals.approval');
     Route::post('appraisals/{appraisal}/approval', [AppraisalApprovalController::class, 'store'])->name('appraisals.approval.store');
     Route::get('appraisals/{appraisal}/finalize', [AppraisalFinalizeController::class, 'edit'])->name('appraisals.finalize');
     Route::post('appraisals/{appraisal}/finalize', [AppraisalFinalizeController::class, 'store'])->name('appraisals.finalize.store');
     Route::post('appraisals/{appraisal}/objectives/{objective}/evidence', [AppraisalEvidenceController::class, 'store'])->name('appraisals.evidence.store');
+    Route::get('appraisals/{appraisal}/objectives/{objective}/evidence/{evidence}/download', [AppraisalEvidenceController::class, 'download'])->name('appraisals.evidence.download');
     Route::get('appraisals/{appraisal}/print', [AppraisalPrintController::class, 'show'])->name('appraisals.print');
     Route::get('appraisals/{appraisal}/print/pdf', [AppraisalPrintController::class, 'pdf'])->name('appraisals.print.pdf');
 

@@ -9,9 +9,9 @@ import ScoreSummaryCard from '@/components/performance/ScoreSummaryCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 import type { Appraisal, Option } from '@/types/performance';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     BadgeCheck,
     ClipboardCheck,
@@ -21,6 +21,7 @@ import {
     PieChart,
     Paperclip,
     MessageSquareMore,
+    NotebookPen,
     Printer,
     ShieldCheck,
     Target,
@@ -41,6 +42,12 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
 ];
 
 export default function AppraisalShow({ appraisal, abilities }: Props) {
+    const { auth } = usePage<SharedData>().props;
+    const isFinalized = appraisal.status === 'finalized';
+    const canOpenDevelopmentPlan =
+        auth.permissions.includes('performance.development_plans.view') ||
+        auth.permissions.includes('performance.development_plans.update');
+
     const perspectiveOptions: Option[] = (appraisal.template?.items ?? [])
         .filter((item) => item.perspective)
         .map((item) => ({
@@ -94,11 +101,19 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
                             </Link>
                         </Button>
                     ) : null}
-                    {abilities.finalize ? (
+                    {abilities.finalize && !isFinalized ? (
                         <Button asChild variant="outline">
                             <Link href={route('performance.appraisals.finalize', appraisal.id)}>
                                 <ShieldCheck className="mr-2 h-4 w-4" />
                                 Finalize
+                            </Link>
+                        </Button>
+                    ) : null}
+                    {isFinalized && canOpenDevelopmentPlan ? (
+                        <Button asChild variant="outline">
+                            <Link href={route('performance.development_plans.edit', appraisal.id)}>
+                                <NotebookPen className="mr-2 h-4 w-4" />
+                                {appraisal.development_plan ? 'Update Development Plan' : 'Create Development Plan'}
                             </Link>
                         </Button>
                     ) : null}

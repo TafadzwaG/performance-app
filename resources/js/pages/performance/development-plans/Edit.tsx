@@ -18,9 +18,14 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
 export default function DevelopmentPlanEdit({
     appraisal,
     userOptions,
+    abilities,
 }: {
     appraisal: Appraisal;
     userOptions: Option[];
+    abilities: {
+        canManagePlan: boolean;
+        canUpdateProgress: boolean;
+    };
 }) {
     const { data, setData, put, processing } = useForm({
         strengths: appraisal.development_plan?.strengths ?? '',
@@ -28,6 +33,7 @@ export default function DevelopmentPlanEdit({
         follow_up_notes: appraisal.development_plan?.follow_up_notes ?? '',
         actions:
             appraisal.development_plan?.actions?.map((action) => ({
+                id: action.id ?? null,
                 action: action.action,
                 owner_user_id: action.owner_user_id ?? null,
                 due_date: action.due_date ?? '',
@@ -180,6 +186,8 @@ export default function DevelopmentPlanEdit({
                             onActionChange={updateAction}
                             onAddAction={addAction}
                             onRemoveAction={removeAction}
+                            canManagePlan={abilities.canManagePlan}
+                            canUpdateProgress={abilities.canUpdateProgress}
                         />
 
                         <div className="flex justify-end border-t pt-4">

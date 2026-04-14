@@ -38,9 +38,14 @@ function formatStatus(status?: string | null) {
 export default function DevelopmentPlanShow({
     appraisal,
     userOptions,
+    abilities,
 }: {
     appraisal: Appraisal;
     userOptions: Option[];
+    abilities: {
+        canManagePlan: boolean;
+        canUpdateProgress: boolean;
+    };
 }) {
     void userOptions;
 
@@ -53,12 +58,14 @@ export default function DevelopmentPlanShow({
             description="View agreed development actions and follow-up status."
             breadcrumbs={breadcrumbs(appraisal)}
             secondaryActions={
-                <Button asChild variant="outline">
-                    <Link href={route('performance.development_plans.edit', appraisal.id)}>
-                        <PencilLine className="mr-2 h-4 w-4" />
-                        Edit Plan
-                    </Link>
-                </Button>
+                abilities.canManagePlan || abilities.canUpdateProgress ? (
+                    <Button asChild variant="outline">
+                        <Link href={route('performance.development_plans.edit', appraisal.id)}>
+                            <PencilLine className="mr-2 h-4 w-4" />
+                            {abilities.canManagePlan ? 'Edit Plan' : 'Update Progress'}
+                        </Link>
+                    </Button>
+                ) : undefined
             }
         >
             <div className="space-y-6">

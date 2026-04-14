@@ -221,6 +221,7 @@ export interface EmployeeProfile {
     line_manager?: BasicUser | null;
     approving_manager?: BasicUser | null;
     appraisals?: Appraisal[];
+    latest_appraisal?: Appraisal | null;
 }
 
 export interface EmployeeProfileFormData {

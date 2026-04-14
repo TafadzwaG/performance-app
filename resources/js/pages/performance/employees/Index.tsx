@@ -13,6 +13,7 @@ import {
     Eye,
     Filter,
     PencilLine,
+    PieChart,
     Plus,
     Search,
     ShieldCheck,
@@ -173,6 +174,9 @@ export default function EmployeesIndex({ employeeProfiles, filters, can }: Props
                                         Line Manager
                                     </th>
                                     <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                        Recent Score
+                                    </th>
+                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                                         Status
                                     </th>
                                     <th className="px-6 py-4 text-right text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -224,6 +228,18 @@ export default function EmployeesIndex({ employeeProfiles, filters, can }: Props
                                             </td>
 
                                             <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <ScoreDonut score={profile.latest_appraisal?.overall_score} />
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {profile.latest_appraisal?.overall_score !== null &&
+                                                        profile.latest_appraisal?.overall_score !== undefined
+                                                            ? `${Number(profile.latest_appraisal.overall_score).toFixed(1)}%`
+                                                            : '-'}
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-2">
                                                     <Badge variant={profile.is_active ? 'default' : 'secondary'}>
                                                         {profile.employment_status}
@@ -254,7 +270,7 @@ export default function EmployeesIndex({ employeeProfiles, filters, can }: Props
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-14 text-center">
+                                        <td colSpan={8} className="px-6 py-14 text-center">
                                             <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
                                                 <div className="rounded-full border bg-muted p-3 text-muted-foreground">
                                                     <Users className="h-5 w-5" />
@@ -319,5 +335,38 @@ export default function EmployeesIndex({ employeeProfiles, filters, can }: Props
                 </div>
             </div>
         </PerformancePage>
+    );
+}
+
+function ScoreDonut({ score }: { score?: number | null }) {
+    const numericScore = score === null || score === undefined ? null : Number(score);
+    const normalized = numericScore === null || Number.isNaN(numericScore)
+        ? null
+        : Math.max(0, Math.min(100, numericScore));
+
+    const colorClass =
+        normalized === null
+            ? 'var(--muted-foreground)'
+            : normalized >= 80
+              ? 'var(--chart-2)'
+              : normalized >= 60
+                ? 'var(--chart-4)'
+                : 'var(--destructive)';
+
+    return (
+        <div className="relative h-9 w-9 shrink-0 rounded-full border border-border/60 bg-muted/20 p-1">
+            <div
+                className="h-full w-full rounded-full"
+                style={{
+                    background:
+                        normalized === null
+                            ? 'conic-gradient(var(--muted) 100%, transparent 0)'
+                            : `conic-gradient(${colorClass} ${normalized}%, var(--muted) ${normalized}% 100%)`,
+                }}
+            />
+            <div className="absolute inset-2 flex items-center justify-center rounded-full bg-background text-[9px] font-semibold text-foreground">
+                {normalized === null ? <PieChart className="h-2.5 w-2.5 text-muted-foreground" /> : `${Math.round(normalized)}`}
+            </div>
+        </div>
     );
 }
