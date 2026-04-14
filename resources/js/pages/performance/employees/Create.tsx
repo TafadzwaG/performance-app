@@ -7,13 +7,14 @@ import type { BreadcrumbItem } from '@/types';
 import type { EmployeeProfileFormData, Option } from '@/types/performance';
 import { useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
-import { Briefcase, Save, ShieldCheck, UserPlus } from 'lucide-react';
+import { Briefcase, CheckCircle2, Save, ShieldCheck, UserCheck2, UserPlus, Users2 } from 'lucide-react';
 
 interface Props {
     formDefaults: EmployeeProfileFormData;
     departmentOptions: Option[];
     jobTitleOptions: Option[];
     userOptions: Option[];
+    managerOptions: Option[];
     roleOptions: Option[];
     employmentStatusOptions: Option[];
     genderOptions: Option[];
@@ -33,6 +34,7 @@ export default function EmployeeCreate({
     departmentOptions,
     jobTitleOptions,
     userOptions,
+    managerOptions,
     roleOptions,
     employmentStatusOptions,
     genderOptions,
@@ -54,7 +56,7 @@ export default function EmployeeCreate({
             breadcrumbs={breadcrumbs}
         >
             <form onSubmit={submit} className="space-y-6">
-                <div className="rounded-2xl border bg-background p-6 shadow-sm">
+                <div className="rounded-2xl border bg-background p-5 shadow-sm">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-3">
                             <Badge variant="secondary" className="w-fit">
@@ -62,7 +64,7 @@ export default function EmployeeCreate({
                             </Badge>
 
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                                <h1 className="text-2xl font-bold tracking-tight text-foreground">
                                     Create Employee Profile
                                 </h1>
                                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -74,9 +76,9 @@ export default function EmployeeCreate({
 
                         <div className="flex flex-wrap gap-3">
                             <Card className="shadow-none">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/30">
-                                        <UserPlus className="h-5 w-5 text-muted-foreground" />
+                                <CardContent className="flex items-center gap-3 p-3.5">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border bg-muted/30">
+                                        <UserPlus className="h-4.5 w-4.5 text-muted-foreground" />
                                     </div>
                                     <div>
                                         <p className="text-xs uppercase tracking-wide text-muted-foreground">Users</p>
@@ -86,9 +88,9 @@ export default function EmployeeCreate({
                             </Card>
 
                             <Card className="shadow-none">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/30">
-                                        <Briefcase className="h-5 w-5 text-muted-foreground" />
+                                <CardContent className="flex items-center gap-3 p-3.5">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border bg-muted/30">
+                                        <Briefcase className="h-4.5 w-4.5 text-muted-foreground" />
                                     </div>
                                     <div>
                                         <p className="text-xs uppercase tracking-wide text-muted-foreground">Departments</p>
@@ -100,9 +102,9 @@ export default function EmployeeCreate({
                             </Card>
 
                             <Card className="shadow-none">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/30">
-                                        <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+                                <CardContent className="flex items-center gap-3 p-3.5">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border bg-muted/30">
+                                        <ShieldCheck className="h-4.5 w-4.5 text-muted-foreground" />
                                     </div>
                                     <div>
                                         <p className="text-xs uppercase tracking-wide text-muted-foreground">Roles</p>
@@ -114,19 +116,54 @@ export default function EmployeeCreate({
                     </div>
                 </div>
 
-                <EmployeeProfileForm
-                    form={form}
-                    mode="create"
-                    departmentOptions={departmentOptions}
-                    jobTitleOptions={jobTitleOptions}
-                    userOptions={userOptions}
-                    roleOptions={roleOptions}
-                    employmentStatusOptions={employmentStatusOptions}
-                    genderOptions={genderOptions}
-                    maritalStatusOptions={maritalStatusOptions}
-                    employmentTypeOptions={employmentTypeOptions}
-                    canAssignRoles={can.assignRoles}
-                />
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_320px]">
+                    <EmployeeProfileForm
+                        form={form}
+                        mode="create"
+                        departmentOptions={departmentOptions}
+                        jobTitleOptions={jobTitleOptions}
+                        userOptions={userOptions}
+                        managerOptions={managerOptions}
+                        roleOptions={roleOptions}
+                        employmentStatusOptions={employmentStatusOptions}
+                        genderOptions={genderOptions}
+                        maritalStatusOptions={maritalStatusOptions}
+                        employmentTypeOptions={employmentTypeOptions}
+                        canAssignRoles={can.assignRoles}
+                    />
+
+                    <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+                        <Card className="shadow-sm">
+                            <CardContent className="space-y-3 p-4">
+                                <div className="flex items-center gap-2">
+                                    <Users2 className="h-4 w-4 text-primary" />
+                                    <h3 className="text-sm font-semibold">Create Guidelines</h3>
+                                </div>
+                                <p className="text-xs leading-5 text-muted-foreground">
+                                    Complete all sections for reliable appraisal routing and reporting.
+                                </p>
+                                <ul className="space-y-2 text-xs text-foreground">
+                                    <li className="flex items-start gap-2">
+                                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-primary" />
+                                        Ensure employee number and national ID are unique.
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <UserCheck2 className="mt-0.5 h-3.5 w-3.5 text-primary" />
+                                        Assign line and approving manager to avoid workflow blocks.
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <ShieldCheck className="mt-0.5 h-3.5 w-3.5 text-primary" />
+                                        Select all required roles via checkboxes in Performance Setup.
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <Briefcase className="mt-0.5 h-3.5 w-3.5 text-primary" />
+                                        Confirm department/job title for correct reporting breakdown.
+                                    </li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </aside>
+                </div>
 
                 <div className="flex items-center justify-end border-t pt-6">
                     <Button type="submit" disabled={form.processing}>

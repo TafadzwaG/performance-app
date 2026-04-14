@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 import AuthLayout from '@/layouts/auth-layout';
 
 interface LoginForm {
@@ -47,7 +48,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
             <form className="flex flex-col gap-6" onSubmit={submit}>
                 <div className="grid gap-6">
                     {status && (
-                        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-400">
+                        <div className="rounded-lg border border-secondary bg-secondary/40 px-4 py-3 text-sm font-medium text-foreground">
                             {status}
                         </div>
                     )}
@@ -78,9 +79,8 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             )}
                         </div>
 
-                        <Input
+                        <PasswordInput
                             id="password"
-                            type="password"
                             required
                             tabIndex={2}
                             autoComplete="current-password"
@@ -108,7 +108,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     </Button>
                 </div>
 
-                <div className="text-muted-foreground text-center text-sm">
+                <div className="text-center text-sm text-muted-foreground">
                     New to the platform?{' '}
                     <TextLink href={route('register')} tabIndex={6}>
                         Create an account

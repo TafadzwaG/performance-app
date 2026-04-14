@@ -30,7 +30,7 @@ const breadcrumbs = (template: Template): BreadcrumbItem[] => [
 ];
 
 function getItemIcon(itemType?: string | null) {
-    const normalized = (itemType ?? '').toLowerCase();
+    const normalized = String(itemType ?? '').toLowerCase();
 
     if (
         normalized.includes('competency') ||
@@ -61,13 +61,32 @@ function getItemIcon(itemType?: string | null) {
 
 function formatItemType(itemType?: string | null) {
     if (!itemType) return 'Template section';
-    return itemType.replaceAll('_', ' ');
+    return String(itemType).replaceAll('_', ' ');
+}
+
+function normalizeItemType(itemType: unknown) {
+    if (typeof itemType === 'string') {
+        return itemType;
+    }
+
+    if (itemType && typeof itemType === 'object' && 'value' in itemType) {
+        const value = (itemType as { value?: unknown }).value;
+        if (typeof value === 'string') {
+            return value;
+        }
+    }
+
+    return '';
 }
 
 export default function TemplateShow({ template }: { template: Template }) {
     const businessWeight = template.business_weight_percent ?? 0;
     const valuesWeight = template.values_weight_percent ?? 0;
-    const items = template.items ?? [];
+    const items = (template.items ?? []).map((item) => ({
+        ...item,
+        item_type: normalizeItemType(item.item_type),
+        title: typeof item.title === 'string' && item.title.trim().length > 0 ? item.title : 'Untitled section',
+    }));
     const ratingLevels = template.overall_rating_scale?.levels ?? [];
 
     return (
@@ -261,8 +280,9 @@ export default function TemplateShow({ template }: { template: Template }) {
                                     const Icon = getItemIcon(item.item_type);
 
                                     return (
-                                        <div
+                                        <Link
                                             key={item.id ?? `${item.item_type}-${item.sort_order}`}
+                                            href={route('performance.templates.builder', template.id)}
                                             className="group flex items-center justify-between rounded-xl border bg-background p-4 transition-colors hover:bg-muted/20"
                                         >
                                             <div className="flex items-center gap-4">
@@ -286,7 +306,7 @@ export default function TemplateShow({ template }: { template: Template }) {
                                             </div>
 
                                             <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                        </div>
+                                        </Link>
                                     );
                                 })
                             )}

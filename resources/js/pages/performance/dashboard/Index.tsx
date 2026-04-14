@@ -55,18 +55,23 @@ const metricMeta = {
 } as const;
 
 const workflowChartConfig = {
-    total: { label: 'Appraisals', theme: { light: 'hsl(0 0% 9%)', dark: 'hsl(0 0% 98%)' } },
+    total: { label: 'Appraisals', theme: { light: 'var(--chart-1)', dark: 'var(--chart-1)' } },
 } satisfies ChartConfig;
 
 const cycleChartConfig = {
-    average_score: { label: 'Average score', theme: { light: 'hsl(0 0% 15%)', dark: 'hsl(0 0% 92%)' } },
+    average_score: { label: 'Average score', theme: { light: 'var(--chart-4)', dark: 'var(--chart-4)' } },
 } satisfies ChartConfig;
 
 const deadlineChartConfig = {
-    total: { label: 'Overdue items', theme: { light: 'hsl(0 0% 12%)', dark: 'hsl(0 0% 94%)' } },
+    total: { label: 'Overdue items', theme: { light: 'var(--chart-3)', dark: 'var(--chart-3)' } },
 } satisfies ChartConfig;
 
-const pieColors = ['hsl(0 0% 8%)', 'hsl(0 0% 22%)', 'hsl(0 0% 38%)', 'hsl(0 0% 56%)', 'hsl(0 0% 72%)', 'hsl(0 0% 84%)'];
+const pieColors = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', '#385144'];
+
+function normalizePercent(value: number) {
+    if (Number.isNaN(value)) return 0;
+    return Math.max(0, Math.min(100, value));
+}
 
 function labelize(value: string) {
     return value.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
@@ -119,6 +124,50 @@ function EmptyState({ message }: { message: string }) {
     return (
         <div className="flex h-[240px] items-center justify-center rounded-lg border border-dashed bg-muted/10 px-6 text-center text-sm text-muted-foreground">
             {message}
+        </div>
+    );
+}
+
+function DonutPercentage({
+    value,
+    label,
+    size = 96,
+}: {
+    value: number;
+    label: string;
+    size?: number;
+}) {
+    const safeValue = normalizePercent(value);
+    const remaining = Math.max(0, 100 - safeValue);
+    const donutData = [
+        { name: 'value', value: safeValue, fill: 'var(--chart-1)' },
+        { name: 'remaining', value: remaining, fill: 'var(--muted)' },
+    ];
+
+    return (
+        <div className="flex flex-col items-center gap-1">
+            <div className="relative" style={{ width: size, height: size }}>
+                <RechartsPieChart width={size} height={size}>
+                    <Pie
+                        data={donutData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={Math.round(size * 0.33)}
+                        outerRadius={Math.round(size * 0.46)}
+                        stroke="none"
+                        startAngle={90}
+                        endAngle={-270}
+                    >
+                        {donutData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.fill} />
+                        ))}
+                    </Pie>
+                </RechartsPieChart>
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-center">
+                    <span className="text-sm font-semibold text-foreground">{Math.round(safeValue)}%</span>
+                </div>
+            </div>
+            <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
         </div>
     );
 }
@@ -203,9 +252,8 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
                                         </p>
                                     </div>
                                     {focusCycle ? (
-                                        <div className="rounded-xl border bg-background px-4 py-3 text-sm">
-                                            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Completion Rate</div>
-                                            <div className="mt-2 text-3xl font-bold tracking-tight text-foreground">{focusCycle.completion_rate}%</div>
+                                        <div className="rounded-xl border bg-background px-4 py-3">
+                                            <DonutPercentage value={focusCycle.completion_rate} label="Completion Rate" />
                                         </div>
                                     ) : null}
                                 </div>
@@ -213,13 +261,18 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
                             {focusCycle ? (
                                 <div className="grid gap-6 p-8 lg:grid-cols-[1.2fr_0.8fr]">
                                     <div className="space-y-6">
-                                        <div>
+                                        <div className="rounded-xl border bg-muted/10 p-4">
                                             <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                                <span>Cycle completion</span>
+                                                <span>Cycle progress</span>
                                                 <span>{focusCycle.finalized_count} finalized</span>
                                             </div>
-                                            <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                                                <div className="h-full rounded-full bg-foreground" style={{ width: `${Math.min(focusCycle.completion_rate, 100)}%` }} />
+                                            <div className="flex items-center justify-between gap-4">
+                                                <DonutPercentage value={focusCycle.completion_rate} label="Finalized" />
+                                                <div className="flex-1">
+                                                    <div className="text-sm text-muted-foreground">
+                                                        {focusCycle.finalized_count} of {focusCycle.appraisals_count} appraisals finalized in this cycle.
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -348,18 +401,16 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
                                 <div className="space-y-4">
                                     {dashboard.department_performance.map((department) => (
                                         <div key={department.department} className="rounded-xl border bg-muted/10 p-4">
-                                            <div className="mb-3 flex items-center justify-between gap-3">
+                                            <div className="flex items-center justify-between gap-4">
                                                 <div>
                                                     <div className="font-semibold text-foreground">{department.department}</div>
                                                     <div className="text-xs text-muted-foreground">{department.total} appraisals scored</div>
                                                 </div>
-                                                <div className="text-right">
+                                                <div className="text-right min-w-[84px]">
                                                     <div className="text-2xl font-bold tracking-tight text-foreground">{department.average_score}</div>
-                                                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Average</div>
+                                                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Score</div>
                                                 </div>
-                                            </div>
-                                            <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                                                <div className="h-full rounded-full bg-foreground" style={{ width: `${Math.min(department.average_score, 100)}%` }} />
+                                                <DonutPercentage value={department.average_score} label="Average" size={84} />
                                             </div>
                                         </div>
                                     ))}

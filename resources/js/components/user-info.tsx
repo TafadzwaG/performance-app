@@ -2,8 +2,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
 import { type User } from '@/types';
 
+const capitalizeWords = (value: string) =>
+    value.replace(/\b\w/g, (character) => character.toUpperCase());
+
+const capitalizeFirst = (value: string) => {
+    if (!value) return value;
+    return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
 export function UserInfo({ user, showEmail = false }: { user: User; showEmail?: boolean }) {
     const getInitials = useInitials();
+    const displayName = capitalizeWords(user.name ?? '');
+    const displayEmail = capitalizeFirst(user.email ?? '');
 
     return (
         <>
@@ -14,8 +24,8 @@ export function UserInfo({ user, showEmail = false }: { user: User; showEmail?: 
                 </AvatarFallback>
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                {showEmail && <span className="text-muted-foreground truncate text-xs">{user.email}</span>}
+                <span className="truncate font-medium">{displayName}</span>
+                {showEmail && <span className="text-muted-foreground truncate text-xs">{displayEmail}</span>}
             </div>
         </>
     );

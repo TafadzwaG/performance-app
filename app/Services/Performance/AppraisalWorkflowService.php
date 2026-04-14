@@ -100,6 +100,8 @@ class AppraisalWorkflowService
                 ]);
             }
 
+            $appraisal = $this->scoringService->refresh($appraisal);
+
             return $this->transition(
                 $appraisal,
                 $actor,
@@ -151,8 +153,32 @@ class AppraisalWorkflowService
     public function approve(Appraisal $appraisal, User $actor, ?string $comments = null): Appraisal
     {
         return DB::transaction(function () use ($appraisal, $actor, $comments) {
+            $appraisal->refresh();
+            $status = $appraisal->status;
+
+            $canApproveAtCurrentStage = $status === AppraisalStatus::ApprovalPending
+                || ($status === AppraisalStatus::SentBack && $appraisal->reopened_stage === WorkflowStage::Approval);
+
+            if (! $canApproveAtCurrentStage) {
+                throw ValidationException::withMessages([
+                    'decision' => 'This appraisal is not currently at approval stage.',
+                ]);
+            }
+
+            $alreadyApproved = AppraisalApproval::query()
+                ->where('appraisal_id', $appraisal->id)
+                ->where('stage', ApprovalStage::Approval)
+                ->where('action', ApprovalAction::Approved)
+                ->exists();
+
+            if ($alreadyApproved) {
+                throw ValidationException::withMessages([
+                    'decision' => 'This appraisal has already been approved once and cannot be approved again.',
+                ]);
+            }
+
             $scores = $this->scoringService->calculate($appraisal);
-            $previousStatus = $appraisal->status;
+            $previousStatus = $status;
 
             $appraisal->forceFill([
                 'status' => AppraisalStatus::Approved,
@@ -185,6 +211,18 @@ class AppraisalWorkflowService
     public function finalize(Appraisal $appraisal, User $actor, ?string $comments = null): Appraisal
     {
         return DB::transaction(function () use ($appraisal, $actor, $comments) {
+            if ($appraisal->status !== AppraisalStatus::Approved) {
+                throw ValidationException::withMessages([
+                    'finalize' => 'Only approved appraisals can be finalized.',
+                ]);
+            }
+
+            if ($appraisal->finalized_at) {
+                throw ValidationException::withMessages([
+                    'finalize' => 'This appraisal has already been finalized.',
+                ]);
+            }
+
             $appraisal = $this->scoringService->refresh($appraisal);
             $previousStatus = $appraisal->status;
 

@@ -130,10 +130,26 @@ class AuditTrailRecorder
     protected function normalizeValue(mixed $value): mixed
     {
         if ($value instanceof UploadedFile) {
+            $size = null;
+            $mime = null;
+
+            try {
+                $size = $value->getSize();
+            } catch (Throwable) {
+                // The temporary upload file may no longer exist when audit runs.
+                $size = null;
+            }
+
+            try {
+                $mime = $value->getClientMimeType();
+            } catch (Throwable) {
+                $mime = null;
+            }
+
             return [
                 'name' => $value->getClientOriginalName(),
-                'size' => $value->getSize(),
-                'mime' => $value->getClientMimeType(),
+                'size' => $size,
+                'mime' => $mime,
             ];
         }
 

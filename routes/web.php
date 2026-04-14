@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BrandingController;
 use App\Http\Controllers\Performance\DashboardController;
 use App\Http\Controllers\Performance\EmployeeProfileCompletionController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,11 @@ Route::middleware(['auth', 'password.change'])->group(function () {
 
     Route::middleware('employee.profile.complete')->group(function () {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
+        Route::get('palette-settings', function () {
+            return Inertia::render('palette-settings/index');
+        })->name('palette.settings');
+        Route::post('palette-settings/logo', [BrandingController::class, 'update'])->name('palette.logo.update');
+        Route::delete('palette-settings/logo', [BrandingController::class, 'destroy'])->name('palette.logo.destroy');
     });
 });
 

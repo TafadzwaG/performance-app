@@ -5,15 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { formatDateTime } from '@/lib/date-utils';
 import type { BreadcrumbItem, SharedData } from '@/types';
 import type { AccessUserRecord, Paginated } from '@/types/performance';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent } from 'react';
-import { Activity, Briefcase, Download, Eye, Filter, LogIn, Pencil, RotateCcw, Search, ShieldCheck, UserPlus, Users } from 'lucide-react';
+import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Briefcase, Download, Eye, Filter, LogIn, Pencil, RotateCcw, Search, ShieldCheck, UserPlus, Users } from 'lucide-react';
 
 interface Props {
     users?: Paginated<AccessUserRecord> | null;
-    filters?: { search?: string } | null;
+    filters?: { search?: string; sort_by?: string; sort_dir?: 'asc' | 'desc' } | null;
 }
 
 function getInitials(name: string) {
@@ -56,6 +57,8 @@ export default function UsersIndex({ users, filters }: Props) {
 
     const searchForm = useForm({
         search: filters?.search ?? '',
+        sort_by: filters?.sort_by ?? 'name',
+        sort_dir: filters?.sort_dir ?? 'asc',
     });
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
@@ -72,6 +75,40 @@ export default function UsersIndex({ users, filters }: Props) {
     const linkedProfiles = safeUsers.data.filter((user) => user.employee_profile).length;
     const usersWithRoles = safeUsers.data.filter((user) => (user.roles?.length ?? 0) > 0).length;
     const totalDirectPermissions = safeUsers.data.reduce((sum, user) => sum + (user.permissions?.length ?? 0), 0);
+
+    const applySort = (column: 'name' | 'email' | 'employee_number' | 'created_at') => {
+        const nextDirection =
+            searchForm.data.sort_by === column && searchForm.data.sort_dir === 'asc' ? 'desc' : 'asc';
+
+        searchForm.setData('sort_by', column);
+        searchForm.setData('sort_dir', nextDirection);
+
+        router.get(
+            route('access.users.index'),
+            {
+                search: searchForm.data.search,
+                sort_by: column,
+                sort_dir: nextDirection,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const SortIcon = ({ column }: { column: 'name' | 'email' | 'employee_number' | 'created_at' }) => {
+        if (searchForm.data.sort_by !== column) {
+            return <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/70" />;
+        }
+
+        return searchForm.data.sort_dir === 'asc' ? (
+            <ArrowUp className="h-3.5 w-3.5 text-foreground" />
+        ) : (
+            <ArrowDown className="h-3.5 w-3.5 text-foreground" />
+        );
+    };
 
     const startImpersonation = (user: AccessUserRecord) => {
         router.post(
@@ -179,16 +216,40 @@ export default function UsersIndex({ users, filters }: Props) {
                                 <thead className="border-b bg-muted/40">
                                     <tr>
                                         <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                            User
+                                            <button
+                                                type="button"
+                                                onClick={() => applySort('name')}
+                                                className="inline-flex items-center gap-1 hover:text-foreground"
+                                            >
+                                                User
+                                                <SortIcon column="name" />
+                                            </button>
                                         </th>
                                         <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                            Employee Profile
+                                            <button
+                                                type="button"
+                                                onClick={() => applySort('employee_number')}
+                                                className="inline-flex items-center gap-1 hover:text-foreground"
+                                            >
+                                                Employee Profile
+                                                <SortIcon column="employee_number" />
+                                            </button>
                                         </th>
                                         <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                                             Roles
                                         </th>
                                         <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                                             Direct Permissions
+                                        </th>
+                                        <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                            <button
+                                                type="button"
+                                                onClick={() => applySort('created_at')}
+                                                className="inline-flex items-center gap-1 hover:text-foreground"
+                                            >
+                                                Created
+                                                <SortIcon column="created_at" />
+                                            </button>
                                         </th>
                                         <th className="px-6 py-4 text-right text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                                             Actions
@@ -246,6 +307,10 @@ export default function UsersIndex({ users, filters }: Props) {
                                                     </div>
                                                 </td>
 
+                                                <td className="px-6 py-5 text-sm text-foreground">
+                                                    {formatDateTime(user.created_at)}
+                                                </td>
+
                                                 <td className="px-6 py-5">
                                                     <div className="flex justify-end gap-2">
                                                         <Button asChild variant="ghost" size="icon">
@@ -278,7 +343,7 @@ export default function UsersIndex({ users, filters }: Props) {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={5} className="px-6 py-14 text-center">
+                                            <td colSpan={6} className="px-6 py-14 text-center">
                                                 <div className="mx-auto max-w-md space-y-2">
                                                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-muted text-muted-foreground">
                                                         <Users className="h-5 w-5" />

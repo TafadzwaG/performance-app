@@ -1,4 +1,5 @@
 import { DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { type User } from '@/types';
@@ -7,16 +8,42 @@ import { LogOut, Settings } from 'lucide-react';
 
 interface UserMenuContentProps {
     user: User;
+    roles?: string[];
 }
 
-export function UserMenuContent({ user }: UserMenuContentProps) {
+const formatRoleLabel = (role: string) =>
+    role
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, (character) => character.toUpperCase());
+
+export function UserMenuContent({ user, roles = [] }: UserMenuContentProps) {
     const cleanup = useMobileNavigation();
+    const normalizedRoles = roles
+        .map((role) => role?.trim())
+        .filter((role): role is string => Boolean(role && role.length > 0));
 
     return (
         <>
             <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                    <UserInfo user={user} showEmail={true} />
+                <div className="space-y-1.5 px-1 py-1.5 text-left text-sm">
+                    <div className="flex items-center gap-2">
+                        <UserInfo user={user} showEmail={true} />
+                    </div>
+                    {normalizedRoles.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            {normalizedRoles.map((role) => (
+                                <Badge
+                                    key={role}
+                                    variant="outline"
+                                    className="border-primary/30 bg-primary/15 text-[11px] font-medium text-primary"
+                                >
+                                    {formatRoleLabel(role)}
+                                </Badge>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

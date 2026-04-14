@@ -36,10 +36,11 @@ import {
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, nav } = usePage<SharedData>().props;
     const permissions = auth.permissions ?? [];
     const can = (...required: string[]) => required.some((permission) => permissions.includes(permission));
     const impersonation = auth.impersonation;
+    const employeesCount = typeof nav?.employeesCount === 'number' ? nav.employeesCount : null;
     const setupItems: NavItem[] = [
         ...(can('performance.setup.departments.view')
             ? [
@@ -89,11 +90,39 @@ export function AppSidebar() {
     ];
 
     const footerNavItems: NavItem[] = [
+        ...(setupItems.length > 0
+            ? [
+                  {
+                      title: 'Setup',
+                      url: '/performance/setup/departments',
+                      icon: Building2,
+                      items: setupItems,
+                  } satisfies NavItem,
+              ]
+            : []),
         {
             title: 'Help & Docs',
             url: route('access.help.index'),
             icon: CircleHelp,
         } satisfies NavItem,
+        ...(can('access.users.view', 'access.users.create', 'access.users.update', 'access.users.import')
+            ? [
+                  {
+                      title: 'Access Users',
+                      url: '/access/users',
+                      icon: Users,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('access.roles.view', 'access.roles.create', 'access.roles.update')
+            ? [
+                  {
+                      title: 'Access Roles',
+                      url: '/access/roles',
+                      icon: Shield,
+                  } satisfies NavItem,
+              ]
+            : []),
         ...(can('access.audit_trails.view')
             ? [
                   {
@@ -111,22 +140,13 @@ export function AppSidebar() {
             url: '/dashboard',
             icon: LayoutGrid,
         },
-        ...(setupItems.length > 0
-            ? [
-                  {
-                      title: 'Setup',
-                      url: '/performance/setup/departments',
-                      icon: Building2,
-                      items: setupItems,
-                  } satisfies NavItem,
-              ]
-            : []),
         ...(can('performance.employees.view', 'performance.employees.create', 'performance.employees.update')
             ? [
                   {
                       title: 'Employees',
                       url: '/performance/employees',
                       icon: Users,
+                      badge: employeesCount !== null ? (employeesCount > 99 ? '99+' : employeesCount) : undefined,
                   } satisfies NavItem,
               ]
             : []),
@@ -190,24 +210,6 @@ export function AppSidebar() {
                       title: 'Reports',
                       url: '/performance/reports',
                       icon: BarChart3,
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('access.users.view', 'access.users.create', 'access.users.update', 'access.users.import')
-            ? [
-                  {
-                      title: 'Access Users',
-                      url: '/access/users',
-                      icon: Users,
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('access.roles.view', 'access.roles.create', 'access.roles.update')
-            ? [
-                  {
-                      title: 'Access Roles',
-                      url: '/access/roles',
-                      icon: Shield,
                   } satisfies NavItem,
               ]
             : []),

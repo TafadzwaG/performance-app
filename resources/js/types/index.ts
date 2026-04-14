@@ -27,6 +27,7 @@ export interface NavItem {
     title: string;
     url: string;
     icon?: LucideIcon | null;
+    badge?: string | number;
     isActive?: boolean;
     items?: NavItem[];
 }
@@ -35,6 +36,12 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    nav?: {
+        employeesCount?: number | null;
+    };
+    branding?: {
+        logoUrl?: string | null;
+    };
     flash: {
         success?: string | null;
         generatedCredentials?: Array<{ name: string; email: string; password: string }> | null;

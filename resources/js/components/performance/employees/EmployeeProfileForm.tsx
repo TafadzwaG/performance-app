@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { EmployeeProfileFormData, Option } from '@/types/performance';
 import type { InertiaFormProps } from '@inertiajs/react';
-import type { ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Briefcase, Contact, FileText, ShieldCheck, User2 } from 'lucide-react';
 
 export type EmployeeProfileSectionKey = 'identity' | 'contact' | 'employment' | 'performance' | 'notes';
@@ -17,6 +18,7 @@ interface EmployeeProfileFormProps {
     departmentOptions: Option[];
     jobTitleOptions: Option[];
     userOptions: Option[];
+    managerOptions: Option[];
     roleOptions: Option[];
     employmentStatusOptions: Option[];
     genderOptions: Option[];
@@ -32,6 +34,7 @@ export default function EmployeeProfileForm({
     departmentOptions,
     jobTitleOptions,
     userOptions,
+    managerOptions,
     roleOptions,
     employmentStatusOptions,
     genderOptions,
@@ -43,6 +46,34 @@ export default function EmployeeProfileForm({
     const selectedUser = userOptions.find((option) => String(option.value) === String(form.data.user_id));
     const shouldRenderSection = (section: EmployeeProfileSectionKey) =>
         !sectionFilter || sectionFilter.includes(section);
+    const countryOptions = useMemo<Option[]>(() => buildCountryOptions(), []);
+    const phoneCodeOptions = useMemo<Option[]>(() => buildCountryCodeOptions(), []);
+    const [personalPhoneCode, setPersonalPhoneCode] = useState('+263');
+    const [personalPhoneLocal, setPersonalPhoneLocal] = useState('');
+    const [emergencyPhoneCode, setEmergencyPhoneCode] = useState('+263');
+    const [emergencyPhoneLocal, setEmergencyPhoneLocal] = useState('');
+
+    useEffect(() => {
+        const personalPhone = parsePhoneInput(form.data.personal_phone, phoneCodeOptions);
+        const emergencyPhone = parsePhoneInput(form.data.emergency_contact_phone, phoneCodeOptions);
+
+        setPersonalPhoneCode(personalPhone.code || '+263');
+        setPersonalPhoneLocal(personalPhone.local);
+        setEmergencyPhoneCode(emergencyPhone.code || '+263');
+        setEmergencyPhoneLocal(emergencyPhone.local);
+    }, [form.data.personal_phone, form.data.emergency_contact_phone, phoneCodeOptions]);
+
+    const updatePersonalPhone = (nextCode: string, nextLocal: string) => {
+        setPersonalPhoneCode(nextCode);
+        setPersonalPhoneLocal(nextLocal);
+        form.setData('personal_phone', composePhoneNumber(nextCode, nextLocal));
+    };
+
+    const updateEmergencyPhone = (nextCode: string, nextLocal: string) => {
+        setEmergencyPhoneCode(nextCode);
+        setEmergencyPhoneLocal(nextLocal);
+        form.setData('emergency_contact_phone', composePhoneNumber(nextCode, nextLocal));
+    };
 
     return (
         <div className="space-y-5">
@@ -117,10 +148,13 @@ export default function EmployeeProfileForm({
                     description="Home contact information and emergency contact details."
                 >
                     <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                        <TextField
+                        <PhoneField
                             label="Personal Phone"
-                            value={form.data.personal_phone}
-                            onChange={(value) => form.setData('personal_phone', value)}
+                            countryCode={personalPhoneCode}
+                            localNumber={personalPhoneLocal}
+                            onCountryCodeChange={(value) => updatePersonalPhone(value, personalPhoneLocal)}
+                            onLocalNumberChange={(value) => updatePersonalPhone(personalPhoneCode, value)}
+                            codeOptions={phoneCodeOptions}
                             error={form.errors.personal_phone}
                         />
 
@@ -131,10 +165,13 @@ export default function EmployeeProfileForm({
                             error={form.errors.emergency_contact_name}
                         />
 
-                        <TextField
+                        <PhoneField
                             label="Emergency Contact Phone"
-                            value={form.data.emergency_contact_phone}
-                            onChange={(value) => form.setData('emergency_contact_phone', value)}
+                            countryCode={emergencyPhoneCode}
+                            localNumber={emergencyPhoneLocal}
+                            onCountryCodeChange={(value) => updateEmergencyPhone(value, emergencyPhoneLocal)}
+                            onLocalNumberChange={(value) => updateEmergencyPhone(emergencyPhoneCode, value)}
+                            codeOptions={phoneCodeOptions}
                             error={form.errors.emergency_contact_phone}
                         />
 
@@ -174,11 +211,13 @@ export default function EmployeeProfileForm({
                             error={form.errors.postal_code}
                         />
 
-                        <TextField
+                        <SelectField
                             label="Country"
                             value={form.data.country}
                             onChange={(value) => form.setData('country', value)}
+                            options={countryOptions}
                             error={form.errors.country}
+                            placeholder="Select country"
                         />
                     </div>
                 </SectionCard>
@@ -278,7 +317,7 @@ export default function EmployeeProfileForm({
                             label="Line Manager"
                             value={form.data.line_manager_user_id}
                             onChange={(value) => form.setData('line_manager_user_id', value)}
-                            options={userOptions}
+                            options={managerOptions}
                             error={form.errors.line_manager_user_id}
                             placeholder="Select line manager"
                         />
@@ -287,7 +326,7 @@ export default function EmployeeProfileForm({
                             label="Approving Manager"
                             value={form.data.approving_manager_user_id}
                             onChange={(value) => form.setData('approving_manager_user_id', value)}
-                            options={userOptions}
+                            options={managerOptions}
                             error={form.errors.approving_manager_user_id}
                             placeholder="Select approving manager"
                         />
@@ -325,31 +364,39 @@ export default function EmployeeProfileForm({
                                     <div className="mb-3 flex items-center gap-2">
                                         <Badge variant="outline">Roles</Badge>
                                         <span className="text-xs text-muted-foreground">
-                                            Hold Ctrl / Cmd to select multiple
+                                            Select one or more system access roles
                                         </span>
                                     </div>
 
-                                    <select
-                                        multiple
-                                        className="min-h-36 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                                        value={form.data.role_ids.map(String)}
-                                        onChange={(event) =>
-                                            form.setData(
-                                                'role_ids',
-                                                Array.from(event.target.selectedOptions).map((option) =>
-                                                    Number(option.value),
-                                                ),
-                                            )
-                                        }
-                                    >
-                                        {roleOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="grid gap-2 md:grid-cols-2">
+                                        {roleOptions.map((option) => {
+                                            const roleId = Number(option.value);
+                                            const checked = form.data.role_ids.includes(roleId);
 
-                                    <InputError message={form.errors.role_ids} />
+                                            return (
+                                                <label
+                                                    key={option.value}
+                                                    className="flex cursor-pointer items-center gap-3 rounded-lg border bg-background px-3 py-2 text-sm transition-colors hover:bg-muted/30"
+                                                >
+                                                    <Checkbox
+                                                        checked={checked}
+                                                        onCheckedChange={(value) => {
+                                                            const isChecked = value === true;
+                                                            form.setData(
+                                                                'role_ids',
+                                                                isChecked
+                                                                    ? [...form.data.role_ids, roleId]
+                                                                    : form.data.role_ids.filter((currentId) => currentId !== roleId),
+                                                            );
+                                                        }}
+                                                    />
+                                                    <span className="font-medium text-foreground">{option.label}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <InputError message={resolveRoleError(form.errors)} />
                                 </div>
                             </div>
                         ) : null}
@@ -472,18 +519,68 @@ function SelectField({
     return (
         <div className={`space-y-2 ${className ?? ''}`.trim()}>
             <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</Label>
-            <select
-                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-            >
-                <option value="">{placeholder}</option>
-                {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                        {option.label}
-                    </option>
-                ))}
-            </select>
+            <Select value={value || '__empty__'} onValueChange={(next) => onChange(next === '__empty__' ? '' : next)}>
+                <SelectTrigger className="h-10">
+                    <SelectValue placeholder={placeholder} />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="__empty__">{placeholder}</SelectItem>
+                    {options.map((option) => (
+                        <SelectItem key={String(option.value)} value={String(option.value)}>
+                            {option.label}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <InputError message={error} />
+        </div>
+    );
+}
+
+function PhoneField({
+    label,
+    countryCode,
+    localNumber,
+    onCountryCodeChange,
+    onLocalNumberChange,
+    codeOptions,
+    error,
+    className,
+}: {
+    label: string;
+    countryCode: string;
+    localNumber: string;
+    onCountryCodeChange: (value: string) => void;
+    onLocalNumberChange: (value: string) => void;
+    codeOptions: Option[];
+    error?: string;
+    className?: string;
+}) {
+    return (
+        <div className={`space-y-2 ${className ?? ''}`.trim()}>
+            <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</Label>
+            <div className="grid grid-cols-[150px_minmax(0,1fr)] gap-2">
+                <Select value={countryCode || '__empty__'} onValueChange={(next) => onCountryCodeChange(next === '__empty__' ? '' : next)}>
+                    <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="__empty__">Code</SelectItem>
+                        {codeOptions.map((option) => (
+                            <SelectItem key={String(option.value)} value={String(option.value)}>
+                                {option.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Input
+                    type="tel"
+                    value={localNumber}
+                    onChange={(event) => onLocalNumberChange(event.target.value.replace(/[^\d]/g, ''))}
+                    className="h-10"
+                    placeholder="Phone number"
+                />
+            </div>
             <InputError message={error} />
         </div>
     );
@@ -518,4 +615,212 @@ function CheckboxField({
             <InputError message={error} />
         </div>
     );
+}
+
+function resolveRoleError(errors: Partial<Record<string, string | undefined>>) {
+    return errors.role_ids ?? Object.entries(errors).find(([key, value]) => key.startsWith('role_ids.') && !!value)?.[1];
+}
+
+function buildCountryOptions(): Option[] {
+    const countryCodes = [
+        'AF', 'AL', 'DZ', 'AO', 'AR', 'AM', 'AU', 'AT', 'AZ', 'BH', 'BD', 'BY', 'BE', 'BJ', 'BO', 'BA', 'BW', 'BR', 'BG', 'BF',
+        'BI', 'KH', 'CM', 'CA', 'CF', 'TD', 'CL', 'CN', 'CO', 'KM', 'CG', 'CD', 'CR', 'CI', 'HR', 'CU', 'CY', 'CZ', 'DK', 'DJ',
+        'DO', 'EC', 'EG', 'SV', 'GQ', 'ER', 'EE', 'SZ', 'ET', 'FI', 'FR', 'GA', 'GM', 'GE', 'DE', 'GH', 'GR', 'GT', 'GN', 'GW',
+        'HT', 'HN', 'HK', 'HU', 'IS', 'IN', 'ID', 'IR', 'IQ', 'IE', 'IL', 'IT', 'JM', 'JP', 'JO', 'KZ', 'KE', 'KR', 'KW', 'KG',
+        'LA', 'LV', 'LB', 'LS', 'LR', 'LY', 'LT', 'LU', 'MG', 'MW', 'MY', 'ML', 'MT', 'MR', 'MU', 'MX', 'MD', 'MN', 'ME', 'MA',
+        'MZ', 'MM', 'NA', 'NP', 'NL', 'NZ', 'NI', 'NE', 'NG', 'MK', 'NO', 'OM', 'PK', 'PS', 'PA', 'PG', 'PY', 'PE', 'PH', 'PL',
+        'PT', 'QA', 'RO', 'RU', 'RW', 'SA', 'SN', 'RS', 'SL', 'SG', 'SK', 'SI', 'SO', 'ZA', 'SS', 'ES', 'LK', 'SD', 'SE', 'CH',
+        'SY', 'TW', 'TJ', 'TZ', 'TH', 'TL', 'TG', 'TN', 'TR', 'UG', 'UA', 'AE', 'GB', 'US', 'UY', 'UZ', 'VE', 'VN', 'YE', 'ZM', 'ZW',
+    ];
+
+    const displayNames = typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function'
+        ? new Intl.DisplayNames(['en'], { type: 'region' })
+        : null;
+
+    return countryCodes
+        .map((code) => {
+            const fallbackName = code;
+            const name = displayNames?.of(code) ?? fallbackName;
+
+            return {
+                value: name,
+                label: name,
+            };
+        })
+        .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+}
+
+function buildCountryCodeOptions(): Option[] {
+    return [
+        { value: '+1', label: '+1 (US/Canada)' },
+        { value: '+7', label: '+7 (Kazakhstan/Russia)' },
+        { value: '+20', label: '+20 (Egypt)' },
+        { value: '+27', label: '+27 (South Africa)' },
+        { value: '+30', label: '+30 (Greece)' },
+        { value: '+31', label: '+31 (Netherlands)' },
+        { value: '+32', label: '+32 (Belgium)' },
+        { value: '+33', label: '+33 (France)' },
+        { value: '+34', label: '+34 (Spain)' },
+        { value: '+36', label: '+36 (Hungary)' },
+        { value: '+39', label: '+39 (Italy)' },
+        { value: '+40', label: '+40 (Romania)' },
+        { value: '+41', label: '+41 (Switzerland)' },
+        { value: '+43', label: '+43 (Austria)' },
+        { value: '+44', label: '+44 (UK)' },
+        { value: '+45', label: '+45 (Denmark)' },
+        { value: '+46', label: '+46 (Sweden)' },
+        { value: '+47', label: '+47 (Norway)' },
+        { value: '+48', label: '+48 (Poland)' },
+        { value: '+49', label: '+49 (Germany)' },
+        { value: '+52', label: '+52 (Mexico)' },
+        { value: '+54', label: '+54 (Argentina)' },
+        { value: '+55', label: '+55 (Brazil)' },
+        { value: '+60', label: '+60 (Malaysia)' },
+        { value: '+61', label: '+61 (Australia)' },
+        { value: '+62', label: '+62 (Indonesia)' },
+        { value: '+63', label: '+63 (Philippines)' },
+        { value: '+64', label: '+64 (New Zealand)' },
+        { value: '+65', label: '+65 (Singapore)' },
+        { value: '+66', label: '+66 (Thailand)' },
+        { value: '+81', label: '+81 (Japan)' },
+        { value: '+82', label: '+82 (South Korea)' },
+        { value: '+84', label: '+84 (Vietnam)' },
+        { value: '+86', label: '+86 (China)' },
+        { value: '+90', label: '+90 (Turkey)' },
+        { value: '+91', label: '+91 (India)' },
+        { value: '+92', label: '+92 (Pakistan)' },
+        { value: '+93', label: '+93 (Afghanistan)' },
+        { value: '+94', label: '+94 (Sri Lanka)' },
+        { value: '+95', label: '+95 (Myanmar)' },
+        { value: '+98', label: '+98 (Iran)' },
+        { value: '+211', label: '+211 (South Sudan)' },
+        { value: '+212', label: '+212 (Morocco)' },
+        { value: '+213', label: '+213 (Algeria)' },
+        { value: '+216', label: '+216 (Tunisia)' },
+        { value: '+218', label: '+218 (Libya)' },
+        { value: '+220', label: '+220 (Gambia)' },
+        { value: '+221', label: '+221 (Senegal)' },
+        { value: '+223', label: '+223 (Mali)' },
+        { value: '+225', label: "+225 (Cote d'Ivoire)" },
+        { value: '+226', label: '+226 (Burkina Faso)' },
+        { value: '+227', label: '+227 (Niger)' },
+        { value: '+228', label: '+228 (Togo)' },
+        { value: '+229', label: '+229 (Benin)' },
+        { value: '+230', label: '+230 (Mauritius)' },
+        { value: '+231', label: '+231 (Liberia)' },
+        { value: '+232', label: '+232 (Sierra Leone)' },
+        { value: '+233', label: '+233 (Ghana)' },
+        { value: '+234', label: '+234 (Nigeria)' },
+        { value: '+235', label: '+235 (Chad)' },
+        { value: '+236', label: '+236 (CAR)' },
+        { value: '+237', label: '+237 (Cameroon)' },
+        { value: '+238', label: '+238 (Cabo Verde)' },
+        { value: '+239', label: '+239 (Sao Tome and Principe)' },
+        { value: '+240', label: '+240 (Equatorial Guinea)' },
+        { value: '+241', label: '+241 (Gabon)' },
+        { value: '+242', label: '+242 (Congo)' },
+        { value: '+243', label: '+243 (DR Congo)' },
+        { value: '+244', label: '+244 (Angola)' },
+        { value: '+245', label: '+245 (Guinea-Bissau)' },
+        { value: '+248', label: '+248 (Seychelles)' },
+        { value: '+249', label: '+249 (Sudan)' },
+        { value: '+250', label: '+250 (Rwanda)' },
+        { value: '+251', label: '+251 (Ethiopia)' },
+        { value: '+252', label: '+252 (Somalia)' },
+        { value: '+253', label: '+253 (Djibouti)' },
+        { value: '+254', label: '+254 (Kenya)' },
+        { value: '+255', label: '+255 (Tanzania)' },
+        { value: '+256', label: '+256 (Uganda)' },
+        { value: '+257', label: '+257 (Burundi)' },
+        { value: '+258', label: '+258 (Mozambique)' },
+        { value: '+260', label: '+260 (Zambia)' },
+        { value: '+261', label: '+261 (Madagascar)' },
+        { value: '+262', label: '+262 (Reunion)' },
+        { value: '+263', label: '+263 (Zimbabwe)' },
+        { value: '+264', label: '+264 (Namibia)' },
+        { value: '+265', label: '+265 (Malawi)' },
+        { value: '+266', label: '+266 (Lesotho)' },
+        { value: '+267', label: '+267 (Botswana)' },
+        { value: '+268', label: '+268 (Eswatini)' },
+        { value: '+269', label: '+269 (Comoros)' },
+        { value: '+351', label: '+351 (Portugal)' },
+        { value: '+352', label: '+352 (Luxembourg)' },
+        { value: '+353', label: '+353 (Ireland)' },
+        { value: '+354', label: '+354 (Iceland)' },
+        { value: '+355', label: '+355 (Albania)' },
+        { value: '+356', label: '+356 (Malta)' },
+        { value: '+357', label: '+357 (Cyprus)' },
+        { value: '+358', label: '+358 (Finland)' },
+        { value: '+359', label: '+359 (Bulgaria)' },
+        { value: '+370', label: '+370 (Lithuania)' },
+        { value: '+371', label: '+371 (Latvia)' },
+        { value: '+372', label: '+372 (Estonia)' },
+        { value: '+380', label: '+380 (Ukraine)' },
+        { value: '+381', label: '+381 (Serbia)' },
+        { value: '+385', label: '+385 (Croatia)' },
+        { value: '+386', label: '+386 (Slovenia)' },
+        { value: '+420', label: '+420 (Czechia)' },
+        { value: '+421', label: '+421 (Slovakia)' },
+        { value: '+880', label: '+880 (Bangladesh)' },
+        { value: '+961', label: '+961 (Lebanon)' },
+        { value: '+962', label: '+962 (Jordan)' },
+        { value: '+963', label: '+963 (Syria)' },
+        { value: '+964', label: '+964 (Iraq)' },
+        { value: '+965', label: '+965 (Kuwait)' },
+        { value: '+966', label: '+966 (Saudi Arabia)' },
+        { value: '+967', label: '+967 (Yemen)' },
+        { value: '+968', label: '+968 (Oman)' },
+        { value: '+971', label: '+971 (UAE)' },
+        { value: '+972', label: '+972 (Israel)' },
+        { value: '+973', label: '+973 (Bahrain)' },
+        { value: '+974', label: '+974 (Qatar)' },
+        { value: '+975', label: '+975 (Bhutan)' },
+        { value: '+976', label: '+976 (Mongolia)' },
+        { value: '+977', label: '+977 (Nepal)' },
+        { value: '+992', label: '+992 (Tajikistan)' },
+        { value: '+994', label: '+994 (Azerbaijan)' },
+        { value: '+995', label: '+995 (Georgia)' },
+        { value: '+998', label: '+998 (Uzbekistan)' },
+    ];
+}
+
+function parsePhoneInput(input: string, codeOptions: Option[]): { code: string; local: string } {
+    if (!input) {
+        return { code: '', local: '' };
+    }
+
+    const normalized = input.trim().replace(/\s+/g, '');
+
+    if (!normalized.startsWith('+')) {
+        return { code: '', local: normalized.replace(/[^\d]/g, '') };
+    }
+
+    const sortedCodes = codeOptions
+        .map((option) => String(option.value))
+        .sort((a, b) => b.length - a.length);
+    const matchedCode = sortedCodes.find((code) => normalized.startsWith(code));
+
+    if (!matchedCode) {
+        return { code: '', local: normalized.replace(/[^\d]/g, '') };
+    }
+
+    return {
+        code: matchedCode,
+        local: normalized.slice(matchedCode.length).replace(/[^\d]/g, ''),
+    };
+}
+
+function composePhoneNumber(code: string, local: string): string {
+    const normalizedLocal = local.replace(/[^\d]/g, '');
+    const normalizedCode = code.trim();
+
+    if (!normalizedLocal) {
+        return '';
+    }
+
+    if (!normalizedCode) {
+        return normalizedLocal;
+    }
+
+    return `${normalizedCode}${normalizedLocal}`;
 }

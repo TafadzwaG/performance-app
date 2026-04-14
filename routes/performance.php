@@ -57,7 +57,9 @@ Route::middleware(['auth', 'password.change'])->prefix('performance')->as('perfo
     Route::post('review-cycles/{review_cycle}/open', [ReviewCycleController::class, 'open'])->name('review_cycles.open');
     Route::post('review-cycles/{review_cycle}/close', [ReviewCycleController::class, 'close'])->name('review_cycles.close');
     Route::get('review-cycles/{review_cycle}/assign-employees', [CycleAssignmentController::class, 'edit'])->name('review_cycles.assign');
+    Route::get('review-cycles/{review_cycle}/assign-employees/options', [CycleAssignmentController::class, 'employeeOptions'])->name('review_cycles.assign.employee_options');
     Route::post('review-cycles/{review_cycle}/assign-employees', [CycleAssignmentController::class, 'store'])->name('review_cycles.assign.store');
+    Route::delete('review-cycles/{review_cycle}/assign-employees/{appraisal}', [CycleAssignmentController::class, 'destroy'])->name('review_cycles.assign.destroy');
 
     Route::resource('templates', AppraisalTemplateController::class)
         ->parameters(['templates' => 'template'])

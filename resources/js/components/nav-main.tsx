@@ -2,6 +2,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import {
     SidebarGroup,
     SidebarGroupLabel,
+    SidebarMenuBadge,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
@@ -78,6 +79,11 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                     <span>{item.title}</span>
                                 </Link>
                             </SidebarMenuButton>
+                            {item.badge !== undefined && item.badge !== null ? (
+                                <SidebarMenuBadge className="h-5 min-w-5 rounded-full bg-sidebar-primary px-1.5 text-[0.6875rem] font-semibold text-sidebar-primary-foreground">
+                                    {item.badge}
+                                </SidebarMenuBadge>
+                            ) : null}
                         </SidebarMenuItem>
                     );
                 })}

@@ -1,8 +1,10 @@
 import PerformancePage from '@/components/performance/PerformancePage';
+import AssignEmployeesModal from '@/components/performance/review-cycles/AssignEmployeesModal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { formatDate } from '@/lib/date-utils';
 import type { BreadcrumbItem } from '@/types';
 import type { Option, ReviewCycle } from '@/types/performance';
 import { router, Link } from '@inertiajs/react';
@@ -21,11 +23,16 @@ import {
     Users,
     XCircle,
 } from 'lucide-react';
+import { useState } from 'react';
 
 interface Props {
     reviewCycle: ReviewCycle;
     statusCounts: Record<string, number>;
     templateOptions: Option[];
+    employeeProfileOptions: Option[];
+    can?: {
+        assignEmployees?: boolean;
+    };
 }
 
 const breadcrumbs = (cycle: ReviewCycle): BreadcrumbItem[] => [
@@ -59,10 +66,6 @@ function getStatusVariant(status?: string | null): 'default' | 'secondary' | 'ou
     return 'outline';
 }
 
-function formatDate(value?: string | null) {
-    return value || 'Not set';
-}
-
 function getPhaseOrder(statusCounts: Record<string, number>) {
     const preferred = [
         'draft',
@@ -85,7 +88,8 @@ function getPhaseOrder(statusCounts: Record<string, number>) {
     return [...ordered, ...extra];
 }
 
-export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOptions }: Props) {
+export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOptions, employeeProfileOptions, can }: Props) {
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
     const orderedStatuses = getPhaseOrder(statusCounts);
     const totalAssessments = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
 
@@ -118,12 +122,12 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                         </Link>
                     </Button>
 
-                    <Button asChild variant="outline">
-                        <Link href={route('performance.review_cycles.assign', reviewCycle.id)}>
+                    {can?.assignEmployees ? (
+                        <Button type="button" variant="outline" onClick={() => setAssignModalOpen(true)}>
                             <Users className="mr-2 h-4 w-4" />
                             Assign Employees
-                        </Link>
-                    </Button>
+                        </Button>
+                    ) : null}
 
                     {reviewCycle.status !== 'open' ? (
                         <Button
@@ -180,6 +184,11 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                                         {titleCase(reviewCycle.status)}
                                     </Badge>
                                 </div>
+                            </div>
+
+                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
+                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Assigned</div>
+                                <div className="mt-1 font-semibold text-foreground">{reviewCycle.appraisals_count ?? 0}</div>
                             </div>
                         </div>
                     </div>
@@ -486,7 +495,14 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                     </CardContent>
                 </Card>
             </div>
+
+            <AssignEmployeesModal
+                open={assignModalOpen}
+                onOpenChange={setAssignModalOpen}
+                reviewCycle={{ id: reviewCycle.id, name: reviewCycle.name }}
+                employeeProfileOptions={employeeProfileOptions}
+                templateOptions={templateOptions}
+            />
         </PerformancePage>
     );
 }
-

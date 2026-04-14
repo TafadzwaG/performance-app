@@ -19,6 +19,20 @@ use App\Support\Performance\PerformancePermissions;
 
 trait BuildsPerformanceViewData
 {
+    protected function appraisalAbilities(Appraisal $appraisal, User $user): array
+    {
+        return [
+            'plan' => $user->can('plan', $appraisal),
+            'selfAssess' => $user->can('selfAssess', $appraisal),
+            'managerReview' => $user->can('managerReview', $appraisal),
+            'approve' => $user->can('approve', $appraisal),
+            'finalize' => $user->can('finalize', $appraisal),
+            'print' => $user->can('print', $appraisal),
+            'uploadEvidence' => $user->can('uploadEvidence', $appraisal),
+            'sendBack' => $user->can('sendBack', $appraisal),
+        ];
+    }
+
     protected function departmentOptions(): array
     {
         return Department::query()
@@ -48,6 +62,29 @@ trait BuildsPerformanceViewData
     protected function userOptions(): array
     {
         return User::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $user) => [
+                'value' => $user->id,
+                'label' => $user->name,
+                'email' => $user->email,
+            ])
+            ->all();
+    }
+
+    protected function managerUserOptions(): array
+    {
+        $managerPermissions = [
+            'performance.appraisals.manager_review',
+            'performance.appraisals.approve',
+        ];
+
+        return User::query()
+            ->where(function ($query) use ($managerPermissions) {
+                $query
+                    ->whereHas('permissions', fn ($permissionQuery) => $permissionQuery->whereIn('name', $managerPermissions))
+                    ->orWhereHas('roles.permissions', fn ($permissionQuery) => $permissionQuery->whereIn('name', $managerPermissions));
+            })
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
             ->map(fn (User $user) => [

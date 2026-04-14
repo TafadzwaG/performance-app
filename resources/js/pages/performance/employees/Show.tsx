@@ -2,6 +2,7 @@ import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatDate } from '@/lib/date-utils';
 import type { BreadcrumbItem } from '@/types';
 import type { EmployeeProfile } from '@/types/performance';
 import { Link } from '@inertiajs/react';
@@ -180,7 +181,7 @@ export default function EmployeeShow({ employeeProfile }: { employeeProfile: Emp
                                     <Info label="Employee Number" value={employeeProfile.employee_number} />
                                     <Info label="National ID" value={maskNationalId(employeeProfile.national_id)} />
                                     <div className="grid gap-4 sm:grid-cols-2">
-                                        <Info label="Date of Birth" value={employeeProfile.date_of_birth ?? '-'} />
+                                        <Info label="Date of Birth" value={formatDate(employeeProfile.date_of_birth, '-')} />
                                         <Info label="Gender" value={formatValue(employeeProfile.gender)} />
                                     </div>
                                     <div className="grid gap-4 sm:grid-cols-2">
@@ -239,12 +240,12 @@ export default function EmployeeShow({ employeeProfile }: { employeeProfile: Emp
                                 <Info label="Employment Status" value={employeeProfile.employment_status} />
                                 <Info label="Employment Type" value={formatValue(employeeProfile.employment_type)} />
                                 <Info label="Work Location" value={employeeProfile.work_location ?? '-'} />
-                                <Info label="Hire Date" value={employeeProfile.hire_date ?? '-'} />
-                                <Info label="Probation End" value={employeeProfile.probation_end_date ?? '-'} />
-                                <Info label="Confirmation Date" value={employeeProfile.confirmation_date ?? '-'} />
+                                <Info label="Hire Date" value={formatDate(employeeProfile.hire_date, '-')} />
+                                <Info label="Probation End" value={formatDate(employeeProfile.probation_end_date, '-')} />
+                                <Info label="Confirmation Date" value={formatDate(employeeProfile.confirmation_date, '-')} />
                                 <Info
                                     label="Review Eligibility Date"
-                                    value={employeeProfile.review_eligibility_date ?? '-'}
+                                    value={formatDate(employeeProfile.review_eligibility_date, '-')}
                                 />
                             </CardContent>
                         </Card>

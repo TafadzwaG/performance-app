@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { formatDate } from '@/lib/date-utils';
 import type { BreadcrumbItem } from '@/types';
 import type { Appraisal, Option } from '@/types/performance';
 import { Link } from '@inertiajs/react';
@@ -223,7 +224,7 @@ export default function DevelopmentPlanShow({
                                                 <div className="flex items-center gap-2 rounded-lg border bg-background px-4 py-3">
                                                     <CalendarDays className="h-4 w-4 text-muted-foreground" />
                                                     <span className="text-sm text-foreground">
-                                                        {action.due_date ?? 'No due date'}
+                                                        {formatDate(action.due_date, 'No due date')}
                                                     </span>
                                                 </div>
                                             </div>

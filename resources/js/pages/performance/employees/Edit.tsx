@@ -15,6 +15,7 @@ interface Props {
     departmentOptions: Option[];
     jobTitleOptions: Option[];
     userOptions: Option[];
+    managerOptions: Option[];
     roleOptions: Option[];
     employmentStatusOptions: Option[];
     genderOptions: Option[];
@@ -29,6 +30,7 @@ export default function EmployeeEdit({
     departmentOptions,
     jobTitleOptions,
     userOptions,
+    managerOptions,
     roleOptions,
     employmentStatusOptions,
     genderOptions,
@@ -129,6 +131,7 @@ export default function EmployeeEdit({
                     departmentOptions={departmentOptions}
                     jobTitleOptions={jobTitleOptions}
                     userOptions={userOptions}
+                    managerOptions={managerOptions}
                     roleOptions={roleOptions}
                     employmentStatusOptions={employmentStatusOptions}
                     genderOptions={genderOptions}

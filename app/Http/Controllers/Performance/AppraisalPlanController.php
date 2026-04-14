@@ -28,6 +28,7 @@ class AppraisalPlanController extends Controller
 
         return Inertia::render('performance/appraisals/Plan', [
             'appraisal' => $this->loadAppraisal($appraisal),
+            'abilities' => $this->appraisalAbilities($appraisal, request()->user()),
             'perspectiveOptions' => $this->perspectiveOptions(),
             'goalLibraryItems' => $appraisal->employeeProfile
                 ?->department

@@ -1,4 +1,4 @@
-import AppLogoIcon from '@/components/app-logo-icon';
+import BrandLogo from '@/components/brand-logo';
 import EmployeeProfileForm, { type EmployeeProfileSectionKey } from '@/components/performance/employees/EmployeeProfileForm';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,23 @@ import { Label } from '@/components/ui/label';
 import type { SharedData } from '@/types';
 import type { EmployeeProfileFormData, Option } from '@/types/performance';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight, Briefcase, CheckCircle2, LogOut, Save, ShieldCheck, UserRound } from 'lucide-react';
+import {
+    AlertCircle,
+    ArrowLeft,
+    ArrowRight,
+    Briefcase,
+    CalendarDays,
+    CheckCircle2,
+    FilePenLine,
+    IdCard,
+    LogOut,
+    Mail,
+    MapPin,
+    Phone,
+    Save,
+    ShieldCheck,
+    UserRound,
+} from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
 interface Props {
@@ -17,6 +33,7 @@ interface Props {
     departmentOptions: Option[];
     jobTitleOptions: Option[];
     userOptions: Option[];
+    managerOptions: Option[];
     roleOptions: Option[];
     employmentStatusOptions: Option[];
     genderOptions: Option[];
@@ -26,6 +43,7 @@ interface Props {
 }
 
 type StepKey = EmployeeProfileSectionKey | 'review';
+type ReviewSectionKey = EmployeeProfileSectionKey;
 
 const steps: Array<{ key: StepKey; title: string; description: string }> = [
     { key: 'identity', title: 'Identity', description: 'Confirm who you are and complete your personal details.' },
@@ -35,6 +53,14 @@ const steps: Array<{ key: StepKey; title: string; description: string }> = [
     { key: 'notes', title: 'Notes', description: 'Add any supporting context relevant to your profile.' },
     { key: 'review', title: 'Review & Confirm', description: 'Review everything and confirm before saving.' },
 ];
+
+const requiredFieldsBySection: Record<ReviewSectionKey, Array<keyof EmployeeProfileFormData>> = {
+    identity: ['employee_number'],
+    contact: [],
+    employment: ['employment_status'],
+    performance: [],
+    notes: [],
+};
 
 const errorStepMap: Record<string, EmployeeProfileSectionKey> = {
     user_id: 'identity',
@@ -74,6 +100,7 @@ export default function CompleteProfile({
     departmentOptions,
     jobTitleOptions,
     userOptions,
+    managerOptions,
     roleOptions,
     employmentStatusOptions,
     genderOptions,
@@ -82,7 +109,30 @@ export default function CompleteProfile({
     can,
 }: Props) {
     const { auth } = usePage<SharedData>().props;
-    const form = useForm<EmployeeProfileFormData>(formDefaults);
+    const draftStorageKey = `employee-profile-complete-draft:${auth.user.id}`;
+    const persistedFormDefaults = useMemo(() => {
+        if (typeof window === 'undefined') {
+            return formDefaults;
+        }
+
+        try {
+            const rawDraft = window.localStorage.getItem(draftStorageKey);
+
+            if (!rawDraft) {
+                return formDefaults;
+            }
+
+            const parsedDraft = JSON.parse(rawDraft) as Partial<EmployeeProfileFormData>;
+
+            return {
+                ...formDefaults,
+                ...parsedDraft,
+            };
+        } catch {
+            return formDefaults;
+        }
+    }, [draftStorageKey, formDefaults]);
+    const form = useForm<EmployeeProfileFormData>(persistedFormDefaults);
     const [currentStep, setCurrentStep] = useState<StepKey>('identity');
     const [reviewConfirmed, setReviewConfirmed] = useState(false);
 
@@ -103,6 +153,14 @@ export default function CompleteProfile({
             setCurrentStep(errorStep);
         }
     }, [currentStep, form.errors]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        window.localStorage.setItem(draftStorageKey, JSON.stringify(form.data));
+    }, [draftStorageKey, form.data]);
 
     const reviewSections = useMemo(
         () => [
@@ -153,8 +211,8 @@ export default function CompleteProfile({
                 key: 'performance' as const,
                 title: 'Performance Setup',
                 rows: [
-                    { label: 'Line Manager', value: optionLabel(form.data.line_manager_user_id, userOptions) },
-                    { label: 'Approving Manager', value: optionLabel(form.data.approving_manager_user_id, userOptions) },
+                    { label: 'Line Manager', value: optionLabel(form.data.line_manager_user_id, managerOptions) },
+                    { label: 'Approving Manager', value: optionLabel(form.data.approving_manager_user_id, managerOptions) },
                     { label: 'Review Eligible', value: booleanLabel(form.data.is_review_eligible) },
                     { label: 'Active Employee', value: booleanLabel(form.data.is_active) },
                     {
@@ -218,6 +276,7 @@ export default function CompleteProfile({
             maritalStatusOptions,
             roleOptions,
             userOptions,
+            managerOptions,
         ],
     );
 
@@ -228,12 +287,21 @@ export default function CompleteProfile({
             return;
         }
 
-        form.post(route('employee-profile.complete.store'));
+        form.post(route('employee-profile.complete.store'), {
+            onSuccess: () => {
+                if (typeof window !== 'undefined') {
+                    window.localStorage.removeItem(draftStorageKey);
+                }
+            },
+        });
     };
 
     const goToStep = (step: StepKey) => {
         setCurrentStep(step);
     };
+
+    const sectionHasMissingRequiredFields = (sectionKey: ReviewSectionKey) =>
+        requiredFieldsBySection[sectionKey].some((fieldKey) => !hasFormValue(form.data[fieldKey]));
 
     const goToPreviousStep = () => {
         if (currentIndex > 0) {
@@ -256,7 +324,7 @@ export default function CompleteProfile({
                     <div className="mb-5 flex flex-col gap-4 rounded-2xl border bg-background/95 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-4">
                             <Link href={route('home')} className="flex h-11 w-11 items-center justify-center rounded-xl border bg-background">
-                                <AppLogoIcon className="size-7 fill-current text-foreground" />
+                                <BrandLogo className="size-7 object-contain" iconClassName="size-7 fill-current text-foreground" />
                             </Link>
 
                             <div className="space-y-1">
@@ -274,13 +342,19 @@ export default function CompleteProfile({
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                            <Button asChild variant="outline" size="sm">
+                            <Button asChild variant="outline" size="sm" className="border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground">
                                 <Link href={route('home')}>
                                     <ArrowLeft className="mr-2 h-4 w-4" />
                                     Back to Home
                                 </Link>
                             </Button>
-                            <Button type="button" variant="outline" size="sm" onClick={() => router.post(route('logout'))}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground"
+                                onClick={() => router.post(route('logout'))}
+                            >
                                 <LogOut className="mr-2 h-4 w-4" />
                                 Logout
                             </Button>
@@ -296,72 +370,7 @@ export default function CompleteProfile({
                             </AlertDescription>
                         </Alert>
 
-                        <div className="grid flex-1 gap-5 xl:grid-cols-[minmax(290px,0.95fr)_minmax(0,1.9fr)_minmax(250px,0.85fr)]">
-                            <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
-                                <Card className="shadow-sm">
-                                    <CardHeader className="border-b bg-muted/20 p-4">
-                                        <CardTitle className="text-base">Review & Confirm</CardTitle>
-                                        <CardDescription className="text-xs">
-                                            Live profile summary. Final confirmation becomes available on the last step.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3 p-4">
-                                        {reviewSections.map((section) => (
-                                            <div key={section.key} className="rounded-xl border bg-background p-3">
-                                                <div className="mb-2 flex items-center justify-between gap-3">
-                                                    <div>
-                                                        <p className="text-sm font-medium text-foreground">{section.title}</p>
-                                                        <p className="text-[11px] text-muted-foreground">
-                                                            {section.rows.filter((row) => row.value !== 'Not provided').length} items captured
-                                                        </p>
-                                                    </div>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-7 px-2 text-xs"
-                                                        onClick={() => goToStep(section.key)}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    {section.rows.slice(0, section.key === 'notes' ? 1 : 3).map((row) => (
-                                                        <div key={row.label} className="space-y-1">
-                                                            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                                                                {row.label}
-                                                            </div>
-                                                            <div className="text-xs leading-5 text-foreground">{row.value}</div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
-
-                                        <div className="rounded-xl border bg-muted/10 p-3">
-                                            <div className="flex items-start gap-3">
-                                                <Checkbox
-                                                    id="review-confirmed-sidebar"
-                                                    checked={reviewConfirmed}
-                                                    disabled={!isReviewStep}
-                                                    onCheckedChange={(value) => setReviewConfirmed(value === true)}
-                                                />
-                                                <div className="space-y-1">
-                                                    <Label htmlFor="review-confirmed-sidebar" className="text-sm font-medium">
-                                                        Confirm final profile
-                                                    </Label>
-                                                    <p className="text-xs leading-5 text-muted-foreground">
-                                                        {isReviewStep
-                                                            ? 'Tick this once you have reviewed every section.'
-                                                            : 'Reach the final step to confirm before saving.'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </aside>
-
+                        <div className="grid flex-1 gap-5 xl:grid-cols-[minmax(0,1.95fr)_minmax(250px,0.85fr)]">
                             <main className="space-y-5">
                                 <div className="rounded-2xl border bg-background p-4 shadow-sm">
                                     <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -376,17 +385,17 @@ export default function CompleteProfile({
 
                                         <div className="grid gap-3 sm:grid-cols-3">
                                             <StatCard
-                                                icon={<UserRound className="h-4 w-4 text-muted-foreground" />}
+                                                icon={<UserRound className="h-4 w-4 text-primary" />}
                                                 label="Profile"
                                                 value={`${currentIndex + 1} of ${steps.length}`}
                                             />
                                             <StatCard
-                                                icon={<Briefcase className="h-4 w-4 text-muted-foreground" />}
+                                                icon={<Briefcase className="h-4 w-4 text-primary" />}
                                                 label="Departments"
                                                 value={String(departmentOptions.length)}
                                             />
                                             <StatCard
-                                                icon={<ShieldCheck className="h-4 w-4 text-muted-foreground" />}
+                                                icon={<ShieldCheck className="h-4 w-4 text-primary" />}
                                                 label="Job Titles"
                                                 value={String(jobTitleOptions.length)}
                                             />
@@ -397,29 +406,63 @@ export default function CompleteProfile({
                                 {isReviewStep ? (
                                     <div className="grid gap-4 lg:grid-cols-2">
                                         {reviewSections.map((section) => (
-                                            <Card key={section.key} className="shadow-sm">
-                                                <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 border-b bg-muted/20 p-4">
+                                            <Card
+                                                key={section.key}
+                                                className={`shadow-sm ${
+                                                    sectionHasMissingRequiredFields(section.key)
+                                                        ? 'border-destructive/60 bg-destructive/5'
+                                                        : ''
+                                                }`}
+                                            >
+                                                <CardHeader
+                                                    className={`flex flex-row items-start justify-between gap-4 space-y-0 border-b p-4 ${
+                                                        sectionHasMissingRequiredFields(section.key)
+                                                            ? 'border-destructive/35 bg-destructive/10'
+                                                            : 'bg-muted/20'
+                                                    }`}
+                                                >
                                                     <div className="space-y-1">
-                                                        <CardTitle className="text-sm">{section.title}</CardTitle>
+                                                        <CardTitle
+                                                            className={`flex items-center gap-2 text-sm ${
+                                                                sectionHasMissingRequiredFields(section.key) ? 'text-destructive' : ''
+                                                            }`}
+                                                        >
+                                                            <span className="flex h-6 w-6 items-center justify-center rounded-md border border-primary/30 bg-primary/10">
+                                                                {sectionIcon(section.key)}
+                                                            </span>
+                                                            {section.title}
+                                                        </CardTitle>
                                                         <CardDescription className="text-xs">
                                                             Review these values before you save the profile.
                                                         </CardDescription>
+                                                        {sectionHasMissingRequiredFields(section.key) ? (
+                                                            <div className="inline-flex items-center gap-1 rounded-md border border-destructive/35 bg-destructive/10 px-2 py-1 text-[11px] font-medium text-destructive">
+                                                                <AlertCircle className="h-3.5 w-3.5" />
+                                                                Required info missing
+                                                            </div>
+                                                        ) : null}
                                                     </div>
                                                     <Button
                                                         type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        className="h-8"
+                                                        className={`h-8 ${
+                                                            sectionHasMissingRequiredFields(section.key)
+                                                                ? 'border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground'
+                                                                : 'border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground'
+                                                        }`}
                                                         onClick={() => goToStep(section.key)}
                                                     >
+                                                        <FilePenLine className="mr-1.5 h-3.5 w-3.5" />
                                                         Edit section
                                                     </Button>
                                                 </CardHeader>
                                                 <CardContent className="space-y-3 p-4">
                                                     {section.rows.map((row) => (
                                                         <div key={row.label} className="grid gap-1 border-b pb-3 last:border-b-0 last:pb-0">
-                                                            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                                                                {row.label}
+                                                            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                                                {rowIcon(row.label)}
+                                                                <span>{row.label}</span>
                                                             </div>
                                                             <div className="text-sm text-foreground">{row.value}</div>
                                                         </div>
@@ -435,6 +478,7 @@ export default function CompleteProfile({
                                         departmentOptions={departmentOptions}
                                         jobTitleOptions={jobTitleOptions}
                                         userOptions={userOptions}
+                                        managerOptions={managerOptions}
                                         roleOptions={roleOptions}
                                         employmentStatusOptions={employmentStatusOptions}
                                         genderOptions={genderOptions}
@@ -466,28 +510,28 @@ export default function CompleteProfile({
                                                     onClick={() => goToStep(step.key)}
                                                     className={`flex items-start gap-3 rounded-xl border px-3 py-3 text-left transition ${
                                                         isActive
-                                                            ? 'border-foreground bg-foreground text-background'
-                                                            : 'border-border bg-background hover:border-foreground/40 hover:bg-muted/40'
+                                                            ? 'border-primary bg-primary text-primary-foreground'
+                                                            : 'border-border bg-background hover:border-primary/50 hover:bg-muted/40'
                                                     }`}
                                                 >
                                                     <div
                                                         className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold ${
                                                             isActive
-                                                                ? 'border-background/30 bg-background/15 text-background'
+                                                                ? 'border-primary-foreground/35 bg-primary-foreground/15 text-primary-foreground'
                                                                 : isCompleted
-                                                                  ? 'border-foreground bg-foreground text-background'
+                                                                  ? 'border-primary bg-primary text-primary-foreground'
                                                                   : 'border-border bg-muted text-foreground'
                                                         }`}
                                                     >
                                                         {isCompleted ? <CheckCircle2 className="h-3.5 w-3.5" /> : index + 1}
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <div className={`text-sm font-medium ${isActive ? 'text-background' : 'text-foreground'}`}>
+                                                        <div className={`text-sm font-medium ${isActive ? 'text-primary-foreground' : 'text-foreground'}`}>
                                                             {step.title}
                                                         </div>
                                                         <div
                                                             className={`text-xs leading-5 ${
-                                                                isActive ? 'text-background/75' : 'text-muted-foreground'
+                                                                isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
                                                             }`}
                                                         >
                                                             {step.description}
@@ -503,12 +547,38 @@ export default function CompleteProfile({
 
                         <div className="sticky bottom-4 z-10 border-t bg-background/95 px-1 pt-4 backdrop-blur">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Step {currentIndex + 1} of {steps.length}: {currentStepDefinition.title}
-                                </p>
+                                <div className="space-y-2">
+                                    <p className="text-sm text-muted-foreground">
+                                        Step {currentIndex + 1} of {steps.length}: {currentStepDefinition.title}
+                                    </p>
+                                    {isReviewStep ? (
+                                        <div className="flex items-start gap-3">
+                                            <Checkbox
+                                                id="review-confirmed-footer"
+                                                checked={reviewConfirmed}
+                                                onCheckedChange={(value) => setReviewConfirmed(value === true)}
+                                            />
+                                            <div className="space-y-1">
+                                                <Label htmlFor="review-confirmed-footer" className="text-sm font-medium">
+                                                    Confirm final profile
+                                                </Label>
+                                                <p className="text-xs leading-5 text-muted-foreground">
+                                                    Tick this after reviewing all sections to enable saving.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
 
                                 <div className="flex flex-wrap items-center justify-end gap-2">
-                                    <Button type="button" variant="outline" size="sm" onClick={goToPreviousStep} disabled={currentIndex === 0}>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground"
+                                        onClick={goToPreviousStep}
+                                        disabled={currentIndex === 0}
+                                    >
                                         <ArrowLeft className="mr-2 h-4 w-4" />
                                         Previous
                                     </Button>
@@ -546,7 +616,7 @@ function StatCard({
     return (
         <Card className="shadow-none">
             <CardContent className="flex items-center gap-3 p-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg border bg-muted/30">{icon}</div>
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/10">{icon}</div>
                 <div>
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
                     <p className="text-sm font-semibold text-foreground">{value}</p>
@@ -596,4 +666,78 @@ function formatDate(value: string | null | undefined) {
         month: 'short',
         year: 'numeric',
     }).format(date);
+}
+
+function sectionIcon(sectionKey: EmployeeProfileSectionKey | 'review') {
+    if (sectionKey === 'identity') {
+        return <UserRound className="h-3.5 w-3.5 text-primary" />;
+    }
+
+    if (sectionKey === 'contact') {
+        return <MapPin className="h-3.5 w-3.5 text-primary" />;
+    }
+
+    if (sectionKey === 'employment') {
+        return <Briefcase className="h-3.5 w-3.5 text-primary" />;
+    }
+
+    if (sectionKey === 'performance') {
+        return <ShieldCheck className="h-3.5 w-3.5 text-primary" />;
+    }
+
+    return <FilePenLine className="h-3.5 w-3.5 text-primary" />;
+}
+
+function rowIcon(label: string) {
+    const normalized = label.toLowerCase();
+
+    if (normalized.includes('email')) {
+        return <Mail className="h-3.5 w-3.5" />;
+    }
+
+    if (normalized.includes('phone') || normalized.includes('contact')) {
+        return <Phone className="h-3.5 w-3.5" />;
+    }
+
+    if (normalized.includes('date')) {
+        return <CalendarDays className="h-3.5 w-3.5" />;
+    }
+
+    if (normalized.includes('id') || normalized.includes('employee number')) {
+        return <IdCard className="h-3.5 w-3.5" />;
+    }
+
+    if (normalized.includes('department') || normalized.includes('job')) {
+        return <Briefcase className="h-3.5 w-3.5" />;
+    }
+
+    if (normalized.includes('manager') || normalized.includes('role') || normalized.includes('review') || normalized.includes('active')) {
+        return <ShieldCheck className="h-3.5 w-3.5" />;
+    }
+
+    if (normalized.includes('address') || normalized.includes('city') || normalized.includes('country') || normalized.includes('postal')) {
+        return <MapPin className="h-3.5 w-3.5" />;
+    }
+
+    return <UserRound className="h-3.5 w-3.5" />;
+}
+
+function hasFormValue(value: EmployeeProfileFormData[keyof EmployeeProfileFormData]) {
+    if (typeof value === 'string') {
+        return value.trim().length > 0;
+    }
+
+    if (typeof value === 'number') {
+        return true;
+    }
+
+    if (typeof value === 'boolean') {
+        return true;
+    }
+
+    if (Array.isArray(value)) {
+        return value.length > 0;
+    }
+
+    return value !== null && value !== undefined;
 }

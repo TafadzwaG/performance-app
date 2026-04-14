@@ -28,6 +28,7 @@ class AppraisalApprovalController extends Controller
 
         return Inertia::render('performance/appraisals/Approval', [
             'appraisal' => $this->loadAppraisal($appraisal),
+            'abilities' => $this->appraisalAbilities($appraisal, request()->user()),
         ]);
     }
 

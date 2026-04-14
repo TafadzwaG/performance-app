@@ -1,13 +1,15 @@
 import PaginationLinks from '@/components/performance/PaginationLinks';
 import PerformancePage from '@/components/performance/PerformancePage';
+import AssignEmployeesModal from '@/components/performance/review-cycles/AssignEmployeesModal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
-import type { Paginated, ReviewCycle } from '@/types/performance';
+import type { Option, Paginated, ReviewCycle } from '@/types/performance';
 import { Link } from '@inertiajs/react';
-import { CalendarRange, CheckCircle2, Clock3, Eye, History, PencilLine, Plus, RefreshCcw } from 'lucide-react';
+import { CalendarRange, Clock3, Eye, History, PencilLine, Plus, RefreshCcw, UserPlus, Users } from 'lucide-react';
 import moment from 'moment';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -50,20 +52,34 @@ function getCycleSubtitle(status?: string | null) {
     return 'Planning window';
 }
 
-export default function ReviewCyclesIndex({ reviewCycles }: { reviewCycles: Paginated<ReviewCycle> }) {
+interface Props {
+    reviewCycles: Paginated<ReviewCycle>;
+    employeeProfileOptions: Option[];
+    templateOptions: Option[];
+    can?: {
+        create?: boolean;
+        assignEmployees?: boolean;
+    };
+}
+
+export default function ReviewCyclesIndex({ reviewCycles, employeeProfileOptions, templateOptions, can }: Props) {
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [selectedCycle, setSelectedCycle] = useState<ReviewCycle | null>(null);
+
     const totalCycles = reviewCycles.total ?? reviewCycles.data.length;
     const from = reviewCycles.from ?? 0;
     const to = reviewCycles.to ?? reviewCycles.data.length;
+    const totalAssignedEmployees = reviewCycles.data.reduce((total, cycle) => total + (cycle.appraisals_count ?? 0), 0);
 
     const activeCycles = reviewCycles.data.filter((cycle) => {
         const value = (cycle.status ?? '').toLowerCase();
         return value.includes('active') || value.includes('progress') || value.includes('open');
     }).length;
 
-    const pendingCycles = reviewCycles.data.filter((cycle) => {
-        const value = (cycle.status ?? '').toLowerCase();
-        return value.includes('goal') || value.includes('pending') || value.includes('draft');
-    }).length;
+    const openAssignModal = (cycle: ReviewCycle) => {
+        setSelectedCycle(cycle);
+        setAssignModalOpen(true);
+    };
 
     return (
         <PerformancePage
@@ -89,12 +105,14 @@ export default function ReviewCyclesIndex({ reviewCycles }: { reviewCycles: Pagi
                             </div>
                         </div>
 
-                        <Button asChild>
-                            <Link href={route('performance.review_cycles.create')}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                New Cycle
-                            </Link>
-                        </Button>
+                        {can?.create ? (
+                            <Button asChild>
+                                <Link href={route('performance.review_cycles.create')}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    New Cycle
+                                </Link>
+                            </Button>
+                        ) : null}
                     </div>
                 </div>
 
@@ -128,13 +146,13 @@ export default function ReviewCyclesIndex({ reviewCycles }: { reviewCycles: Pagi
                     <Card className="shadow-sm">
                         <CardHeader className="pb-2">
                             <div className="text-muted-foreground flex items-center gap-2">
-                                <CheckCircle2 className="h-4.5 w-4.5" />
-                                <CardTitle className="text-sm font-medium">Pending Finalization</CardTitle>
+                                <Users className="h-4.5 w-4.5" />
+                                <CardTitle className="text-sm font-medium">Assigned Employees</CardTitle>
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">{pendingCycles}</div>
-                            <p className="text-muted-foreground mt-2 text-xs">Cycles still in setup, pending, or goal-setting phases.</p>
+                            <div className="text-3xl font-bold tracking-tight">{totalAssignedEmployees}</div>
+                            <p className="text-muted-foreground mt-2 text-xs">Employees currently assigned across visible cycles.</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -178,6 +196,9 @@ export default function ReviewCyclesIndex({ reviewCycles }: { reviewCycles: Pagi
                                                 </th>
                                                 <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Status
+                                                </th>
+                                                <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
+                                                    Assigned
                                                 </th>
                                                 <th className="text-muted-foreground px-6 py-4 text-right text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Actions
@@ -228,7 +249,23 @@ export default function ReviewCyclesIndex({ reviewCycles }: { reviewCycles: Pagi
                                                     </td>
 
                                                     <td className="px-6 py-5">
+                                                        <Badge variant="secondary">{cycle.appraisals_count ?? 0}</Badge>
+                                                    </td>
+
+                                                    <td className="px-6 py-5">
                                                         <div className="flex justify-end gap-2">
+                                                            {can?.assignEmployees ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => openAssignModal(cycle)}
+                                                                    title="Assign Employees"
+                                                                >
+                                                                    <UserPlus className="h-4 w-4" />
+                                                                </Button>
+                                                            ) : null}
+
                                                             <Button asChild variant="ghost" size="icon">
                                                                 <Link href={route('performance.review_cycles.show', cycle.id)}>
                                                                     <Eye className="h-4 w-4" />
@@ -248,7 +285,7 @@ export default function ReviewCyclesIndex({ reviewCycles }: { reviewCycles: Pagi
                                     </table>
                                 </div>
 
-                                <div className="bg-muted/10 flex flex-col gap-4 border-t px-6 py-4 md:flex-row md:items-center md:justify-between">
+                <div className="bg-muted/10 flex flex-col gap-4 border-t px-6 py-4 md:flex-row md:items-center md:justify-between">
                                     <span className="text-muted-foreground text-xs font-medium">
                                         Showing {from} to {to} of {totalCycles} results
                                     </span>
@@ -260,6 +297,14 @@ export default function ReviewCyclesIndex({ reviewCycles }: { reviewCycles: Pagi
                     </CardContent>
                 </Card>
             </div>
+
+            <AssignEmployeesModal
+                open={assignModalOpen}
+                onOpenChange={setAssignModalOpen}
+                reviewCycle={selectedCycle ? { id: selectedCycle.id, name: selectedCycle.name } : null}
+                employeeProfileOptions={employeeProfileOptions}
+                templateOptions={templateOptions}
+            />
         </PerformancePage>
     );
 }

@@ -8,6 +8,7 @@ use App\Http\Requests\Access\BulkStoreUsersRequest;
 use App\Http\Requests\Access\ImportUsersRequest;
 use App\Http\Requests\Access\StoreUserRequest;
 use App\Http\Requests\Access\UpdateUserRequest;
+use App\Models\EmployeeProfile;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Access\UserImportService;
@@ -32,22 +33,41 @@ class UserController extends Controller
     public function index(Request $request): Response
     {
         $search = (string) $request->string('search');
+        $sortBy = (string) $request->string('sort_by', 'name');
+        $sortDirection = strtolower((string) $request->string('sort_dir', 'asc')) === 'desc' ? 'desc' : 'asc';
 
-        $users = User::query()
+        if (! in_array($sortBy, ['name', 'email', 'employee_number', 'created_at', 'updated_at'], true)) {
+            $sortBy = 'name';
+        }
+
+        $query = User::query()
             ->with(['roles:id,name', 'permissions:id,name', 'employeeProfile:id,user_id,employee_number'])
             ->when($search, function ($query) use ($search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhereHas('employeeProfile', fn ($profileQuery) => $profileQuery->where('employee_number', 'like', "%{$search}%"));
-            })
-            ->orderBy('name')
-            ->paginate(10)
-            ->withQueryString();
+            });
+
+        if ($sortBy === 'employee_number') {
+            $query->orderBy(
+                EmployeeProfile::query()
+                    ->select('employee_number')
+                    ->whereColumn('employee_profiles.user_id', 'users.id')
+                    ->limit(1),
+                $sortDirection,
+            )->orderBy('name');
+        } else {
+            $query->orderBy($sortBy, $sortDirection)->orderBy('id');
+        }
+
+        $users = $query->paginate(10)->withQueryString();
 
         return Inertia::render('access/users/Index', [
             'users' => $users,
             'filters' => [
                 'search' => $search,
+                'sort_by' => $sortBy,
+                'sort_dir' => $sortDirection,
             ],
         ]);
     }

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { formatDateTime } from '@/lib/date-utils';
 import type { BreadcrumbItem } from '@/types';
 import type { AuditTrailRecord, Option, Paginated } from '@/types/performance';
 import { router } from '@inertiajs/react';
@@ -262,13 +263,6 @@ function formatAction(value: string) {
     return value
         .replaceAll('_', ' ')
         .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatDateTime(value: string) {
-    return new Intl.DateTimeFormat('en-ZW', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value));
 }
 
 function payloadPreview(payload?: Record<string, unknown> | null) {

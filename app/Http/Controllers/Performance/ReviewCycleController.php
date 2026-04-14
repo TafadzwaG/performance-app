@@ -28,6 +28,7 @@ class ReviewCycleController extends Controller
 
         $reviewCycles = ReviewCycle::query()
             ->when($search, fn ($query) => $query->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+            ->withCount('appraisals')
             ->latest('start_date')
             ->paginate(10)
             ->withQueryString();
@@ -35,8 +36,15 @@ class ReviewCycleController extends Controller
         return Inertia::render('performance/review-cycles/Index', [
             'reviewCycles' => $reviewCycles,
             'filters' => ['search' => $search],
+            'employeeProfileOptions' => $request->user()->can('performance.review_cycles.assign_employees')
+                ? $this->employeeProfileOptions()
+                : [],
+            'templateOptions' => $request->user()->can('performance.review_cycles.assign_employees')
+                ? $this->templateOptions()
+                : [],
             'can' => [
                 'create' => $request->user()->can('performance.review_cycles.create'),
+                'assignEmployees' => $request->user()->can('performance.review_cycles.assign_employees'),
             ],
         ]);
     }
@@ -55,7 +63,7 @@ class ReviewCycleController extends Controller
         return to_route('performance.review_cycles.show', $reviewCycle);
     }
 
-    public function show(ReviewCycle $reviewCycle): Response
+    public function show(Request $request, ReviewCycle $reviewCycle): Response
     {
         $reviewCycle->loadCount('appraisals');
         $statusCounts = $reviewCycle->appraisals()
@@ -67,6 +75,12 @@ class ReviewCycleController extends Controller
             'reviewCycle' => $reviewCycle,
             'statusCounts' => $statusCounts,
             'templateOptions' => $this->templateOptions(),
+            'employeeProfileOptions' => $request->user()->can('performance.review_cycles.assign_employees')
+                ? $this->employeeProfileOptions()
+                : [],
+            'can' => [
+                'assignEmployees' => $request->user()->can('performance.review_cycles.assign_employees'),
+            ],
         ]);
     }
 

@@ -4,6 +4,8 @@ namespace App\Policies;
 
 use App\Models\Appraisal;
 use App\Models\User;
+use App\Enums\AppraisalStatus;
+use App\Enums\WorkflowStage;
 
 class AppraisalPolicy
 {
@@ -54,7 +56,12 @@ class AppraisalPolicy
 
     public function approve(User $user, Appraisal $appraisal): bool
     {
-        return $user->can('performance.appraisals.approve') && $appraisal->approving_manager_user_id === $user->id;
+        $atApprovalStage = $appraisal->status === AppraisalStatus::ApprovalPending
+            || ($appraisal->status === AppraisalStatus::SentBack && $appraisal->reopened_stage === WorkflowStage::Approval);
+
+        return $user->can('performance.appraisals.approve')
+            && $appraisal->approving_manager_user_id === $user->id
+            && $atApprovalStage;
     }
 
     public function finalize(User $user, Appraisal $appraisal): bool

@@ -29,6 +29,7 @@ class AppraisalSelfAssessmentController extends Controller
 
         return Inertia::render('performance/appraisals/SelfAssessment', [
             'appraisal' => $this->loadAppraisal($appraisal),
+            'abilities' => $this->appraisalAbilities($appraisal, request()->user()),
         ]);
     }
 

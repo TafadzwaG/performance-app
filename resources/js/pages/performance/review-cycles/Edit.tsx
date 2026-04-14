@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatDate, toDateInputValue } from '@/lib/date-utils';
 import type { BreadcrumbItem } from '@/types';
 import type { ReviewCycle } from '@/types/performance';
 import { cn } from '@/lib/utils';
@@ -116,12 +118,12 @@ export default function ReviewCycleEdit({ reviewCycle }: { reviewCycle: ReviewCy
         name: reviewCycle.name,
         code: reviewCycle.code,
         description: reviewCycle.description ?? '',
-        start_date: reviewCycle.start_date,
-        end_date: reviewCycle.end_date,
-        goal_setting_deadline: reviewCycle.goal_setting_deadline ?? '',
-        self_assessment_deadline: reviewCycle.self_assessment_deadline ?? '',
-        manager_review_deadline: reviewCycle.manager_review_deadline ?? '',
-        approval_deadline: reviewCycle.approval_deadline ?? '',
+        start_date: toDateInputValue(reviewCycle.start_date),
+        end_date: toDateInputValue(reviewCycle.end_date),
+        goal_setting_deadline: toDateInputValue(reviewCycle.goal_setting_deadline),
+        self_assessment_deadline: toDateInputValue(reviewCycle.self_assessment_deadline),
+        manager_review_deadline: toDateInputValue(reviewCycle.manager_review_deadline),
+        approval_deadline: toDateInputValue(reviewCycle.approval_deadline),
         status: reviewCycle.status,
     });
 
@@ -206,16 +208,16 @@ export default function ReviewCycleEdit({ reviewCycle }: { reviewCycle: ReviewCy
 
                                     <div className="space-y-2">
                                         <Label htmlFor="status">Status</Label>
-                                        <select
-                                            id="status"
-                                            className="flex h-11 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                            value={data.status}
-                                            onChange={(event) => setData('status', event.target.value)}
-                                        >
-                                            <option value="draft">Draft</option>
-                                            <option value="open">Open</option>
-                                            <option value="closed">Closed</option>
-                                        </select>
+                                        <Select value={data.status} onValueChange={(value) => setData('status', value)}>
+                                            <SelectTrigger id="status" className="h-11">
+                                                <SelectValue placeholder="Select status" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="draft">Draft</SelectItem>
+                                                <SelectItem value="open">Open</SelectItem>
+                                                <SelectItem value="closed">Closed</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     <div className="space-y-2">
@@ -346,12 +348,12 @@ export default function ReviewCycleEdit({ reviewCycle }: { reviewCycle: ReviewCy
 
                                 <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
                                     <span className="text-muted-foreground">Start</span>
-                                    <span className="font-medium text-foreground">{data.start_date || 'Not set'}</span>
+                                    <span className="font-medium text-foreground">{formatDate(data.start_date)}</span>
                                 </div>
 
                                 <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
                                     <span className="text-muted-foreground">End</span>
-                                    <span className="font-medium text-foreground">{data.end_date || 'Not set'}</span>
+                                    <span className="font-medium text-foreground">{formatDate(data.end_date)}</span>
                                 </div>
                             </CardContent>
                         </Card>

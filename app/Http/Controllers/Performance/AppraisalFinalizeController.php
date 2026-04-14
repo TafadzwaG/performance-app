@@ -26,6 +26,7 @@ class AppraisalFinalizeController extends Controller
 
         return Inertia::render('performance/appraisals/Finalize', [
             'appraisal' => $this->loadAppraisal($appraisal),
+            'abilities' => $this->appraisalAbilities($appraisal, request()->user()),
         ]);
     }
 

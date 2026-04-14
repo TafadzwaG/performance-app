@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\EmployeeProfile;
+use App\Support\Branding;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -42,6 +44,10 @@ class HandleInertiaRequests extends Middleware
         $impersonator = $impersonationManager->isImpersonating()
             ? $impersonationManager->getImpersonator()
             : null;
+        $user = $request->user();
+        $canViewEmployees = $user?->can('performance.employees.view')
+            || $user?->can('performance.employees.create')
+            || $user?->can('performance.employees.update');
 
         return array_merge(parent::share($request), [
             ...parent::share($request),
@@ -70,6 +76,12 @@ class HandleInertiaRequests extends Middleware
                         ]
                         : null,
                 ],
+            ],
+            'nav' => [
+                'employeesCount' => $canViewEmployees ? EmployeeProfile::query()->count() : null,
+            ],
+            'branding' => [
+                'logoUrl' => Branding::logoUrl(),
             ],
         ]);
     }

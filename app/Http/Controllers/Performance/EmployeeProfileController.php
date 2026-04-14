@@ -127,6 +127,7 @@ class EmployeeProfileController extends Controller
             'departmentOptions' => $this->departmentOptions(),
             'jobTitleOptions' => $this->jobTitleOptions(),
             'userOptions' => $this->userOptions(),
+            'managerOptions' => $this->managerUserOptions(),
             'roleOptions' => $this->roleOptions(),
             'employmentStatusOptions' => $this->employmentStatusOptions(),
             'genderOptions' => $this->genderOptions(),

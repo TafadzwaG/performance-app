@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatDate } from '@/lib/date-utils';
 import type { BreadcrumbItem } from '@/types';
 import { cn } from '@/lib/utils';
 import { useForm } from '@inertiajs/react';
@@ -19,6 +21,7 @@ import {
     Clock3,
     FileText,
     Info,
+    Sparkles,
     Send,
 } from 'lucide-react';
 
@@ -47,6 +50,57 @@ function formatDateValue(date?: Date): string {
     const day = String(date.getDate()).padStart(2, '0');
 
     return `${year}-${month}-${day}`;
+}
+
+function buildCycleCode(name: string): string {
+    const sanitizedName = name
+        .toUpperCase()
+        .replace(/[^A-Z0-9\s]/g, ' ')
+        .trim();
+
+    const initials = sanitizedName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 3)
+        .map((part) => part[0])
+        .join('');
+
+    const now = new Date();
+    const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
+    const prefix = initials || 'RC';
+
+    return `${prefix}-${yearMonth}-${randomSuffix}`;
+}
+
+function buildCycleDescription(data: {
+    name: string;
+    code: string;
+    start_date: string;
+    end_date: string;
+    goal_setting_deadline: string;
+    self_assessment_deadline: string;
+    manager_review_deadline: string;
+    approval_deadline: string;
+    status: string;
+}): string {
+    const name = data.name || 'this review cycle';
+    const codePart = data.code ? ` (${data.code})` : '';
+    const period = data.start_date && data.end_date ? `from ${data.start_date} to ${data.end_date}` : 'for the configured period';
+    const status = data.status || 'draft';
+
+    const milestones: string[] = [];
+    if (data.goal_setting_deadline) milestones.push(`Goal setting deadline: ${data.goal_setting_deadline}`);
+    if (data.self_assessment_deadline) milestones.push(`Self-assessment deadline: ${data.self_assessment_deadline}`);
+    if (data.manager_review_deadline) milestones.push(`Manager review deadline: ${data.manager_review_deadline}`);
+    if (data.approval_deadline) milestones.push(`Approval deadline: ${data.approval_deadline}`);
+
+    const milestoneText =
+        milestones.length > 0
+            ? ` Key milestones include ${milestones.join('; ')}.`
+            : ' Milestones will be finalized once all deadlines are set.';
+
+    return `This cycle, ${name}${codePart}, runs ${period} and is currently set to ${status} status.${milestoneText}`;
 }
 
 function DatePickerField({
@@ -210,31 +264,55 @@ export default function ReviewCycleCreate() {
 
                                     <div className="space-y-2">
                                         <Label htmlFor="status">Status</Label>
-                                        <select
-                                            id="status"
-                                            className="flex h-11 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                            value={data.status}
-                                            onChange={(event) => setData('status', event.target.value)}
-                                        >
-                                            <option value="draft">Draft</option>
-                                            <option value="open">Open</option>
-                                            <option value="closed">Closed</option>
-                                        </select>
+                                        <Select value={data.status} onValueChange={(value) => setData('status', value)}>
+                                            <SelectTrigger id="status" className="h-11">
+                                                <SelectValue placeholder="Select status" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="draft">Draft</SelectItem>
+                                                <SelectItem value="open">Open</SelectItem>
+                                                <SelectItem value="closed">Closed</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="code">Cycle Code</Label>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Label htmlFor="code">Cycle Code</Label>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 px-2 text-[11px]"
+                                                onClick={() => setData('code', buildCycleCode(data.name))}
+                                            >
+                                                <Sparkles className="mr-1 h-3.5 w-3.5" />
+                                                Generate Cycle Code
+                                            </Button>
+                                        </div>
                                         <Input
                                             id="code"
                                             value={data.code}
-                                            onChange={(event) => setData('code', event.target.value)}
+                                            onChange={(event) => setData('code', event.target.value.toUpperCase())}
                                             placeholder="ARC-2026-Q1"
                                             className="h-11 uppercase"
                                         />
                                     </div>
 
                                     <div className="space-y-2 md:col-span-3">
-                                        <Label htmlFor="description">Description</Label>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Label htmlFor="description">Description</Label>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 px-2 text-[11px]"
+                                                onClick={() => setData('description', buildCycleDescription(data))}
+                                            >
+                                                <Sparkles className="mr-1 h-3.5 w-3.5" />
+                                                Generate Description
+                                            </Button>
+                                        </div>
                                         <textarea
                                             id="description"
                                             className="min-h-28 w-full rounded-md border bg-background px-3 py-3 text-sm outline-none ring-offset-background transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -350,12 +428,12 @@ export default function ReviewCycleCreate() {
 
                                 <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
                                     <span className="text-muted-foreground">Start</span>
-                                    <span className="font-medium text-foreground">{data.start_date || 'Not set'}</span>
+                                    <span className="font-medium text-foreground">{formatDate(data.start_date)}</span>
                                 </div>
 
                                 <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
                                     <span className="text-muted-foreground">End</span>
-                                    <span className="font-medium text-foreground">{data.end_date || 'Not set'}</span>
+                                    <span className="font-medium text-foreground">{formatDate(data.end_date)}</span>
                                 </div>
                             </CardContent>
                         </Card>

@@ -1,16 +1,20 @@
 import AppraisalHeader from '@/components/performance/AppraisalHeader';
+import AppraisalWorkflowStepper from '@/components/performance/AppraisalWorkflowStepper';
 import GoalLibraryPicker from '@/components/performance/GoalLibraryPicker';
 import ObjectiveTable from '@/components/performance/ObjectiveTable';
 import PerformancePage from '@/components/performance/PerformancePage';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
 import type { Appraisal, GoalLibraryItem, Objective, Option } from '@/types/performance';
 import { useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { AlertTriangle, BookOpen, ClipboardList, ListChecks, Save, Send, Target, TrendingUp, Workflow } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
     appraisal: Appraisal;
+    abilities: Record<string, boolean>;
     perspectiveOptions: Option[];
     goalLibraryItems: GoalLibraryItem[];
 }
@@ -37,8 +41,9 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
     { title: 'Plan', href: route('performance.appraisals.plan', appraisal.id) },
 ];
 
-export default function AppraisalPlan({ appraisal, perspectiveOptions, goalLibraryItems }: Props) {
+export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions, goalLibraryItems }: Props) {
     const [pickerOpen, setPickerOpen] = useState(false);
+    const hydratedFromStorage = useRef(false);
     const { data, setData, put, post, processing } = useForm<{ objectives: PlanObjective[] }>({
         objectives:
             appraisal.objectives?.map((objective) => ({
@@ -55,6 +60,46 @@ export default function AppraisalPlan({ appraisal, perspectiveOptions, goalLibra
                 include_in_business_score: objective.include_in_business_score,
             })) ?? [],
     });
+    const draftStorageKey = useMemo(() => `performance:appraisals:plan:draft:${appraisal.id}`, [appraisal.id]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || hydratedFromStorage.current) {
+            return;
+        }
+
+        const raw = window.localStorage.getItem(draftStorageKey);
+        if (!raw) {
+            hydratedFromStorage.current = true;
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(raw) as { objectives?: PlanObjective[] } | PlanObjective[];
+            const objectives = Array.isArray(parsed) ? parsed : parsed.objectives;
+
+            if (Array.isArray(objectives)) {
+                setData('objectives', objectives);
+            }
+        } catch {
+            window.localStorage.removeItem(draftStorageKey);
+        } finally {
+            hydratedFromStorage.current = true;
+        }
+    }, [draftStorageKey, setData]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !hydratedFromStorage.current) {
+            return;
+        }
+
+        window.localStorage.setItem(draftStorageKey, JSON.stringify({ objectives: data.objectives }));
+    }, [data.objectives, draftStorageKey]);
+    const objectiveCount = data.objectives.length;
+    const includedInScoreCount = data.objectives.filter((objective) => objective.include_in_business_score).length;
+    const totalWeight = data.objectives.reduce((sum, objective) => sum + Number(objective.weight || 0), 0);
+    const weightDelta = 100 - totalWeight;
+    const hasWeightIssue = weightDelta !== 0;
+    const emptyTitleCount = data.objectives.filter((objective) => !objective.title.trim()).length;
 
     const updateObjective = (index: number, field: string, value: string | number | boolean | null) => {
         const next = [...data.objectives];
@@ -109,14 +154,110 @@ export default function AppraisalPlan({ appraisal, perspectiveOptions, goalLibra
             breadcrumbs={breadcrumbs(appraisal)}
             secondaryActions={
                 <Button type="button" variant="outline" onClick={() => setPickerOpen(true)}>
+                    <BookOpen className="mr-2 h-4 w-4" />
                     Pick from Goal Library
                 </Button>
             }
         >
-            <AppraisalHeader appraisal={appraisal} />
-            <Card>
+            <Card className="border shadow-sm">
+                <CardContent className="space-y-4 p-5">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <ClipboardList className="h-4 w-4" />
+                            Planning Workspace
+                        </div>
+                        <Badge variant="secondary">Appraisal #{appraisal.id}</Badge>
+                    </div>
+                    <AppraisalHeader appraisal={appraisal} />
+                </CardContent>
+            </Card>
+
+            <Card className="border shadow-sm">
+                <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Workflow className="h-4.5 w-4.5" />
+                        Workflow Stage
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <AppraisalWorkflowStepper
+                        status={appraisal.status}
+                        appraisalId={appraisal.id}
+                        reopenedStage={appraisal.reopened_stage}
+                        stageAccess={{
+                            goal_setting: abilities.plan,
+                            self_assessment_pending: abilities.selfAssess,
+                            manager_review_pending: abilities.managerReview,
+                            approval_pending: abilities.approve,
+                            approved: true,
+                            finalized: abilities.finalize,
+                        }}
+                    />
+                </CardContent>
+            </Card>
+
+            <div className="grid gap-4 lg:grid-cols-12">
+                <Card className="border shadow-sm lg:col-span-8">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <ListChecks className="h-4.5 w-4.5" />
+                            Planning Summary
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-lg border bg-muted/20 p-3">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Objectives</div>
+                            <div className="mt-1 text-xl font-semibold text-foreground">{objectiveCount}</div>
+                        </div>
+                        <div className="rounded-lg border bg-muted/20 p-3">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">In Score</div>
+                            <div className="mt-1 text-xl font-semibold text-foreground">{includedInScoreCount}</div>
+                        </div>
+                        <div className="rounded-lg border bg-muted/20 p-3">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Total Weight</div>
+                            <div className="mt-1 text-xl font-semibold text-foreground">{totalWeight}%</div>
+                        </div>
+                        <div className="rounded-lg border bg-muted/20 p-3">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Empty Titles</div>
+                            <div className="mt-1 text-xl font-semibold text-foreground">{emptyTitleCount}</div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border shadow-sm lg:col-span-4">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <TrendingUp className="h-4.5 w-4.5" />
+                            Weight Rule
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {hasWeightIssue ? (
+                            <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-center gap-2 font-medium">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    Weights must total 100%
+                                </div>
+                                <div className="mt-2">
+                                    Current total is <span className="font-semibold">{totalWeight}%</span>.
+                                    {weightDelta > 0 ? ` Add ${weightDelta}% more.` : ` Reduce by ${Math.abs(weightDelta)}%.`}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">
+                                Objective weights are valid at 100%.
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card className="border shadow-sm">
                 <CardHeader>
-                    <CardTitle>Objectives</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                        <Target className="h-4.5 w-4.5" />
+                        Objectives
+                    </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <ObjectiveTable
@@ -129,24 +270,49 @@ export default function AppraisalPlan({ appraisal, perspectiveOptions, goalLibra
                         onRemove={removeObjective}
                     />
                     <div className="flex flex-wrap gap-2">
-                        <Button type="button" onClick={() => put(route('performance.appraisals.plan.update', appraisal.id))} disabled={processing}>
-                            Save Plan
-                        </Button>
                         <Button
                             type="button"
-                            variant="outline"
                             onClick={() =>
                                 put(route('performance.appraisals.plan.update', appraisal.id), {
-                                    onSuccess: () => post(route('performance.appraisals.plan.submit', appraisal.id)),
+                                    onSuccess: () => {
+                                        if (typeof window !== 'undefined') {
+                                            window.localStorage.setItem(
+                                                draftStorageKey,
+                                                JSON.stringify({ objectives: data.objectives }),
+                                            );
+                                        }
+                                    },
                                 })
                             }
                             disabled={processing}
                         >
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Plan
+                        </Button>
+                        <Button
+                            type="button"
+                            className="bg-emerald-700 text-white hover:bg-emerald-800"
+                            onClick={() =>
+                                put(route('performance.appraisals.plan.update', appraisal.id), {
+                                    onSuccess: () =>
+                                        post(route('performance.appraisals.plan.submit', appraisal.id), {
+                                            onSuccess: () => {
+                                                if (typeof window !== 'undefined') {
+                                                    window.localStorage.removeItem(draftStorageKey);
+                                                }
+                                            },
+                                        }),
+                                })
+                            }
+                            disabled={processing || hasWeightIssue || objectiveCount === 0 || emptyTitleCount > 0}
+                        >
+                            <Send className="mr-2 h-4 w-4" />
                             Save and Submit
                         </Button>
                     </div>
                 </CardContent>
             </Card>
+
             <GoalLibraryPicker items={goalLibraryItems} open={pickerOpen} onOpenChange={setPickerOpen} onPick={selectLibraryGoal} />
         </PerformancePage>
     );
