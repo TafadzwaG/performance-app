@@ -7,10 +7,22 @@ use App\Models\ReviewCycle;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class ReportQueryService
 {
+    private const DASHBOARD_CACHE_TTL_SECONDS = 300;
+
     public function dashboard(User $user): array
+    {
+        return Cache::remember(
+            "performance:dashboard:user:{$user->id}",
+            self::DASHBOARD_CACHE_TTL_SECONDS,
+            fn () => $this->buildDashboard($user),
+        );
+    }
+
+    private function buildDashboard(User $user): array
     {
         $ownQuery = $this->ownAppraisals($user);
         $teamQuery = $this->teamAppraisals($user);

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
 import type { Appraisal, GoalLibraryItem, Objective, Option } from '@/types/performance';
 import { useForm } from '@inertiajs/react';
-import { AlertTriangle, BookOpen, ClipboardList, ListChecks, Save, Send, Target, TrendingUp, Workflow } from 'lucide-react';
+import { AlertTriangle, BookOpen, ClipboardList, ListChecks, Loader2, Save, Send, Target, TrendingUp, Workflow } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
@@ -285,9 +285,14 @@ export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions
                                 })
                             }
                             disabled={processing}
+                            aria-busy={processing}
                         >
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Plan
+                            {processing ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                            ) : (
+                                <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+                            )}
+                            {processing ? 'Saving…' : 'Save Plan'}
                         </Button>
                         <Button
                             type="button"
@@ -305,9 +310,14 @@ export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions
                                 })
                             }
                             disabled={processing || hasWeightIssue || objectiveCount === 0 || emptyTitleCount > 0}
+                            aria-busy={processing}
                         >
-                            <Send className="mr-2 h-4 w-4" />
-                            Save and Submit
+                            {processing ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                            ) : (
+                                <Send className="mr-2 h-4 w-4" aria-hidden="true" />
+                            )}
+                            {processing ? 'Submitting…' : 'Save and Submit'}
                         </Button>
                     </div>
                 </CardContent>
