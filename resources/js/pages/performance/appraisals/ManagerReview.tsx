@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
 import type { Appraisal, CompetencyRating, Objective, Option } from '@/types/performance';
 import { router, useForm } from '@inertiajs/react';
-import { Calculator, ClipboardList, CornerUpLeft, Save, Send, ShieldCheck, Target, Trophy, Workflow } from 'lucide-react';
+import { Calculator, ClipboardList, CornerUpLeft, Loader2, Save, Send, ShieldCheck, Target, Trophy, Workflow } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 
 interface Props {
@@ -213,14 +213,28 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                         variant="outline"
                         onClick={() => router.post(route('performance.appraisals.manager_review.recalculate_score', appraisal.id))}
                         disabled={processing}
+                        aria-busy={processing}
                     >
-                        <Calculator className="mr-2 h-4 w-4" />
+                        {processing ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                            <Calculator className="mr-2 h-4 w-4" aria-hidden="true" />
+                        )}
                         Re-Calculate Score
                     </Button>
                 ) : null}
-                <Button type="button" onClick={() => put(route('performance.appraisals.manager_review.update', appraisal.id))} disabled={processing}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Review
+                <Button
+                    type="button"
+                    onClick={() => put(route('performance.appraisals.manager_review.update', appraisal.id))}
+                    disabled={processing}
+                    aria-busy={processing}
+                >
+                    {processing ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                        <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+                    )}
+                    {processing ? 'Saving…' : 'Save Review'}
                 </Button>
                 <Button
                     type="button"
@@ -238,9 +252,14 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                         })
                     }
                     disabled={processing}
+                    aria-busy={processing}
                 >
-                    <Send className="mr-2 h-4 w-4" />
-                    Submit Forward
+                    {processing ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                        <Send className="mr-2 h-4 w-4" aria-hidden="true" />
+                    )}
+                    {processing ? 'Submitting…' : 'Submit Forward'}
                 </Button>
                 <Button
                     type="button"
@@ -252,8 +271,9 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                         })
                     }
                     disabled={processing}
+                    aria-busy={processing}
                 >
-                    <CornerUpLeft className="mr-2 h-4 w-4" />
+                    <CornerUpLeft className="mr-2 h-4 w-4" aria-hidden="true" />
                     Send Back
                 </Button>
             </div>

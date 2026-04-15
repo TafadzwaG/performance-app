@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Events\Performance\AppraisalStatusChanged;
+use App\Listeners\Performance\InvalidateDashboardCache;
 use App\Listeners\Performance\SendAppraisalWorkflowNotifications;
 use App\Models\Appraisal;
 use App\Models\AppraisalTemplate;
@@ -66,6 +67,11 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(
             AppraisalStatusChanged::class,
             SendAppraisalWorkflowNotifications::class,
+        );
+
+        Event::listen(
+            AppraisalStatusChanged::class,
+            InvalidateDashboardCache::class,
         );
     }
 }

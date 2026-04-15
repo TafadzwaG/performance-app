@@ -1,4 +1,5 @@
 import Heading from '@/components/heading';
+import PerformanceErrorBoundary from '@/components/performance/PerformanceErrorBoundary';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -44,7 +45,7 @@ export default function PerformancePage({
                         ) : null}
                     </div>
                 </div>
-                {children}
+                <PerformanceErrorBoundary>{children}</PerformanceErrorBoundary>
             </div>
         </AppLayout>
     );
