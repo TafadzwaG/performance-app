@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\RequirePasswordChange;
+use App\Http\Middleware\RequireApprovedUser;
 use App\Http\Middleware\RequireEmployeeProfileCompletion;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RecordAuditTrail;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
             'password.change' => RequirePasswordChange::class,
+            'approved' => RequireApprovedUser::class,
             'employee.profile.complete' => RequireEmployeeProfileCompletion::class,
         ]);
     })

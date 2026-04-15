@@ -4,17 +4,22 @@ import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { formatDateTime } from '@/lib/date-utils';
 import type { BreadcrumbItem, SharedData } from '@/types';
-import type { AccessUserRecord, Paginated } from '@/types/performance';
+import type { AccessUserRecord, Option, Paginated } from '@/types/performance';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent } from 'react';
-import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Briefcase, Download, Eye, Filter, LogIn, Pencil, RotateCcw, Search, ShieldCheck, UserPlus, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Briefcase, CheckCheck, Download, Eye, Filter, LogIn, Pencil, RotateCcw, Search, ShieldCheck, UserPlus, Users } from 'lucide-react';
 
 interface Props {
     users?: Paginated<AccessUserRecord> | null;
-    filters?: { search?: string; sort_by?: string; sort_dir?: 'asc' | 'desc' } | null;
+    filters?: { search?: string; sort_by?: string; sort_dir?: 'asc' | 'desc'; approval_status?: 'active' | 'pending' } | null;
+    counts?: { active?: number; pending?: number } | null;
+    roleOptions?: Option[] | null;
 }
 
 function getInitials(name: string) {
@@ -32,7 +37,7 @@ function permissionTone(count: number) {
     return 'bg-muted-foreground/50';
 }
 
-export default function UsersIndex({ users, filters }: Props) {
+export default function UsersIndex({ users, filters, counts, roleOptions }: Props) {
     const { auth, flash } = usePage<SharedData>().props;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Performance', href: '/performance/dashboard' },
@@ -41,7 +46,14 @@ export default function UsersIndex({ users, filters }: Props) {
     const canCreateUsers = auth.permissions.includes('access.users.create');
     const canImportUsers = auth.permissions.includes('access.users.import');
     const canImpersonateUsers = auth.permissions.includes('access.users.impersonate');
+    const canApproveUsers = auth.permissions.includes('access.users.approve');
     const isImpersonating = auth.impersonation?.isImpersonating ?? false;
+    const approvalStatus = filters?.approval_status === 'pending' ? 'pending' : 'active';
+    const pendingCount = counts?.pending ?? 0;
+    const activeCount = counts?.active ?? 0;
+    const [pendingSelectionId, setPendingSelectionId] = useState<number | null>(null);
+    const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+    const [approvalRoleIds, setApprovalRoleIds] = useState<number[]>([]);
 
     const safeUsers: Paginated<AccessUserRecord> = {
         data: users?.data ?? [],
@@ -59,7 +71,15 @@ export default function UsersIndex({ users, filters }: Props) {
         search: filters?.search ?? '',
         sort_by: filters?.sort_by ?? 'name',
         sort_dir: filters?.sort_dir ?? 'asc',
+        approval_status: approvalStatus,
     });
+
+    const safeRoleOptions = roleOptions ?? [];
+    const pendingSelection = useMemo(
+        () => safeUsers.data.find((user) => user.id === pendingSelectionId) ?? null,
+        [pendingSelectionId, safeUsers.data],
+    );
+    const canOpenActivateModal = approvalStatus === 'pending' && !!pendingSelection && canApproveUsers;
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -89,6 +109,7 @@ export default function UsersIndex({ users, filters }: Props) {
                 search: searchForm.data.search,
                 sort_by: column,
                 sort_dir: nextDirection,
+                approval_status: searchForm.data.approval_status,
             },
             {
                 preserveState: true,
@@ -116,6 +137,58 @@ export default function UsersIndex({ users, filters }: Props) {
             {},
             {
                 preserveScroll: true,
+            },
+        );
+    };
+
+    const switchApprovalTab = (tab: 'active' | 'pending') => {
+        searchForm.setData('approval_status', tab);
+
+        router.get(
+            route('access.users.index'),
+            {
+                search: searchForm.data.search,
+                sort_by: searchForm.data.sort_by,
+                sort_dir: searchForm.data.sort_dir,
+                approval_status: tab,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const openActivationModal = () => {
+        if (!pendingSelection) return;
+
+        const selectedRoles = pendingSelection.roles?.map((role) => role.id) ?? [];
+        setApprovalRoleIds(selectedRoles);
+        setApprovalModalOpen(true);
+    };
+
+    const toggleApprovalRole = (roleId: number) => {
+        setApprovalRoleIds((current) =>
+            current.includes(roleId)
+                ? current.filter((id) => id !== roleId)
+                : [...current, roleId],
+        );
+    };
+
+    const approvePendingUser = () => {
+        if (!pendingSelection || approvalRoleIds.length === 0) return;
+
+        router.post(
+            route('access.users.approve', { user: pendingSelection.id }),
+            { role_ids: approvalRoleIds },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setApprovalModalOpen(false);
+                    setPendingSelectionId(null);
+                    setApprovalRoleIds([]);
+                },
             },
         );
     };
@@ -176,6 +249,42 @@ export default function UsersIndex({ users, filters }: Props) {
                 </Card>
 
                 <Card>
+                    <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                type="button"
+                                variant={approvalStatus === 'active' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => switchApprovalTab('active')}
+                            >
+                                Active Users
+                                <Badge className="ml-2" variant="outline">
+                                    {activeCount}
+                                </Badge>
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={approvalStatus === 'pending' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => switchApprovalTab('pending')}
+                            >
+                                Pending Approvals
+                                <Badge className="ml-2" variant="outline">
+                                    {pendingCount}
+                                </Badge>
+                            </Button>
+                        </div>
+
+                        {approvalStatus === 'pending' && canApproveUsers ? (
+                            <Button type="button" size="sm" onClick={openActivationModal} disabled={!canOpenActivateModal}>
+                                <CheckCheck className="mr-2 h-4 w-4" />
+                                Activate Selected
+                            </Button>
+                        ) : null}
+                    </CardContent>
+                </Card>
+
+                <Card>
                     <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
                         <form onSubmit={submitSearch} className="flex w-full flex-col gap-3 sm:flex-row lg:max-w-2xl">
                             <div className="relative flex-1">
@@ -194,7 +303,7 @@ export default function UsersIndex({ users, filters }: Props) {
                             </Button>
 
                             <Button asChild variant="outline">
-                                <Link href={route('access.users.index')}>
+                                <Link href={route('access.users.index', { approval_status: approvalStatus })}>
                                     <RotateCcw className="mr-2 h-4 w-4" />
                                     Reset
                                 </Link>
@@ -215,6 +324,11 @@ export default function UsersIndex({ users, filters }: Props) {
                             <table className="min-w-full text-left text-sm">
                                 <thead className="border-b bg-muted/40">
                                     <tr>
+                                        {approvalStatus === 'pending' ? (
+                                            <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                                Select
+                                            </th>
+                                        ) : null}
                                         <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                                             <button
                                                 type="button"
@@ -261,6 +375,16 @@ export default function UsersIndex({ users, filters }: Props) {
                                     {safeUsers.data.length > 0 ? (
                                         safeUsers.data.map((user) => (
                                             <tr key={user.id} className="border-t transition-colors hover:bg-muted/40">
+                                                {approvalStatus === 'pending' ? (
+                                                    <td className="px-6 py-5">
+                                                        <Checkbox
+                                                            checked={pendingSelectionId === user.id}
+                                                            onCheckedChange={(checked) => {
+                                                                setPendingSelectionId(checked === true ? user.id : null);
+                                                            }}
+                                                        />
+                                                    </td>
+                                                ) : null}
                                                 <td className="px-6 py-5">
                                                     <div className="flex items-center gap-3">
                                                         <div className="flex h-11 w-11 items-center justify-center rounded-full border bg-muted font-medium text-foreground">
@@ -273,6 +397,11 @@ export default function UsersIndex({ users, filters }: Props) {
                                                                 {user.email}
                                                             </div>
                                                         </div>
+                                                    </div>
+                                                    <div className="mt-1">
+                                                        <Badge variant={user.is_approved ? 'secondary' : 'outline'}>
+                                                            {user.is_approved ? 'active' : 'pending'}
+                                                        </Badge>
                                                     </div>
                                                 </td>
 
@@ -325,7 +454,7 @@ export default function UsersIndex({ users, filters }: Props) {
                                                             </Link>
                                                         </Button>
 
-                                                        {canImpersonateUsers && !isImpersonating && auth.user.id !== user.id && (
+                                                        {canImpersonateUsers && approvalStatus === 'active' && !isImpersonating && auth.user.id !== user.id && (
                                                             <Button
                                                                 type="button"
                                                                 variant="outline"
@@ -343,14 +472,16 @@ export default function UsersIndex({ users, filters }: Props) {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={6} className="px-6 py-14 text-center">
+                                            <td colSpan={approvalStatus === 'pending' ? 7 : 6} className="px-6 py-14 text-center">
                                                 <div className="mx-auto max-w-md space-y-2">
                                                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-muted text-muted-foreground">
                                                         <Users className="h-5 w-5" />
                                                     </div>
                                                     <h3 className="text-base font-semibold text-foreground">No users found</h3>
                                                     <p className="text-sm text-muted-foreground">
-                                                        Try adjusting your search to find matching user records.
+                                                        {approvalStatus === 'pending'
+                                                            ? 'No users are currently pending approval.'
+                                                            : 'Try adjusting your search to find matching user records.'}
                                                     </p>
                                                 </div>
                                             </td>
@@ -446,6 +577,58 @@ export default function UsersIndex({ users, filters }: Props) {
                     </Card>
                 </div>
             </div>
+
+            <Dialog open={approvalModalOpen} onOpenChange={setApprovalModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Activate User Account</DialogTitle>
+                        <DialogDescription>
+                            {pendingSelection
+                                ? `Assign role(s) and activate ${pendingSelection.name} (${pendingSelection.email}).`
+                                : 'Assign roles and activate the selected user.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Assign Roles</div>
+                        <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-3">
+                            {safeRoleOptions.map((role) => {
+                                const roleId = Number(role.value);
+                                const checked = approvalRoleIds.includes(roleId);
+                                const inputId = `approve-role-${roleId}`;
+
+                                return (
+                                    <label
+                                        key={roleId}
+                                        htmlFor={inputId}
+                                        className="flex cursor-pointer items-center justify-between rounded-md border px-3 py-2 hover:bg-muted/30"
+                                    >
+                                        <span className="text-sm text-foreground">{role.label}</span>
+                                        <Checkbox
+                                            id={inputId}
+                                            checked={checked}
+                                            onCheckedChange={() => toggleApprovalRole(roleId)}
+                                        />
+                                    </label>
+                                );
+                            })}
+                        </div>
+                        {approvalRoleIds.length === 0 ? (
+                            <p className="text-xs text-destructive">Select at least one role before activation.</p>
+                        ) : null}
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setApprovalModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={approvePendingUser} disabled={approvalRoleIds.length === 0}>
+                            <CheckCheck className="mr-2 h-4 w-4" />
+                            Activate User
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </PerformancePage>
     );
 }

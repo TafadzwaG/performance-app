@@ -22,6 +22,13 @@ Route::middleware('guest')->group(function () {
     Route::post('login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('throttle:5,1');
 
+    Route::get('pending-approval', function (\Illuminate\Http\Request $request) {
+        return \Inertia\Inertia::render('auth/pending-approval', [
+            'status' => $request->session()->get('status'),
+            'error' => $request->session()->get('error'),
+        ]);
+    })->name('pending-approval');
+
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 

@@ -35,13 +35,22 @@ class UserController extends Controller
         $search = (string) $request->string('search');
         $sortBy = (string) $request->string('sort_by', 'name');
         $sortDirection = strtolower((string) $request->string('sort_dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+        $approvalStatus = (string) $request->string('approval_status', 'active');
+
+        if (! in_array($approvalStatus, ['active', 'pending'], true)) {
+            $approvalStatus = 'active';
+        }
 
         if (! in_array($sortBy, ['name', 'email', 'employee_number', 'created_at', 'updated_at'], true)) {
             $sortBy = 'name';
         }
 
+        $pendingCount = User::query()->where('is_approved', false)->count();
+        $activeCount = User::query()->where('is_approved', true)->count();
+
         $query = User::query()
             ->with(['roles:id,name', 'permissions:id,name', 'employeeProfile:id,user_id,employee_number'])
+            ->where('is_approved', $approvalStatus === 'active')
             ->when($search, function ($query) use ($search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
@@ -64,10 +73,16 @@ class UserController extends Controller
 
         return Inertia::render('access/users/Index', [
             'users' => $users,
+            'roleOptions' => $this->roleOptions(),
             'filters' => [
                 'search' => $search,
                 'sort_by' => $sortBy,
                 'sort_dir' => $sortDirection,
+                'approval_status' => $approvalStatus,
+            ],
+            'counts' => [
+                'active' => $activeCount,
+                'pending' => $pendingCount,
             ],
         ]);
     }
@@ -248,5 +263,29 @@ class UserController extends Controller
         $this->authorize('import', User::class);
 
         return $export->download('user-import-template-'.now()->format('Ymd-Hi').'.xlsx');
+    }
+
+    public function approve(Request $request, User $user): RedirectResponse
+    {
+        $this->authorize('approve', $user);
+
+        $validated = $request->validate([
+            'role_ids' => ['required', 'array', 'min:1'],
+            'role_ids.*' => ['integer', 'exists:roles,id'],
+        ]);
+
+        $roles = Role::query()
+            ->whereIn('id', $validated['role_ids'])
+            ->get();
+
+        $user->syncRoles($roles);
+
+        $user->forceFill([
+            'is_approved' => true,
+        ])->save();
+
+        return to_route('access.users.index', [
+            'approval_status' => 'pending',
+        ])->with('success', "{$user->name} has been approved and can now sign in.");
     }
 }

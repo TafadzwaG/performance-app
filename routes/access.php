@@ -7,7 +7,7 @@ use App\Http\Controllers\Access\UserController;
 use App\Http\Controllers\Access\UserImpersonationController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'password.change'])->prefix('access')->as('access.')->group(function () {
+Route::middleware(['auth', 'approved', 'password.change'])->prefix('access')->as('access.')->group(function () {
     Route::get('help', [HelpController::class, 'index'])->name('help.index');
     Route::get('help/download/{document}/{format}', [HelpController::class, 'download'])->name('help.download');
 
@@ -24,6 +24,7 @@ Route::middleware(['auth', 'password.change'])->prefix('access')->as('access.')-
     Route::resource('users', UserController::class)
         ->parameters(['users' => 'user'])
         ->only(['index', 'create', 'store', 'show', 'edit', 'update']);
+    Route::post('users/{user}/approve', [UserController::class, 'approve'])->name('users.approve');
 
     Route::post('users/{user}/impersonate', [UserImpersonationController::class, 'store'])
         ->name('users.impersonate.store');

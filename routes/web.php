@@ -17,7 +17,7 @@ Route::get('/', function () {
         : redirect()->route('login');
 })->name('home');
 
-Route::middleware(['auth', 'password.change'])->group(function () {
+Route::middleware(['auth', 'approved', 'password.change'])->group(function () {
     Route::get('complete-profile', [EmployeeProfileCompletionController::class, 'create'])->name('employee-profile.complete');
     Route::post('complete-profile', [EmployeeProfileCompletionController::class, 'store'])->name('employee-profile.complete.store');
 

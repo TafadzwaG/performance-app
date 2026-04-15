@@ -38,4 +38,11 @@ class UserPolicy
     {
         return $user->can('access.users.import');
     }
+
+    public function approve(User $user, User $managedUser): bool
+    {
+        return $user->id !== $managedUser->id
+            && ! $managedUser->is_approved
+            && $user->can('access.users.approve');
+    }
 }

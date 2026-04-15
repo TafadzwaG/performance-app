@@ -26,6 +26,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'is_approved',
         'password',
         'force_password_change',
         'password_changed_at',
@@ -52,6 +53,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'is_approved' => 'boolean',
             'password' => 'hashed',
             'force_password_change' => 'boolean',
             'password_changed_at' => 'datetime',

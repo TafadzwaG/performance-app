@@ -152,6 +152,7 @@ export interface BasicUser {
     id: number;
     name: string;
     email: string;
+    is_approved?: boolean;
     email_verified_at?: string | null;
     force_password_change?: boolean;
     password_changed_at?: string | null;

@@ -31,6 +31,16 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        if (! $request->user()?->is_approved) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()
+                ->route('pending-approval')
+                ->with('error', 'Your account is pending admin approval.');
+        }
+
         $request->session()->regenerate();
 
         if ($request->user()?->force_password_change) {

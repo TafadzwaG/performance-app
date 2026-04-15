@@ -103,6 +103,7 @@ class PerformancePermissions
                 'access.users.update',
                 'access.users.import',
                 'access.users.impersonate',
+                'access.users.approve',
             ],
             'Audit Trail' => [
                 'access.audit_trails.view',
