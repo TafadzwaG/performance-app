@@ -20,7 +20,10 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
     { title: 'Print', href: route('performance.appraisals.print', appraisal.id) },
 ];
 
-export default function AppraisalPrint({ appraisal }: { appraisal: Appraisal }) {
+export default function AppraisalPrint({ appraisal, abilities }: { appraisal: Appraisal; abilities: Record<string, boolean> }) {
+    const effectiveOverallScore = appraisal.calibrated_overall_score ?? appraisal.overall_score;
+    const effectiveOverallRating = appraisal.calibrated_overall_rating_level?.label ?? appraisal.overall_rating_level?.label ?? null;
+
     const perspectiveOptions: Option[] = (appraisal.objectives ?? []).map((objective) => ({
         value: objective.perspective_id,
         label: objective.perspective?.name ?? `Perspective ${objective.perspective_id}`,
@@ -64,7 +67,19 @@ export default function AppraisalPrint({ appraisal }: { appraisal: Appraisal }) 
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <AppraisalWorkflowStepper status={appraisal.status} />
+                    <AppraisalWorkflowStepper
+                        status={appraisal.status}
+                        appraisalId={appraisal.id}
+                        reopenedStage={appraisal.reopened_stage}
+                        stageAccess={{
+                            goal_setting: abilities.plan,
+                            self_assessment_pending: abilities.selfAssess,
+                            manager_review_pending: abilities.managerReview,
+                            approval_pending: abilities.approve,
+                            calibration_pending: abilities.calibrate,
+                            finalized: abilities.finalize,
+                        }}
+                    />
                 </CardContent>
             </Card>
 
@@ -79,8 +94,8 @@ export default function AppraisalPrint({ appraisal }: { appraisal: Appraisal }) 
                     <ScoreSummaryCard
                         businessScore={appraisal.business_score}
                         valuesScore={appraisal.values_score}
-                        overallScore={appraisal.overall_score}
-                        overallRating={appraisal.overall_rating_level?.label ?? null}
+                        overallScore={effectiveOverallScore}
+                        overallRating={effectiveOverallRating}
                     />
                 </CardContent>
             </Card>

@@ -117,7 +117,7 @@ function dueDateFor(appraisal: Appraisal) {
 
 function isOverdue(appraisal: Appraisal) {
     const dueDate = dueDateFor(appraisal);
-    return dueDate ? isBefore(parseISO(dueDate), new Date()) && !['approved', 'finalized'].includes(appraisal.status) : false;
+    return dueDate ? isBefore(parseISO(dueDate), new Date()) && !['calibration_pending', 'finalized'].includes(appraisal.status) : false;
 }
 
 function EmptyState({ message }: { message: string }) {

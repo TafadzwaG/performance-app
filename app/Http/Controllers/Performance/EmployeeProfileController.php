@@ -9,6 +9,8 @@ use App\Http\Requests\Performance\UpdateEmployeeLineManagerRequest;
 use App\Http\Requests\Performance\UpdateEmployeeProfileRequest;
 use App\Models\EmployeeProfile;
 use App\Models\Role;
+use App\Services\Performance\EmployeeFieldConfigService;
+use App\Support\Performance\EmployeeFieldRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -19,14 +21,16 @@ class EmployeeProfileController extends Controller
 {
     use BuildsPerformanceViewData;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly EmployeeFieldConfigService $fieldConfigService,
+    ) {
         $this->authorizeResource(EmployeeProfile::class, 'employee_profile');
     }
 
     public function index(Request $request): Response
     {
         $search = (string) $request->string('search');
+        $visibleIndexFields = $this->fieldConfigService->enabledFieldKeys(EmployeeFieldRegistry::SCREEN_EMPLOYEE_INDEX);
 
         $employeeProfiles = EmployeeProfile::query()
             ->with([
@@ -38,13 +42,27 @@ class EmployeeProfileController extends Controller
                 'latestAppraisal.reviewCycle',
                 'latestAppraisal.overallRatingLevel',
             ])
-            ->when($search, function ($query) use ($search) {
-                $query->where(function ($builder) use ($search) {
-                    $builder->where('employee_number', 'like', "%{$search}%")
-                        ->orWhere('national_id', 'like', "%{$search}%")
-                        ->orWhereHas('user', fn ($userQuery) => $userQuery
-                            ->where('name', 'like', "%{$search}%")
-                            ->orWhere('email', 'like', "%{$search}%"));
+            ->when($search, function ($query) use ($search, $visibleIndexFields) {
+                $query->where(function ($builder) use ($search, $visibleIndexFields) {
+                    if (in_array('employee_number', $visibleIndexFields, true)) {
+                        $builder->orWhere('employee_number', 'like', "%{$search}%");
+                    }
+
+                    if (in_array('national_id', $visibleIndexFields, true)) {
+                        $builder->orWhere('national_id', 'like', "%{$search}%");
+                    }
+
+                    if (in_array('user_name', $visibleIndexFields, true) || in_array('user_email', $visibleIndexFields, true)) {
+                        $builder->orWhereHas('user', function ($userQuery) use ($search, $visibleIndexFields) {
+                            if (in_array('user_name', $visibleIndexFields, true)) {
+                                $userQuery->where('name', 'like', "%{$search}%");
+                            }
+
+                            if (in_array('user_email', $visibleIndexFields, true)) {
+                                $userQuery->orWhere('email', 'like', "%{$search}%");
+                            }
+                        });
+                    }
                 });
             })
             ->latest()
@@ -54,6 +72,7 @@ class EmployeeProfileController extends Controller
         return Inertia::render('performance/employees/Index', [
             'employeeProfiles' => $employeeProfiles,
             'filters' => ['search' => $search],
+            'fieldConfig' => $this->fieldConfigService->forScreen(EmployeeFieldRegistry::SCREEN_EMPLOYEE_INDEX)->all(),
             'can' => [
                 'create' => $request->user()->can('performance.employees.create'),
             ],
@@ -65,6 +84,7 @@ class EmployeeProfileController extends Controller
         return Inertia::render('performance/employees/Create', [
             ...$this->employeeFormPageData($request),
             'formDefaults' => $this->employeeFormDefaults(),
+            'fieldConfig' => $this->fieldConfigService->forScreen(EmployeeFieldRegistry::SCREEN_EMPLOYEE_CREATE)->all(),
         ]);
     }
 
@@ -73,8 +93,9 @@ class EmployeeProfileController extends Controller
         $validated = $request->validated();
 
         $profile = EmployeeProfile::create(Arr::except($validated, ['role_ids']) + [
-            'is_active' => (bool) $request->boolean('is_active', true),
-            'is_review_eligible' => (bool) $request->boolean('is_review_eligible', true),
+            'employment_status' => $validated['employment_status'] ?? 'active',
+            'is_active' => array_key_exists('is_active', $validated) ? (bool) $validated['is_active'] : true,
+            'is_review_eligible' => array_key_exists('is_review_eligible', $validated) ? (bool) $validated['is_review_eligible'] : true,
         ]);
 
         if (($request->user()->can('performance.employees.assign_roles') || $request->user()->can('access.roles.assign_users')) && $profile->user) {
@@ -100,6 +121,7 @@ class EmployeeProfileController extends Controller
         return Inertia::render('performance/employees/Show', [
             'employeeProfile' => $employeeProfile,
             'managerOptions' => $this->managerUserOptions(),
+            'fieldConfig' => $this->fieldConfigService->forScreen(EmployeeFieldRegistry::SCREEN_EMPLOYEE_SHOW)->all(),
             'can' => [
                 'assignManagers' => $request->user()->can('performance.employees.assign_managers')
                     || $request->user()->can('performance.employees.update'),
@@ -115,6 +137,7 @@ class EmployeeProfileController extends Controller
             ...$this->employeeFormPageData(request()),
             'employeeProfile' => $employeeProfile,
             'formDefaults' => $this->employeeFormDefaults($employeeProfile),
+            'fieldConfig' => $this->fieldConfigService->forScreen(EmployeeFieldRegistry::SCREEN_EMPLOYEE_EDIT)->all(),
         ]);
     }
 
@@ -122,10 +145,17 @@ class EmployeeProfileController extends Controller
     {
         $validated = $request->validated();
 
-        $employeeProfile->update(Arr::except($validated, ['role_ids']) + [
-            'is_active' => (bool) $request->boolean('is_active'),
-            'is_review_eligible' => (bool) $request->boolean('is_review_eligible', true),
-        ]);
+        $attributes = Arr::except($validated, ['role_ids']);
+
+        if (array_key_exists('is_active', $validated)) {
+            $attributes['is_active'] = (bool) $validated['is_active'];
+        }
+
+        if (array_key_exists('is_review_eligible', $validated)) {
+            $attributes['is_review_eligible'] = (bool) $validated['is_review_eligible'];
+        }
+
+        $employeeProfile->update($attributes);
 
         if (($request->user()->can('performance.employees.assign_roles') || $request->user()->can('access.roles.assign_users')) && $employeeProfile->user) {
             $roles = Role::query()->whereIn('id', $validated['role_ids'] ?? [])->get();

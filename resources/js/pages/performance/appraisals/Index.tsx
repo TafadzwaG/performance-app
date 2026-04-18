@@ -59,7 +59,7 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
     const completedCount = useMemo(
         () =>
             appraisals.data.filter((item) =>
-                ['approved', 'finalized'].includes((item.status ?? '').toLowerCase()),
+                ['calibration_pending', 'finalized'].includes((item.status ?? '').toLowerCase()),
             ).length,
         [appraisals.data],
     );
@@ -144,7 +144,7 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
                         <CardContent>
                             <div className="text-3xl font-bold tracking-tight">{completedCount}</div>
                             <p className="mt-2 text-xs text-muted-foreground">
-                                Approved or finalized appraisals in the visible list.
+                                Calibrating or finalized appraisals in the visible list.
                             </p>
                         </CardContent>
                     </Card>
@@ -214,7 +214,7 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
                                     <option value="self_assessment_pending">Self assessment pending</option>
                                     <option value="manager_review_pending">Manager review pending</option>
                                     <option value="approval_pending">Approval pending</option>
-                                    <option value="approved">Approved</option>
+                                    <option value="calibration_pending">Calibration pending</option>
                                     <option value="finalized">Finalized</option>
                                 </select>
                             </div>

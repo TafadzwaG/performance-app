@@ -7,6 +7,8 @@ use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Performance\CompleteEmployeeProfileRequest;
 use App\Models\EmployeeProfile;
 use App\Models\User;
+use App\Services\Performance\EmployeeFieldConfigService;
+use App\Support\Performance\EmployeeFieldRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,6 +17,11 @@ use Inertia\Response;
 class EmployeeProfileCompletionController extends Controller
 {
     use BuildsPerformanceViewData;
+
+    public function __construct(
+        private readonly EmployeeFieldConfigService $fieldConfigService,
+    ) {
+    }
 
     public function create(Request $request): Response|RedirectResponse
     {
@@ -33,6 +40,7 @@ class EmployeeProfileCompletionController extends Controller
             'genderOptions' => $this->genderOptions(),
             'maritalStatusOptions' => $this->maritalStatusOptions(),
             'employmentTypeOptions' => $this->employmentTypeOptions(),
+            'fieldConfig' => $this->fieldConfigService->forScreen(EmployeeFieldRegistry::SCREEN_COMPLETE_PROFILE)->all(),
             'can' => [
                 'assignRoles' => false,
             ],
@@ -49,8 +57,9 @@ class EmployeeProfileCompletionController extends Controller
 
         EmployeeProfile::create($request->validated() + [
             'user_id' => $user->id,
-            'is_active' => (bool) $request->boolean('is_active', true),
-            'is_review_eligible' => (bool) $request->boolean('is_review_eligible', true),
+            'employment_status' => $request->validated('employment_status', 'active'),
+            'is_active' => (bool) $request->validated('is_active', true),
+            'is_review_eligible' => (bool) $request->validated('is_review_eligible', true),
         ]);
 
         return to_route('dashboard')->with('success', 'Employee profile completed successfully.');

@@ -9,6 +9,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
     manager_review_completed: { label: 'Manager Review Completed', className: 'bg-indigo-100 text-indigo-700' },
     approval_pending: { label: 'Approval Pending', className: 'bg-fuchsia-100 text-fuchsia-700' },
     approved: { label: 'Approved', className: 'bg-emerald-100 text-emerald-700' },
+    calibration_pending: { label: 'Calibration Pending', className: 'bg-emerald-100 text-emerald-700' },
     sent_back: { label: 'Sent Back', className: 'bg-rose-100 text-rose-700' },
     finalized: { label: 'Finalized', className: 'bg-teal-100 text-teal-700' },
 };

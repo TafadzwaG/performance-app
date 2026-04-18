@@ -12,7 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 test('employee create, index, show, and edit routes are accessible to authorized users', function () {
-    $admin = User::factory()->create();
+    $admin = User::factory()->create(['is_approved' => true]);
     grantPermissions($admin, [
         'performance.employees.view',
         'performance.employees.create',
@@ -39,7 +39,7 @@ test('employee create, index, show, and edit routes are accessible to authorized
 });
 
 test('employee profile can be created with expanded hr and performance fields', function () {
-    $admin = User::factory()->create();
+    $admin = User::factory()->create(['is_approved' => true]);
     grantPermissions($admin, [
         'performance.employees.create',
         'performance.employees.assign_roles',
@@ -59,7 +59,7 @@ test('employee profile can be created with expanded hr and performance fields', 
         'date_of_birth' => '1994-03-12',
         'gender' => 'female',
         'marital_status' => 'married',
-        'personal_phone' => '0710000001',
+        'personal_phone' => '+27710000001',
         'home_address_line_1' => '12 Example Street',
         'home_address_line_2' => 'Unit 4',
         'city' => 'Johannesburg',
@@ -67,7 +67,7 @@ test('employee profile can be created with expanded hr and performance fields', 
         'postal_code' => '2000',
         'country' => 'South Africa',
         'emergency_contact_name' => 'Jane Contact',
-        'emergency_contact_phone' => '0719999999',
+        'emergency_contact_phone' => '+27719999999',
         'department_id' => $department->id,
         'job_title_id' => $jobTitle->id,
         'line_manager_user_id' => $manager->id,
@@ -103,7 +103,7 @@ test('employee profile can be created with expanded hr and performance fields', 
 });
 
 test('employee profile update validates national id uniqueness and manager relationships', function () {
-    $admin = User::factory()->create();
+    $admin = User::factory()->create(['is_approved' => true]);
     grantPermissions($admin, [
         'performance.employees.update',
     ]);
@@ -124,7 +124,7 @@ test('employee profile update validates national id uniqueness and manager relat
             'date_of_birth' => '1990-01-01',
             'gender' => 'male',
             'marital_status' => 'single',
-            'personal_phone' => '0700000000',
+            'personal_phone' => '+27700000000',
             'home_address_line_1' => '1 Sample Street',
             'home_address_line_2' => '',
             'city' => 'Cape Town',
@@ -132,7 +132,7 @@ test('employee profile update validates national id uniqueness and manager relat
             'postal_code' => '8000',
             'country' => 'South Africa',
             'emergency_contact_name' => 'Example Person',
-            'emergency_contact_phone' => '0700000001',
+            'emergency_contact_phone' => '+27700000001',
             'department_id' => $profileB->department_id,
             'job_title_id' => $profileB->job_title_id,
             'line_manager_user_id' => $profileB->user_id,
@@ -154,7 +154,7 @@ test('employee profile update validates national id uniqueness and manager relat
 });
 
 test('employee profile can be updated with expanded fields', function () {
-    $admin = User::factory()->create();
+    $admin = User::factory()->create(['is_approved' => true]);
     grantPermissions($admin, [
         'performance.employees.update',
         'performance.employees.assign_roles',
@@ -174,7 +174,7 @@ test('employee profile can be updated with expanded fields', function () {
         'date_of_birth' => '1991-07-21',
         'gender' => 'other',
         'marital_status' => 'single',
-        'personal_phone' => '0821234567',
+        'personal_phone' => '+27821234567',
         'home_address_line_1' => '34 Updated Ave',
         'home_address_line_2' => '',
         'city' => 'Durban',
@@ -182,7 +182,7 @@ test('employee profile can be updated with expanded fields', function () {
         'postal_code' => '4001',
         'country' => 'South Africa',
         'emergency_contact_name' => 'Updated Contact',
-        'emergency_contact_phone' => '0827654321',
+        'emergency_contact_phone' => '+27827654321',
         'department_id' => $department->id,
         'job_title_id' => $jobTitle->id,
         'line_manager_user_id' => $manager->id,

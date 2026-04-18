@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             RoleSeeder::class,
             PerformanceSetupSeeder::class,
+            EmployeeFieldSettingsSeeder::class,
             PerformanceTestingSeeder::class,
         ]);
     }

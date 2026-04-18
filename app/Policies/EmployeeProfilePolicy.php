@@ -31,4 +31,9 @@ class EmployeeProfilePolicy
     {
         return $user->can('performance.employees.update');
     }
+
+    public function configureFields(User $user): bool
+    {
+        return $user->can('performance.employees.configure_fields');
+    }
 }

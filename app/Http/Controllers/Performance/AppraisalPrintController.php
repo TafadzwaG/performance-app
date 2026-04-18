@@ -25,6 +25,7 @@ class AppraisalPrintController extends Controller
 
         return Inertia::render('performance/appraisals/Print', [
             'appraisal' => $this->loadAppraisal($appraisal),
+            'abilities' => $this->appraisalAbilities($appraisal, request()->user()),
         ]);
     }
 

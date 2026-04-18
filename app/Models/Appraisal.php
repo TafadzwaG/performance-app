@@ -29,11 +29,16 @@ class Appraisal extends Model
         'business_score',
         'values_score',
         'overall_score',
+        'calibrated_overall_score',
         'overall_rating_scale_level_id',
+        'calibrated_overall_rating_scale_level_id',
         'goal_submitted_at',
         'self_assessment_submitted_at',
         'manager_reviewed_at',
         'approved_at',
+        'calibration_comment',
+        'calibrated_at',
+        'calibrated_by_user_id',
         'finalized_at',
         'employee_name_snapshot',
         'employee_email_snapshot',
@@ -53,10 +58,12 @@ class Appraisal extends Model
             'self_assessment_submitted_at' => 'datetime',
             'manager_reviewed_at' => 'datetime',
             'approved_at' => 'datetime',
+            'calibrated_at' => 'datetime',
             'finalized_at' => 'datetime',
             'business_score' => 'decimal:2',
             'values_score' => 'decimal:2',
             'overall_score' => 'decimal:2',
+            'calibrated_overall_score' => 'decimal:2',
         ];
     }
 
@@ -95,6 +102,16 @@ class Appraisal extends Model
         return $this->belongsTo(RatingScaleLevel::class, 'overall_rating_scale_level_id');
     }
 
+    public function calibratedOverallRatingLevel(): BelongsTo
+    {
+        return $this->belongsTo(RatingScaleLevel::class, 'calibrated_overall_rating_scale_level_id');
+    }
+
+    public function calibratedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'calibrated_by_user_id');
+    }
+
     public function objectives(): HasMany
     {
         return $this->hasMany(AppraisalObjective::class)->orderBy('sort_order');
@@ -113,6 +130,16 @@ class Appraisal extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(AppraisalApproval::class)->latest('acted_at');
+    }
+
+    public function calibrations(): HasMany
+    {
+        return $this->hasMany(AppraisalCalibration::class)->latest();
+    }
+
+    public function latestCalibration(): HasOne
+    {
+        return $this->hasOne(AppraisalCalibration::class)->latestOfMany();
     }
 
     public function statusHistories(): HasMany

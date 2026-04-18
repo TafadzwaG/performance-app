@@ -8,5 +8,6 @@ enum WorkflowStage: string
     case SelfAssessment = 'self_assessment';
     case ManagerReview = 'manager_review';
     case Approval = 'approval';
+    case Calibration = 'calibration';
     case Finalization = 'finalization';
 }

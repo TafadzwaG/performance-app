@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import type { BreadcrumbItem } from '@/types';
-import type { EmployeeProfile, Paginated } from '@/types/performance';
+import type { EmployeeFieldConfigItem, EmployeeProfile, Paginated } from '@/types/performance';
 import { Link, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import {
@@ -23,6 +23,7 @@ import {
 interface Props {
     employeeProfiles: Paginated<EmployeeProfile>;
     filters: { search: string };
+    fieldConfig: EmployeeFieldConfigItem[];
     can: { create: boolean };
 }
 
@@ -46,10 +47,10 @@ function maskNationalId(value?: string | null) {
     const clean = value.trim();
     if (clean.length <= 4) return clean;
 
-    return `••• •• ${clean.slice(-4)}`;
+    return `*** ** ${clean.slice(-4)}`;
 }
 
-export default function EmployeesIndex({ employeeProfiles, filters, can }: Props) {
+export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig, can }: Props) {
     const searchForm = useForm({ search: filters.search ?? '' });
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
@@ -67,6 +68,7 @@ export default function EmployeesIndex({ employeeProfiles, filters, can }: Props
 
     const from = employeeProfiles.from ?? 0;
     const to = employeeProfiles.to ?? totalOnPage;
+    const visibleColumns = fieldConfig.filter((field) => field.enabled);
 
     return (
         <PerformancePage
@@ -158,27 +160,11 @@ export default function EmployeesIndex({ employeeProfiles, filters, can }: Props
                         <table className="min-w-full text-left text-sm">
                             <thead>
                                 <tr className="bg-muted/30">
-                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                        Employee
-                                    </th>
-                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                        National ID
-                                    </th>
-                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                        Department
-                                    </th>
-                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                        Job Title
-                                    </th>
-                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                        Line Manager
-                                    </th>
-                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                        Recent Score
-                                    </th>
-                                    <th className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                        Status
-                                    </th>
+                                    {visibleColumns.map((column) => (
+                                        <th key={column.field_key} className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                            {column.label}
+                                        </th>
+                                    ))}
                                     <th className="px-6 py-4 text-right text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                                         Actions
                                     </th>
@@ -192,64 +178,11 @@ export default function EmployeesIndex({ employeeProfiles, filters, can }: Props
                                             key={profile.id}
                                             className="group transition-colors hover:bg-muted/20"
                                         >
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/30 text-xs font-semibold text-foreground">
-                                                        {getInitials(profile.user?.name)}
-                                                    </div>
-
-                                                    <div className="min-w-0">
-                                                        <p className="truncate text-sm font-semibold text-foreground">
-                                                            {profile.user?.name ?? 'Unknown user'}
-                                                        </p>
-                                                        <p className="truncate text-xs text-muted-foreground">
-                                                            {profile.employee_number}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            <td className="px-6 py-4 text-sm text-muted-foreground">
-                                                <span className="font-mono tracking-tight">
-                                                    {maskNationalId(profile.national_id)}
-                                                </span>
-                                            </td>
-
-                                            <td className="px-6 py-4 text-sm text-muted-foreground">
-                                                {profile.department?.name ?? '-'}
-                                            </td>
-
-                                            <td className="px-6 py-4 text-sm font-medium text-foreground">
-                                                {profile.job_title?.name ?? '-'}
-                                            </td>
-
-                                            <td className="px-6 py-4 text-sm text-muted-foreground">
-                                                {profile.line_manager?.name ?? '-'}
-                                            </td>
-
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <ScoreDonut score={profile.latest_appraisal?.overall_score} />
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {profile.latest_appraisal?.overall_score !== null &&
-                                                        profile.latest_appraisal?.overall_score !== undefined
-                                                            ? `${Number(profile.latest_appraisal.overall_score).toFixed(1)}%`
-                                                            : '-'}
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            <td className="px-6 py-4">
-                                                <div className="flex flex-wrap gap-2">
-                                                    <Badge variant={profile.is_active ? 'default' : 'secondary'}>
-                                                        {profile.employment_status}
-                                                    </Badge>
-
-                                                    {profile.is_review_eligible ?? true ? (
-                                                        <Badge variant="outline">Review Eligible</Badge>
-                                                    ) : null}
-                                                </div>
-                                            </td>
+                                            {visibleColumns.map((column) => (
+                                                <td key={column.field_key} className="px-6 py-4">
+                                                    {renderIndexColumn(profile, column)}
+                                                </td>
+                                            ))}
 
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-end gap-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
@@ -270,7 +203,7 @@ export default function EmployeesIndex({ employeeProfiles, filters, can }: Props
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={8} className="px-6 py-14 text-center">
+                                        <td colSpan={visibleColumns.length + 1} className="px-6 py-14 text-center">
                                             <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
                                                 <div className="rounded-full border bg-muted p-3 text-muted-foreground">
                                                     <Users className="h-5 w-5" />
@@ -336,6 +269,52 @@ export default function EmployeesIndex({ employeeProfiles, filters, can }: Props
             </div>
         </PerformancePage>
     );
+}
+
+function renderIndexColumn(profile: EmployeeProfile, column: EmployeeFieldConfigItem) {
+    switch (column.field_key) {
+        case 'user_name':
+            return (
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/30 text-xs font-semibold text-foreground">
+                        {getInitials(profile.user?.name)}
+                    </div>
+                    <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{profile.user?.name ?? 'Unknown user'}</p>
+                    </div>
+                </div>
+            );
+        case 'employee_number':
+            return <span className="text-sm font-medium text-foreground">{profile.employee_number}</span>;
+        case 'national_id':
+            return <span className="font-mono tracking-tight text-sm text-muted-foreground">{maskNationalId(profile.national_id)}</span>;
+        case 'department_id':
+            return <span className="text-sm text-muted-foreground">{profile.department?.name ?? '-'}</span>;
+        case 'job_title_id':
+            return <span className="text-sm font-medium text-foreground">{profile.job_title?.name ?? '-'}</span>;
+        case 'line_manager_user_id':
+            return <span className="text-sm text-muted-foreground">{profile.line_manager?.name ?? '-'}</span>;
+        case 'latest_overall_score':
+            return (
+                <div className="flex items-center gap-2">
+                    <ScoreDonut score={profile.latest_appraisal?.overall_score} />
+                    <div className="text-xs text-muted-foreground">
+                        {profile.latest_appraisal?.overall_score !== null && profile.latest_appraisal?.overall_score !== undefined
+                            ? `${Number(profile.latest_appraisal.overall_score).toFixed(1)}%`
+                            : '-'}
+                    </div>
+                </div>
+            );
+        case 'employment_status':
+            return (
+                <div className="flex flex-wrap gap-2">
+                    <Badge variant={profile.is_active ? 'default' : 'secondary'}>{profile.employment_status}</Badge>
+                    {profile.is_review_eligible ?? true ? <Badge variant="outline">Review Eligible</Badge> : null}
+                </div>
+            );
+        default:
+            return <span className="text-sm text-muted-foreground">-</span>;
+    }
 }
 
 function ScoreDonut({ score }: { score?: number | null }) {

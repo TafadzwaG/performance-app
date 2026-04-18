@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Performance\AppraisalApprovalController;
+use App\Http\Controllers\Performance\AppraisalCalibrationController;
 use App\Http\Controllers\Performance\AppraisalController;
 use App\Http\Controllers\Performance\AppraisalEvidenceController;
 use App\Http\Controllers\Performance\AppraisalFinalizeController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Performance\CycleAssignmentController;
 use App\Http\Controllers\Performance\DashboardController;
 use App\Http\Controllers\Performance\DevelopmentPlanController;
 use App\Http\Controllers\Performance\EmployeeProfileController;
+use App\Http\Controllers\Performance\EmployeeFieldSettingsController;
 use App\Http\Controllers\Performance\ReportController;
 use App\Http\Controllers\Performance\ReportExportController;
 use App\Http\Controllers\Performance\ReviewCycleController;
@@ -76,6 +78,8 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
         ->names('employees');
     Route::patch('employees/{employee_profile}/line-manager', [EmployeeProfileController::class, 'updateLineManager'])
         ->name('employees.line_manager.update');
+    Route::get('setup/employee-fields', [EmployeeFieldSettingsController::class, 'edit'])->name('setup.employee_fields.edit');
+    Route::put('setup/employee-fields', [EmployeeFieldSettingsController::class, 'update'])->name('setup.employee_fields.update');
 
     Route::resource('appraisals', AppraisalController::class)
         ->parameters(['appraisals' => 'appraisal'])
@@ -94,6 +98,8 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
     Route::post('appraisals/{appraisal}/manager-review/send-back', [AppraisalManagerReviewController::class, 'sendBack'])->name('appraisals.manager_review.send_back');
     Route::get('appraisals/{appraisal}/approval', [AppraisalApprovalController::class, 'edit'])->name('appraisals.approval');
     Route::post('appraisals/{appraisal}/approval', [AppraisalApprovalController::class, 'store'])->name('appraisals.approval.store');
+    Route::get('appraisals/{appraisal}/calibration', [AppraisalCalibrationController::class, 'edit'])->name('appraisals.calibration');
+    Route::post('appraisals/{appraisal}/calibration', [AppraisalCalibrationController::class, 'store'])->name('appraisals.calibration.store');
     Route::get('appraisals/{appraisal}/finalize', [AppraisalFinalizeController::class, 'edit'])->name('appraisals.finalize');
     Route::post('appraisals/{appraisal}/finalize', [AppraisalFinalizeController::class, 'store'])->name('appraisals.finalize.store');
     Route::post('appraisals/{appraisal}/objectives/{objective}/evidence', [AppraisalEvidenceController::class, 'store'])->name('appraisals.evidence.store');

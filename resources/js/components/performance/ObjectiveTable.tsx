@@ -9,6 +9,7 @@ interface ObjectiveTableProps {
     perspectiveOptions: Option[];
     ratingLevels?: RatingScaleLevel[];
     goalLibraryItems?: GoalLibraryItem[];
+    allowStructuralEditing?: boolean;
     onChange?: (index: number, field: string, value: string | number | boolean | null) => void;
     onAdd?: () => void;
     onRemove?: (index: number) => void;
@@ -27,11 +28,12 @@ export default function ObjectiveTable(props: ObjectiveTableProps) {
                     perspectiveOptions={props.perspectiveOptions}
                     ratingLevels={props.ratingLevels}
                     goalLibraryItems={props.goalLibraryItems}
+                    allowStructuralEditing={props.allowStructuralEditing}
                     onChange={props.onChange}
                     onRemove={props.onRemove}
                 />
             ))}
-            {props.mode === 'plan' && props.onAdd ? (
+            {props.mode === 'plan' && props.onAdd && props.allowStructuralEditing !== false ? (
                 <Button type="button" variant="outline" onClick={props.onAdd}>
                     Add objective
                 </Button>

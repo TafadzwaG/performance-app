@@ -8,6 +8,7 @@ enum ApprovalAction: string
     case Forwarded = 'forwarded';
     case SentBack = 'sent_back';
     case Approved = 'approved';
+    case Calibrated = 'calibrated';
     case Rejected = 'rejected';
     case Finalized = 'finalized';
 }

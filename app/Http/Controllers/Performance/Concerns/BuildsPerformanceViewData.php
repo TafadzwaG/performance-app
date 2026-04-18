@@ -26,6 +26,7 @@ trait BuildsPerformanceViewData
             'selfAssess' => $user->can('selfAssess', $appraisal),
             'managerReview' => $user->can('managerReview', $appraisal),
             'approve' => $user->can('approve', $appraisal),
+            'calibrate' => $user->can('calibrate', $appraisal),
             'finalize' => $user->can('finalize', $appraisal),
             'print' => $user->can('print', $appraisal),
             'uploadEvidence' => $user->can('uploadEvidence', $appraisal),
@@ -240,6 +241,13 @@ trait BuildsPerformanceViewData
 
     protected function permissionGroups(): array
     {
+        foreach (PerformancePermissions::all() as $permissionName) {
+            Permission::query()->firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+        }
+
         $permissions = Permission::query()->orderBy('name')->get(['id', 'name']);
 
         return collect(PerformancePermissions::definitions())
@@ -268,6 +276,7 @@ trait BuildsPerformanceViewData
             'employee',
             'lineManager',
             'approvingManager',
+            'calibratedBy',
             'template.objectiveRatingScale.levels',
             'template.competencyRatingScale.levels',
             'template.overallRatingScale.levels',
@@ -286,6 +295,10 @@ trait BuildsPerformanceViewData
             'statusHistories.actor',
             'developmentPlan.actions.owner',
             'overallRatingLevel',
+            'calibratedOverallRatingLevel',
+            'latestCalibration.actor',
+            'latestCalibration.originalOverallRatingLevel',
+            'latestCalibration.calibratedOverallRatingLevel',
         ]);
     }
 

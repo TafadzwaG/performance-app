@@ -5,13 +5,16 @@ namespace App\Services\Performance;
 use App\Enums\AppraisalStatus;
 use App\Enums\ApprovalAction;
 use App\Enums\ApprovalStage;
+use App\Enums\CalibrationDecision;
 use App\Enums\CommentType;
 use App\Enums\WorkflowStage;
 use App\Events\Performance\AppraisalStatusChanged;
 use App\Models\Appraisal;
 use App\Models\AppraisalApproval;
+use App\Models\AppraisalCalibration;
 use App\Models\AppraisalComment;
 use App\Models\AppraisalStatusHistory;
+use App\Models\RatingScaleLevel;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -165,27 +168,20 @@ class AppraisalWorkflowService
                 ]);
             }
 
-            $alreadyApproved = AppraisalApproval::query()
-                ->where('appraisal_id', $appraisal->id)
-                ->where('stage', ApprovalStage::Approval)
-                ->where('action', ApprovalAction::Approved)
-                ->exists();
-
-            if ($alreadyApproved) {
-                throw ValidationException::withMessages([
-                    'decision' => 'This appraisal has already been approved once and cannot be approved again.',
-                ]);
-            }
-
             $scores = $this->scoringService->calculate($appraisal);
             $previousStatus = $status;
 
             $appraisal->forceFill([
-                'status' => AppraisalStatus::Approved,
+                'status' => AppraisalStatus::CalibrationPending,
                 'business_score' => $scores['business_score'],
                 'values_score' => $scores['values_score'],
                 'overall_score' => $scores['overall_score'],
                 'overall_rating_scale_level_id' => $scores['overall_level']?->id,
+                'calibrated_overall_score' => null,
+                'calibrated_overall_rating_scale_level_id' => null,
+                'calibration_comment' => null,
+                'calibrated_at' => null,
+                'calibrated_by_user_id' => null,
                 'approved_at' => now(),
                 'reopened_stage' => null,
             ])->save();
@@ -200,9 +196,81 @@ class AppraisalWorkflowService
                 'acted_at' => now(),
             ]);
 
-            $this->recordStatusHistory($appraisal, $actor, $previousStatus, AppraisalStatus::Approved, $comments);
+            $this->recordStatusHistory($appraisal, $actor, $previousStatus, AppraisalStatus::CalibrationPending, $comments);
 
-            event(new AppraisalStatusChanged($appraisal, $actor, 'approved'));
+            event(new AppraisalStatusChanged($appraisal, $actor, 'calibration_requested'));
+
+            return $appraisal->refresh();
+        });
+    }
+
+    public function submitCalibration(
+        Appraisal $appraisal,
+        User $actor,
+        CalibrationDecision $decision,
+        string $comments,
+        ?string $evidenceSummary = null,
+        ?float $calibratedOverallScore = null,
+        ?RatingScaleLevel $calibratedOverallRatingLevel = null,
+    ): Appraisal {
+        return DB::transaction(function () use (
+            $appraisal,
+            $actor,
+            $decision,
+            $comments,
+            $evidenceSummary,
+            $calibratedOverallScore,
+            $calibratedOverallRatingLevel,
+        ) {
+            if ($appraisal->status !== AppraisalStatus::CalibrationPending) {
+                throw ValidationException::withMessages([
+                    'decision' => 'This appraisal is not currently at calibration stage.',
+                ]);
+            }
+
+            if ($appraisal->calibrated_at) {
+                throw ValidationException::withMessages([
+                    'decision' => 'This appraisal has already been calibrated.',
+                ]);
+            }
+
+            AppraisalCalibration::create([
+                'appraisal_id' => $appraisal->id,
+                'actor_user_id' => $actor->id,
+                'decision' => $decision,
+                'original_overall_score' => $appraisal->overall_score,
+                'original_overall_rating_scale_level_id' => $appraisal->overall_rating_scale_level_id,
+                'calibrated_overall_score' => $decision === CalibrationDecision::Adjusted ? $calibratedOverallScore : $appraisal->overall_score,
+                'calibrated_overall_rating_scale_level_id' => $decision === CalibrationDecision::Adjusted
+                    ? $calibratedOverallRatingLevel?->id
+                    : $appraisal->overall_rating_scale_level_id,
+                'comments' => $comments,
+                'evidence_summary' => $evidenceSummary,
+            ]);
+
+            $appraisal->forceFill([
+                'calibrated_overall_score' => $decision === CalibrationDecision::Adjusted ? $calibratedOverallScore : $appraisal->overall_score,
+                'calibrated_overall_rating_scale_level_id' => $decision === CalibrationDecision::Adjusted
+                    ? $calibratedOverallRatingLevel?->id
+                    : $appraisal->overall_rating_scale_level_id,
+                'calibration_comment' => $comments,
+                'calibrated_at' => now(),
+                'calibrated_by_user_id' => $actor->id,
+            ])->save();
+
+            AppraisalApproval::create([
+                'appraisal_id' => $appraisal->id,
+                'actor_user_id' => $actor->id,
+                'stage' => ApprovalStage::Calibration,
+                'action' => ApprovalAction::Calibrated,
+                'comments' => $comments,
+                'snapshot' => $this->snapshot($appraisal->refresh()),
+                'acted_at' => now(),
+            ]);
+
+            $this->recordStatusHistory($appraisal->refresh(), $actor, AppraisalStatus::CalibrationPending, AppraisalStatus::CalibrationPending, $comments);
+
+            event(new AppraisalStatusChanged($appraisal->refresh(), $actor, 'calibration_completed'));
 
             return $appraisal->refresh();
         });
@@ -211,9 +279,9 @@ class AppraisalWorkflowService
     public function finalize(Appraisal $appraisal, User $actor, ?string $comments = null): Appraisal
     {
         return DB::transaction(function () use ($appraisal, $actor, $comments) {
-            if ($appraisal->status !== AppraisalStatus::Approved) {
+            if ($appraisal->status !== AppraisalStatus::CalibrationPending || ! $appraisal->calibrated_at) {
                 throw ValidationException::withMessages([
-                    'finalize' => 'Only approved appraisals can be finalized.',
+                    'finalize' => 'Only calibrated appraisals can be finalized.',
                 ]);
             }
 
@@ -316,6 +384,12 @@ class AppraisalWorkflowService
                 'self_rating' => $rating->self_rating_score,
                 'manager_rating' => $rating->manager_rating_score,
             ])->values()->all(),
+            'calibration' => [
+                'calibrated_overall_score' => $appraisal->calibrated_overall_score,
+                'calibrated_overall_rating_scale_level_id' => $appraisal->calibrated_overall_rating_scale_level_id,
+                'calibration_comment' => $appraisal->calibration_comment,
+                'calibrated_at' => $appraisal->calibrated_at,
+            ],
         ];
     }
 }

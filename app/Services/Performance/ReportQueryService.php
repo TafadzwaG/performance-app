@@ -31,7 +31,7 @@ class ReportQueryService
 
         return [
             'metrics' => [
-                'my_open_appraisals' => (clone $ownQuery)->whereNotIn('status', ['approved', 'finalized'])->count(),
+                'my_open_appraisals' => (clone $ownQuery)->whereNotIn('status', ['finalized'])->count(),
                 'team_pending_reviews' => (clone $teamQuery)->where('status', 'manager_review_pending')->count(),
                 'pending_approvals' => (clone $approvalQuery)->where('status', 'approval_pending')->count(),
                 'overdue_reviews' => $this->overdueReviews()->count(),
@@ -210,8 +210,9 @@ class ReportQueryService
                     when 'manager_review_completed' then 6
                     when 'approval_pending' then 7
                     when 'approved' then 8
-                    when 'sent_back' then 9
-                    when 'finalized' then 10
+                    when 'calibration_pending' then 9
+                    when 'sent_back' then 10
+                    when 'finalized' then 11
                     else 99
                 end
             ")

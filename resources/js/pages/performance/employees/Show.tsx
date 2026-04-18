@@ -15,24 +15,22 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate } from '@/lib/date-utils';
 import type { BreadcrumbItem } from '@/types';
-import type { EmployeeProfile, Option } from '@/types/performance';
+import type { EmployeeFieldConfigItem, EmployeeProfile, Option } from '@/types/performance';
 import { Link, useForm } from '@inertiajs/react';
 import {
     Briefcase,
     CalendarDays,
     Contact,
-    FileText,
+    Eye,
     History,
     Mail,
-    MapPin,
-    Phone,
+    PencilLine,
+    PieChart,
     ShieldCheck,
     User2,
     UserCog,
-    Users,
-    PencilLine,
-    PieChart,
     UserRoundCog,
+    Users,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -45,19 +43,35 @@ const breadcrumbs = (profile: EmployeeProfile): BreadcrumbItem[] => [
 export default function EmployeeShow({
     employeeProfile,
     managerOptions,
+    fieldConfig,
     can,
 }: {
     employeeProfile: EmployeeProfile;
     managerOptions: Option[];
+    fieldConfig: EmployeeFieldConfigItem[];
     can: { assignManagers: boolean };
 }) {
-    const userName = employeeProfile.user?.name ?? employeeProfile.employee_number;
-    const roles = employeeProfile.user?.roles ?? [];
-    const appraisals = employeeProfile.appraisals ?? [];
     const [lineManagerModalOpen, setLineManagerModalOpen] = useState(false);
     const managerForm = useForm({
         line_manager_user_id: employeeProfile.line_manager_user_id ? String(employeeProfile.line_manager_user_id) : 'none',
     });
+
+    const userName = employeeProfile.user?.name ?? employeeProfile.employee_number;
+    const roles = employeeProfile.user?.roles ?? [];
+    const appraisals = employeeProfile.appraisals ?? [];
+    const visibleFields = fieldConfig.filter((field) => field.enabled);
+    const showLinkedAccount = visibleFields.some((field) => field.field_key === 'linked_account');
+    const showAppraisalHistory = visibleFields.some((field) => field.field_key === 'appraisal_history');
+    const detailSections = (['identity', 'contact', 'employment', 'performance', 'notes'] as const)
+        .map((section) => ({
+            section,
+            fields: visibleFields.filter(
+                (field) =>
+                    field.section === section &&
+                    !['display', 'score', 'history', 'linked_account'].includes(field.input_type),
+            ),
+        }))
+        .filter((section) => section.fields.length > 0);
 
     return (
         <PerformancePage
@@ -84,14 +98,12 @@ export default function EmployeeShow({
                             <div className="space-y-3">
                                 <div>
                                     <div className="mb-1 flex flex-wrap items-center gap-2">
-                                        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                                            {userName}
-                                        </h1>
+                                        <h1 className="text-3xl font-bold tracking-tight text-foreground">{userName}</h1>
                                         <Badge variant="secondary">{employeeProfile.employee_number}</Badge>
                                     </div>
 
                                     <p className="text-sm text-muted-foreground">
-                                        {employeeProfile.job_title?.name ?? 'No job title'} •{' '}
+                                        {employeeProfile.job_title?.name ?? 'No job title'} {' • '}
                                         {employeeProfile.department?.name ?? 'No department'}
                                     </p>
                                 </div>
@@ -111,21 +123,14 @@ export default function EmployeeShow({
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Active Status</div>
-                                <div className="mt-1 font-semibold text-foreground">
-                                    {employeeProfile.is_active ? 'Active' : 'Inactive'}
-                                </div>
-                            </div>
-
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Review Status</div>
-                                <div className="mt-1 font-semibold text-foreground">
-                                    {employeeProfile.is_review_eligible ?? true
-                                        ? 'Review Eligible'
-                                        : 'Not Review Eligible'}
-                                </div>
-                            </div>
+                            <StatusPill
+                                label="Active Status"
+                                value={employeeProfile.is_active ? 'Active' : 'Inactive'}
+                            />
+                            <StatusPill
+                                label="Review Status"
+                                value={(employeeProfile.is_review_eligible ?? true) ? 'Review Eligible' : 'Not Review Eligible'}
+                            />
                         </div>
                     </div>
                 </div>
@@ -141,24 +146,16 @@ export default function EmployeeShow({
                             </CardHeader>
 
                             <CardContent className="space-y-4">
-                                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3">
-                                    <span className="text-sm text-muted-foreground">Active Status</span>
-                                    <Badge variant={employeeProfile.is_active ? 'secondary' : 'outline'}>
-                                        {employeeProfile.is_active ? 'Active' : 'Inactive'}
-                                    </Badge>
-                                </div>
-
-                                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3">
-                                    <span className="text-sm text-muted-foreground">Review Eligibility</span>
-                                    <Badge
-                                        variant={(employeeProfile.is_review_eligible ?? true) ? 'secondary' : 'outline'}
-                                    >
-                                        {(employeeProfile.is_review_eligible ?? true)
-                                            ? 'Eligible'
-                                            : 'Not Eligible'}
-                                    </Badge>
-                                </div>
-
+                                <KeyValueBadge
+                                    label="Active Status"
+                                    value={employeeProfile.is_active ? 'Active' : 'Inactive'}
+                                    active={employeeProfile.is_active}
+                                />
+                                <KeyValueBadge
+                                    label="Review Eligibility"
+                                    value={(employeeProfile.is_review_eligible ?? true) ? 'Eligible' : 'Not Eligible'}
+                                    active={employeeProfile.is_review_eligible ?? true}
+                                />
                                 <div className="rounded-lg border bg-muted/20 p-4">
                                     <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                                         Internal Notes
@@ -217,6 +214,7 @@ export default function EmployeeShow({
                                                 <DialogFooter>
                                                     <Button
                                                         type="button"
+                                                        disabled={managerForm.processing}
                                                         onClick={() =>
                                                             managerForm
                                                                 .transform((data) => ({
@@ -234,7 +232,6 @@ export default function EmployeeShow({
                                                                     },
                                                                 )
                                                         }
-                                                        disabled={managerForm.processing}
                                                     >
                                                         Save Manager
                                                     </Button>
@@ -250,7 +247,6 @@ export default function EmployeeShow({
                                     label="Line Manager"
                                     name={employeeProfile.line_manager?.name ?? 'Not assigned'}
                                 />
-
                                 <MiniPersonCard
                                     label="Approving Manager"
                                     name={employeeProfile.approving_manager?.name ?? 'Not assigned'}
@@ -260,206 +256,232 @@ export default function EmployeeShow({
                     </div>
 
                     <div className="space-y-6 lg:col-span-8">
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <History className="h-4.5 w-4.5" />
-                                    <CardTitle className="text-base">Appraisal History</CardTitle>
-                                </div>
-                                <CardDescription>
-                                    Cycle history and current performance workflow state.
-                                </CardDescription>
-                            </CardHeader>
-
-                            <CardContent className="space-y-3">
-                                {appraisals.length > 0 ? (
-                                    appraisals.map((appraisal) => (
-                                        <div
-                                            key={appraisal.id}
-                                            className="flex flex-col gap-4 rounded-xl border bg-muted/10 p-4 md:flex-row md:items-center md:justify-between"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background text-muted-foreground">
-                                                    <CalendarDays className="h-4.5 w-4.5" />
-                                                </div>
-
-                                                <div>
-                                                    <div className="font-medium text-foreground">
-                                                        {appraisal.cycle_name_snapshot}
-                                                    </div>
-                                                    <div className="mt-1 text-xs text-muted-foreground">
-                                                        Status: {formatValue(appraisal.status)}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-3">
-                                                <div className="text-right">
-                                                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                                                        Performance Score
-                                                    </div>
-                                                    <div className="mt-1 text-sm font-semibold text-foreground">
-                                                        {appraisal.overall_score !== undefined &&
-                                                        appraisal.overall_score !== null
-                                                            ? `${Number(appraisal.overall_score).toFixed(1)}%`
-                                                            : '-'}
-                                                    </div>
-                                                </div>
-                                                <ScoreDonut score={appraisal.overall_score} />
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">No appraisal history recorded yet.</p>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <div className="grid gap-6 md:grid-cols-2">
+                        {showAppraisalHistory ? (
                             <Card className="shadow-sm">
                                 <CardHeader>
                                     <div className="flex items-center gap-2 text-muted-foreground">
-                                        <User2 className="h-4.5 w-4.5" />
-                                        <CardTitle className="text-base">Identity</CardTitle>
-                                    </div>
-                                    <CardDescription>Core employee and personal identity details.</CardDescription>
-                                </CardHeader>
-
-                                <CardContent className="grid gap-4">
-                                    <Info label="Employee Number" value={employeeProfile.employee_number} />
-                                    <Info label="National ID" value={maskNationalId(employeeProfile.national_id)} />
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        <Info label="Date of Birth" value={formatDate(employeeProfile.date_of_birth, '-')} />
-                                        <Info label="Gender" value={formatValue(employeeProfile.gender)} />
-                                    </div>
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        <Info label="Marital Status" value={formatValue(employeeProfile.marital_status)} />
-                                        <Info label="User Account" value={employeeProfile.user?.email ?? '-'} />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="shadow-sm">
-                                <CardHeader>
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                        <Contact className="h-4.5 w-4.5" />
-                                        <CardTitle className="text-base">Contact & Address</CardTitle>
+                                        <History className="h-4.5 w-4.5" />
+                                        <CardTitle className="text-base">Appraisal History</CardTitle>
                                     </div>
                                     <CardDescription>
-                                        Personal contact and emergency contact information.
+                                        Cycle history and current performance workflow state.
                                     </CardDescription>
-                                </CardHeader>
-
-                                <CardContent className="grid gap-4">
-                                    <Info
-                                        label="Personal Phone"
-                                        value={employeeProfile.personal_phone ?? '-'}
-                                        icon={<Phone className="h-4 w-4" />}
-                                    />
-                                    <Info label="Emergency Contact" value={employeeProfile.emergency_contact_name ?? '-'} />
-                                    <Info
-                                        label="Emergency Phone"
-                                        value={employeeProfile.emergency_contact_phone ?? '-'}
-                                        icon={<Phone className="h-4 w-4" />}
-                                    />
-                                    <Info
-                                        label="Address"
-                                        value={formatAddress(employeeProfile)}
-                                        icon={<MapPin className="h-4 w-4" />}
-                                    />
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Briefcase className="h-4.5 w-4.5" />
-                                    <CardTitle className="text-base">Employment Details</CardTitle>
-                                </div>
-                                <CardDescription>
-                                    Organizational placement and performance-related employment settings.
-                                </CardDescription>
-                            </CardHeader>
-
-                            <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                <Info label="Department" value={employeeProfile.department?.name ?? '-'} />
-                                <Info label="Job Title" value={employeeProfile.job_title?.name ?? '-'} />
-                                <Info label="Employment Status" value={employeeProfile.employment_status} />
-                                <Info label="Employment Type" value={formatValue(employeeProfile.employment_type)} />
-                                <Info label="Work Location" value={employeeProfile.work_location ?? '-'} />
-                                <Info label="Hire Date" value={formatDate(employeeProfile.hire_date, '-')} />
-                                <Info label="Probation End" value={formatDate(employeeProfile.probation_end_date, '-')} />
-                                <Info label="Confirmation Date" value={formatDate(employeeProfile.confirmation_date, '-')} />
-                                <Info
-                                    label="Review Eligibility Date"
-                                    value={formatDate(employeeProfile.review_eligibility_date, '-')}
-                                />
-                            </CardContent>
-                        </Card>
-
-                        <div className="grid gap-6 md:grid-cols-2">
-                            <Card className="shadow-sm">
-                                <CardHeader>
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                        <Users className="h-4.5 w-4.5" />
-                                        <CardTitle className="text-base">Role Assignments</CardTitle>
-                                    </div>
-                                    <CardDescription>
-                                        Current application roles from the linked user account.
-                                    </CardDescription>
-                                </CardHeader>
-
-                                <CardContent>
-                                    {roles.length > 0 ? (
-                                        <div className="flex flex-wrap gap-2">
-                                            {roles.map((role) => (
-                                                <Badge key={role.id} variant="outline">
-                                                    {role.name}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">No roles assigned.</p>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            <Card className="shadow-sm">
-                                <CardHeader>
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                        <Mail className="h-4.5 w-4.5" />
-                                        <CardTitle className="text-base">Linked Account</CardTitle>
-                                    </div>
-                                    <CardDescription>Connected user identity and access reference.</CardDescription>
                                 </CardHeader>
 
                                 <CardContent className="space-y-3">
-                                    <div className="rounded-lg border bg-muted/20 p-4">
-                                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                                            User Email
-                                        </div>
-                                        <div className="mt-2 text-sm font-medium text-foreground">
-                                            {employeeProfile.user?.email ?? '-'}
-                                        </div>
-                                    </div>
+                                    {appraisals.length > 0 ? (
+                                        appraisals.map((appraisal) => (
+                                            <div
+                                                key={appraisal.id}
+                                                className="flex flex-col gap-4 rounded-xl border bg-muted/10 p-4 md:flex-row md:items-center md:justify-between"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background text-muted-foreground">
+                                                        <CalendarDays className="h-4.5 w-4.5" />
+                                                    </div>
 
-                                    <div className="rounded-lg border bg-muted/20 p-4">
-                                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                                            Employee Record
-                                        </div>
-                                        <div className="mt-2 text-sm font-medium text-foreground">
-                                            {employeeProfile.employee_number}
-                                        </div>
-                                    </div>
+                                                    <div>
+                                                        <div className="font-medium text-foreground">
+                                                            {appraisal.cycle_name_snapshot}
+                                                        </div>
+                                                        <div className="mt-1 text-xs text-muted-foreground">
+                                                            Status: {formatValue(appraisal.status)}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-3">
+                                                    <div className="text-right">
+                                                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                                                            Performance Score
+                                                        </div>
+                                                        <div className="mt-1 text-sm font-semibold text-foreground">
+                                                            {appraisal.overall_score !== undefined && appraisal.overall_score !== null
+                                                                ? `${Number(appraisal.overall_score).toFixed(1)}%`
+                                                                : '-'}
+                                                        </div>
+                                                    </div>
+                                                    <ScoreDonut score={appraisal.overall_score} />
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No appraisal history recorded yet.</p>
+                                    )}
                                 </CardContent>
                             </Card>
+                        ) : null}
+
+                        <div className="grid gap-6 md:grid-cols-2">
+                            {detailSections.map(({ section, fields }) => (
+                                <Card key={section} className="shadow-sm">
+                                    <CardHeader>
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            {section === 'identity' ? <User2 className="h-4.5 w-4.5" /> : null}
+                                            {section === 'contact' ? <Contact className="h-4.5 w-4.5" /> : null}
+                                            {section === 'employment' ? <Briefcase className="h-4.5 w-4.5" /> : null}
+                                            {section === 'performance' ? <ShieldCheck className="h-4.5 w-4.5" /> : null}
+                                            {section === 'notes' ? <Eye className="h-4.5 w-4.5" /> : null}
+                                            <CardTitle className="text-base">{formatValue(section)}</CardTitle>
+                                        </div>
+                                        <CardDescription>Configured employee fields for this section.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="grid gap-4">
+                                        {fields.map((field) => (
+                                            <Info
+                                                key={field.field_key}
+                                                label={field.label}
+                                                value={formatShowField(employeeProfile, field)}
+                                            />
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            ))}
                         </div>
 
+                        {showLinkedAccount ? (
+                            <div className="grid gap-6 md:grid-cols-2">
+                                <Card className="shadow-sm">
+                                    <CardHeader>
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Users className="h-4.5 w-4.5" />
+                                            <CardTitle className="text-base">Role Assignments</CardTitle>
+                                        </div>
+                                        <CardDescription>
+                                            Current application roles from the linked user account.
+                                        </CardDescription>
+                                    </CardHeader>
+
+                                    <CardContent>
+                                        {roles.length > 0 ? (
+                                            <div className="flex flex-wrap gap-2">
+                                                {roles.map((role) => (
+                                                    <Badge key={role.id} variant="outline">
+                                                        {role.name}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">No roles assigned.</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="shadow-sm">
+                                    <CardHeader>
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Mail className="h-4.5 w-4.5" />
+                                            <CardTitle className="text-base">Linked Account</CardTitle>
+                                        </div>
+                                        <CardDescription>Connected user identity and access reference.</CardDescription>
+                                    </CardHeader>
+
+                                    <CardContent className="space-y-3">
+                                        <div className="rounded-lg border bg-muted/20 p-4">
+                                            <div className="text-xs uppercase tracking-wide text-muted-foreground">User Email</div>
+                                            <div className="mt-2 text-sm font-medium text-foreground">
+                                                {employeeProfile.user?.email ?? '-'}
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-lg border bg-muted/20 p-4">
+                                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Employee Record</div>
+                                            <div className="mt-2 text-sm font-medium text-foreground">
+                                                {employeeProfile.employee_number}
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
             </div>
         </PerformancePage>
+    );
+}
+
+function formatShowField(profile: EmployeeProfile, field: EmployeeFieldConfigItem) {
+    switch (field.field_key) {
+        case 'user_name':
+            return profile.user?.name ?? '-';
+        case 'user_email':
+            return profile.user?.email ?? '-';
+        case 'employee_number':
+            return profile.employee_number;
+        case 'national_id':
+            return maskNationalId(profile.national_id);
+        case 'date_of_birth':
+            return formatDate(profile.date_of_birth, '-');
+        case 'gender':
+        case 'marital_status':
+        case 'employment_type':
+            return formatValue(profile[field.field_key as keyof EmployeeProfile] as string | null | undefined);
+        case 'department_id':
+            return profile.department?.name ?? '-';
+        case 'job_title_id':
+            return profile.job_title?.name ?? '-';
+        case 'employment_status':
+            return formatValue(profile.employment_status);
+        case 'work_location':
+            return profile.work_location ?? '-';
+        case 'hire_date':
+        case 'probation_end_date':
+        case 'confirmation_date':
+        case 'review_eligibility_date':
+            return formatDate(profile[field.field_key as keyof EmployeeProfile] as string | null | undefined, '-');
+        case 'line_manager_user_id':
+            return profile.line_manager?.name ?? '-';
+        case 'approving_manager_user_id':
+            return profile.approving_manager?.name ?? '-';
+        case 'is_review_eligible':
+            return (profile.is_review_eligible ?? true) ? 'Yes' : 'No';
+        case 'is_active':
+            return profile.is_active ? 'Yes' : 'No';
+        case 'notes':
+            return profile.notes ?? '-';
+        case 'personal_phone':
+            return profile.personal_phone ?? '-';
+        case 'emergency_contact_name':
+            return profile.emergency_contact_name ?? '-';
+        case 'emergency_contact_phone':
+            return profile.emergency_contact_phone ?? '-';
+        case 'home_address_line_1':
+            return profile.home_address_line_1 ?? '-';
+        case 'home_address_line_2':
+            return profile.home_address_line_2 ?? '-';
+        case 'city':
+            return profile.city ?? '-';
+        case 'state_province':
+            return profile.state_province ?? '-';
+        case 'postal_code':
+            return profile.postal_code ?? '-';
+        case 'country':
+            return profile.country ?? '-';
+        case 'latest_overall_score':
+            return profile.latest_appraisal?.overall_score !== null && profile.latest_appraisal?.overall_score !== undefined
+                ? `${Number(profile.latest_appraisal.overall_score).toFixed(1)}%`
+                : '-';
+        default:
+            return '-';
+    }
+}
+
+function StatusPill({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+            <div className="mt-1 font-semibold text-foreground">{value}</div>
+        </div>
+    );
+}
+
+function KeyValueBadge({ label, value, active }: { label: string; value: string; active: boolean }) {
+    return (
+        <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3">
+            <span className="text-sm text-muted-foreground">{label}</span>
+            <Badge variant={active ? 'secondary' : 'outline'}>{value}</Badge>
+        </div>
     );
 }
 
@@ -477,21 +499,10 @@ function MiniPersonCard({ label, name }: { label: string; name: string }) {
     );
 }
 
-function Info({
-    label,
-    value,
-    icon,
-}: {
-    label: string;
-    value: string | number;
-    icon?: React.ReactNode;
-}) {
+function Info({ label, value }: { label: string; value: string | number }) {
     return (
         <div className="rounded-lg border bg-muted/10 p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {icon}
-                <span>{label}</span>
-            </div>
+            <div className="text-sm text-muted-foreground">{label}</div>
             <div className="mt-2 text-base font-semibold text-foreground">{value}</div>
         </div>
     );
@@ -505,19 +516,6 @@ function formatValue(value?: string | null) {
         .split(' ')
         .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : part))
         .join(' ');
-}
-
-function formatAddress(profile: EmployeeProfile) {
-    const parts = [
-        profile.home_address_line_1,
-        profile.home_address_line_2,
-        profile.city,
-        profile.state_province,
-        profile.postal_code,
-        profile.country,
-    ].filter(Boolean);
-
-    return parts.length > 0 ? parts.join(', ') : '-';
 }
 
 function getInitials(name?: string | null) {
@@ -538,9 +536,7 @@ function maskNationalId(value?: string | null) {
 
 function ScoreDonut({ score }: { score?: number | null }) {
     const numericScore = score === null || score === undefined ? null : Number(score);
-    const normalized = numericScore === null || Number.isNaN(numericScore)
-        ? null
-        : Math.max(0, Math.min(100, numericScore));
+    const normalized = numericScore === null || Number.isNaN(numericScore) ? null : Math.max(0, Math.min(100, numericScore));
 
     const colorClass =
         normalized === null

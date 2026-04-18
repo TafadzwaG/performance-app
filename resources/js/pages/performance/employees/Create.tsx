@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
-import type { EmployeeProfileFormData, Option } from '@/types/performance';
+import type { EmployeeFieldConfigItem, EmployeeProfileFormData, Option } from '@/types/performance';
 import { useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { Briefcase, CheckCircle2, Save, ShieldCheck, UserCheck2, UserPlus, Users2 } from 'lucide-react';
@@ -20,6 +20,7 @@ interface Props {
     genderOptions: Option[];
     maritalStatusOptions: Option[];
     employmentTypeOptions: Option[];
+    fieldConfig: EmployeeFieldConfigItem[];
     can: { assignRoles: boolean };
 }
 
@@ -40,6 +41,7 @@ export default function EmployeeCreate({
     genderOptions,
     maritalStatusOptions,
     employmentTypeOptions,
+    fieldConfig,
     can,
 }: Props) {
     const form = useForm<EmployeeProfileFormData>(formDefaults);
@@ -124,13 +126,14 @@ export default function EmployeeCreate({
                         jobTitleOptions={jobTitleOptions}
                         userOptions={userOptions}
                         managerOptions={managerOptions}
-                        roleOptions={roleOptions}
-                        employmentStatusOptions={employmentStatusOptions}
-                        genderOptions={genderOptions}
-                        maritalStatusOptions={maritalStatusOptions}
-                        employmentTypeOptions={employmentTypeOptions}
-                        canAssignRoles={can.assignRoles}
-                    />
+                    roleOptions={roleOptions}
+                    employmentStatusOptions={employmentStatusOptions}
+                    genderOptions={genderOptions}
+                    maritalStatusOptions={maritalStatusOptions}
+                    employmentTypeOptions={employmentTypeOptions}
+                    fieldConfig={fieldConfig}
+                    canAssignRoles={can.assignRoles}
+                />
 
                     <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
                         <Card className="shadow-sm">

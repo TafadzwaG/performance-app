@@ -63,6 +63,10 @@
     </style>
 </head>
 <body>
+    @php
+        $effectiveOverallScore = $appraisal->calibrated_overall_score ?? $appraisal->overall_score;
+        $effectiveOverallRating = $appraisal->calibratedOverallRatingLevel?->label ?? $appraisal->overallRatingLevel?->label ?? 'Unrated';
+    @endphp
     <div class="section">
         <h1>Employee Performance Appraisal</h1>
         <div class="muted">{{ $appraisal->cycle_name_snapshot }} | {{ $appraisal->template_name_snapshot }}</div>
@@ -85,6 +89,7 @@
                     <div><strong>Line Manager:</strong> {{ $appraisal->lineManager?->name ?? 'N/A' }}</div>
                     <div><strong>Approving Manager:</strong> {{ $appraisal->approvingManager?->name ?? 'N/A' }}</div>
                     <div><strong>Approved At:</strong> {{ $appraisal->approved_at ?? 'N/A' }}</div>
+                    <div><strong>Calibrated At:</strong> {{ $appraisal->calibrated_at ?? 'N/A' }}</div>
                     <div><strong>Finalized At:</strong> {{ $appraisal->finalized_at ?? 'N/A' }}</div>
                 </td>
             </tr>
@@ -106,12 +111,50 @@
                 <tr>
                     <td>{{ $appraisal->business_score ?? 'N/A' }}</td>
                     <td>{{ $appraisal->values_score ?? 'N/A' }}</td>
-                    <td>{{ $appraisal->overall_score ?? 'N/A' }}</td>
-                    <td>{{ $appraisal->overallRatingLevel?->label ?? 'Unrated' }}</td>
+                    <td>{{ $effectiveOverallScore ?? 'N/A' }}</td>
+                    <td>{{ $effectiveOverallRating }}</td>
                 </tr>
             </tbody>
         </table>
     </div>
+
+    @if($appraisal->latestCalibration)
+        <div class="section">
+            <h2>Calibration Summary</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Decision</th>
+                        <th>Actor</th>
+                        <th>Original Outcome</th>
+                        <th>Calibrated Outcome</th>
+                        <th>Comments</th>
+                        <th>Evidence Summary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ str($appraisal->latestCalibration->decision->value ?? $appraisal->latestCalibration->decision)->replace('_', ' ')->title() }}</td>
+                        <td>{{ $appraisal->latestCalibration->actor?->name ?? 'N/A' }}</td>
+                        <td>
+                            {{ $appraisal->latestCalibration->original_overall_score ?? 'N/A' }}
+                            @if($appraisal->latestCalibration->originalOverallRatingLevel?->label)
+                                ({{ $appraisal->latestCalibration->originalOverallRatingLevel->label }})
+                            @endif
+                        </td>
+                        <td>
+                            {{ $appraisal->latestCalibration->calibrated_overall_score ?? $effectiveOverallScore ?? 'N/A' }}
+                            @if($appraisal->latestCalibration->calibratedOverallRatingLevel?->label || $appraisal->calibratedOverallRatingLevel?->label)
+                                ({{ $appraisal->latestCalibration->calibratedOverallRatingLevel?->label ?? $appraisal->calibratedOverallRatingLevel?->label }})
+                            @endif
+                        </td>
+                        <td>{{ $appraisal->latestCalibration->comments ?? $appraisal->calibration_comment ?? 'N/A' }}</td>
+                        <td>{{ $appraisal->latestCalibration->evidence_summary ?? 'N/A' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    @endif
 
     <div class="section">
         <h2>Objectives</h2>
@@ -153,7 +196,7 @@
     </div>
 
     <div class="section">
-        <h2>Competencies / Values</h2>
+        <h2>Values</h2>
         <table class="data-table">
             <thead>
                 <tr>

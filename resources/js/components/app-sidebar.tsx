@@ -87,6 +87,15 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
+        ...(can('performance.employees.configure_fields')
+            ? [
+                  {
+                      title: 'Employee Fields',
+                      url: '/performance/setup/employee-fields',
+                      icon: Shield,
+                  } satisfies NavItem,
+              ]
+            : []),
     ];
 
     const footerNavItems: NavItem[] = [

@@ -225,6 +225,25 @@ export interface EmployeeProfile {
     latest_appraisal?: Appraisal | null;
 }
 
+export interface EmployeeFieldConfigItem {
+    field_key: string;
+    label: string;
+    section: string;
+    input_type: string;
+    attribute: string;
+    options_key?: string | null;
+    configurable: boolean;
+    enabled: boolean;
+    required: boolean;
+    display_order: number;
+}
+
+export interface EmployeeFieldConfigScreen {
+    key: string;
+    label: string;
+    fields: EmployeeFieldConfigItem[];
+}
+
 export interface EmployeeProfileFormData {
     [key: string]: FormDataConvertible;
     user_id: string;
@@ -346,6 +365,20 @@ export interface AppraisalApproval {
     actor?: BasicUser | null;
 }
 
+export interface AppraisalCalibration {
+    id: number;
+    decision: string;
+    original_overall_score?: number | null;
+    calibrated_overall_score?: number | null;
+    comments: string;
+    evidence_summary?: string | null;
+    actor?: BasicUser | null;
+    original_overall_rating_level?: RatingScaleLevel | null;
+    calibrated_overall_rating_level?: RatingScaleLevel | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface AppraisalStatusHistory {
     id: number;
     from_status?: string | null;
@@ -409,6 +442,12 @@ export interface Appraisal {
     line_manager?: BasicUser | null;
     approving_manager?: BasicUser | null;
     overall_rating_level?: RatingScaleLevel | null;
+    calibrated_overall_score?: number | null;
+    calibrated_overall_rating_level?: RatingScaleLevel | null;
+    calibrated_at?: string | null;
+    calibrated_by?: BasicUser | null;
+    calibration_comment?: string | null;
+    latest_calibration?: AppraisalCalibration | null;
     objectives?: Objective[];
     competency_ratings?: CompetencyRating[];
     comments?: AppraisalComment[];

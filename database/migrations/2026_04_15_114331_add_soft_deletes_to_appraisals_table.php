@@ -77,6 +77,15 @@ return new class extends Migration
 
     private function existingIndexes(): \Illuminate\Support\Collection
     {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'sqlite') {
+            return collect(DB::select("PRAGMA index_list('appraisals')"))
+                ->pluck('name')
+                ->unique()
+                ->values();
+        }
+
         return collect(DB::select('SHOW INDEX FROM appraisals'))
             ->pluck('Key_name')
             ->unique()

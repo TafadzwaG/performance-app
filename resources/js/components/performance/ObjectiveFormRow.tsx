@@ -16,6 +16,7 @@ interface ObjectiveFormRowProps {
     perspectiveOptions: Option[];
     ratingLevels?: RatingScaleLevel[];
     goalLibraryItems?: GoalLibraryItem[];
+    allowStructuralEditing?: boolean;
     onChange?: (index: number, field: string, value: string | number | boolean | null) => void;
     onRemove?: (index: number) => void;
 }
@@ -28,6 +29,7 @@ export default function ObjectiveFormRow({
     perspectiveOptions,
     ratingLevels = [],
     goalLibraryItems = [],
+    allowStructuralEditing = true,
     onChange,
     onRemove,
 }: ObjectiveFormRowProps) {
@@ -63,7 +65,7 @@ export default function ObjectiveFormRow({
                 <div className="flex-1">
                     {isPlan ? (
                         <div className="space-y-2">
-                            {goalLibraryItems.length > 0 ? (
+                            {goalLibraryItems.length > 0 && allowStructuralEditing ? (
                                 <Select
                                     value={objective.goal_library_item_id ? String(objective.goal_library_item_id) : '__none__'}
                                     onValueChange={(value) =>
@@ -218,7 +220,7 @@ export default function ObjectiveFormRow({
                             />
                             Include in score
                         </Label>
-                        {onRemove ? (
+                        {onRemove && allowStructuralEditing ? (
                             <Button type="button" variant="destructive" size="sm" onClick={() => onRemove(index)}>
                                 <Trash2 className="mr-1 h-3.5 w-3.5" />
                                 Remove objective

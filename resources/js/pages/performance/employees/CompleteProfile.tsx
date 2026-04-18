@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import type { SharedData } from '@/types';
-import type { EmployeeProfileFormData, Option } from '@/types/performance';
+import type { EmployeeFieldConfigItem, EmployeeProfileFormData, Option } from '@/types/performance';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     AlertCircle,
@@ -39,61 +39,12 @@ interface Props {
     genderOptions: Option[];
     maritalStatusOptions: Option[];
     employmentTypeOptions: Option[];
+    fieldConfig: EmployeeFieldConfigItem[];
     can: { assignRoles: boolean };
 }
 
 type StepKey = EmployeeProfileSectionKey | 'review';
 type ReviewSectionKey = EmployeeProfileSectionKey;
-
-const steps: Array<{ key: StepKey; title: string; description: string }> = [
-    { key: 'identity', title: 'Identity', description: 'Confirm who you are and complete your personal details.' },
-    { key: 'contact', title: 'Contact', description: 'Add your phone, address, and emergency contact.' },
-    { key: 'employment', title: 'Employment', description: 'Capture department, title, and employment dates.' },
-    { key: 'performance', title: 'Performance Setup', description: 'Set managers and performance readiness.' },
-    { key: 'notes', title: 'Notes', description: 'Add any supporting context relevant to your profile.' },
-    { key: 'review', title: 'Review & Confirm', description: 'Review everything and confirm before saving.' },
-];
-
-const requiredFieldsBySection: Record<ReviewSectionKey, Array<keyof EmployeeProfileFormData>> = {
-    identity: ['employee_number'],
-    contact: [],
-    employment: ['employment_status'],
-    performance: [],
-    notes: [],
-};
-
-const errorStepMap: Record<string, EmployeeProfileSectionKey> = {
-    user_id: 'identity',
-    employee_number: 'identity',
-    national_id: 'identity',
-    date_of_birth: 'identity',
-    gender: 'identity',
-    marital_status: 'identity',
-    personal_phone: 'contact',
-    emergency_contact_name: 'contact',
-    emergency_contact_phone: 'contact',
-    home_address_line_1: 'contact',
-    home_address_line_2: 'contact',
-    city: 'contact',
-    state_province: 'contact',
-    postal_code: 'contact',
-    country: 'contact',
-    department_id: 'employment',
-    job_title_id: 'employment',
-    employment_status: 'employment',
-    employment_type: 'employment',
-    work_location: 'employment',
-    hire_date: 'employment',
-    probation_end_date: 'employment',
-    confirmation_date: 'employment',
-    review_eligibility_date: 'employment',
-    line_manager_user_id: 'performance',
-    approving_manager_user_id: 'performance',
-    is_review_eligible: 'performance',
-    is_active: 'performance',
-    role_ids: 'performance',
-    notes: 'notes',
-};
 
 export default function CompleteProfile({
     formDefaults,
@@ -106,6 +57,7 @@ export default function CompleteProfile({
     genderOptions,
     maritalStatusOptions,
     employmentTypeOptions,
+    fieldConfig,
     can,
 }: Props) {
     const { auth } = usePage<SharedData>().props;
@@ -133,11 +85,29 @@ export default function CompleteProfile({
         }
     }, [draftStorageKey, formDefaults]);
     const form = useForm<EmployeeProfileFormData>(persistedFormDefaults);
-    const [currentStep, setCurrentStep] = useState<StepKey>('identity');
+    const enabledFormFields = useMemo(
+        () => fieldConfig.filter((field) => field.enabled && !['display', 'score', 'history', 'linked_account'].includes(field.input_type)),
+        [fieldConfig],
+    );
+    const stepDefinitions = useMemo(() => {
+        const sections = (['identity', 'contact', 'employment', 'performance', 'notes'] as EmployeeProfileSectionKey[])
+            .filter((section) => enabledFormFields.some((field) => field.section === section))
+            .map((section) => ({
+                key: section as StepKey,
+                title: sectionTitle(section),
+                description: sectionDescription(section),
+            }));
+
+        return [
+            ...sections,
+            { key: 'review' as StepKey, title: 'Review & Confirm', description: 'Review everything and confirm before saving.' },
+        ];
+    }, [enabledFormFields]);
+    const [currentStep, setCurrentStep] = useState<StepKey>(stepDefinitions[0]?.key ?? 'review');
     const [reviewConfirmed, setReviewConfirmed] = useState(false);
 
-    const currentIndex = steps.findIndex((step) => step.key === currentStep);
-    const currentStepDefinition = steps[currentIndex] ?? steps[0];
+    const currentIndex = stepDefinitions.findIndex((step) => step.key === currentStep);
+    const currentStepDefinition = stepDefinitions[currentIndex] ?? stepDefinitions[0];
     const isReviewStep = currentStep === 'review';
 
     useEffect(() => {
@@ -147,12 +117,18 @@ export default function CompleteProfile({
             return;
         }
 
-        const errorStep = errorStepMap[firstErrorKey];
+        const errorStep = (fieldConfig.find((field) => field.field_key === firstErrorKey)?.section as EmployeeProfileSectionKey | undefined) ?? 'identity';
 
         if (errorStep && errorStep !== currentStep) {
             setCurrentStep(errorStep);
         }
-    }, [currentStep, form.errors]);
+    }, [currentStep, fieldConfig, form.errors]);
+
+    useEffect(() => {
+        if (!stepDefinitions.some((step) => step.key === currentStep)) {
+            setCurrentStep(stepDefinitions[0]?.key ?? 'review');
+        }
+    }, [currentStep, stepDefinitions]);
 
     useEffect(() => {
         if (typeof window === 'undefined') {
@@ -163,120 +139,51 @@ export default function CompleteProfile({
     }, [draftStorageKey, form.data]);
 
     const reviewSections = useMemo(
-        () => [
-            {
-                key: 'identity' as const,
-                title: 'Identity',
-                rows: [
-                    { label: 'User', value: auth.user.name },
-                    { label: 'Email', value: auth.user.email },
-                    { label: 'Employee Number', value: displayValue(form.data.employee_number) },
-                    { label: 'National ID', value: displayValue(form.data.national_id) },
-                    { label: 'Date of Birth', value: formatDate(form.data.date_of_birth) },
-                    { label: 'Gender', value: optionLabel(form.data.gender, genderOptions) },
-                    { label: 'Marital Status', value: optionLabel(form.data.marital_status, maritalStatusOptions) },
-                ],
-            },
-            {
-                key: 'contact' as const,
-                title: 'Contact & Address',
-                rows: [
-                    { label: 'Personal Phone', value: displayValue(form.data.personal_phone) },
-                    { label: 'Emergency Contact Name', value: displayValue(form.data.emergency_contact_name) },
-                    { label: 'Emergency Contact Phone', value: displayValue(form.data.emergency_contact_phone) },
-                    { label: 'Address Line 1', value: displayValue(form.data.home_address_line_1) },
-                    { label: 'Address Line 2', value: displayValue(form.data.home_address_line_2) },
-                    { label: 'City', value: displayValue(form.data.city) },
-                    { label: 'State / Province', value: displayValue(form.data.state_province) },
-                    { label: 'Postal Code', value: displayValue(form.data.postal_code) },
-                    { label: 'Country', value: displayValue(form.data.country) },
-                ],
-            },
-            {
-                key: 'employment' as const,
-                title: 'Employment Details',
-                rows: [
-                    { label: 'Department', value: optionLabel(form.data.department_id, departmentOptions) },
-                    { label: 'Job Title', value: optionLabel(form.data.job_title_id, jobTitleOptions) },
-                    { label: 'Employment Status', value: optionLabel(form.data.employment_status, employmentStatusOptions) },
-                    { label: 'Employment Type', value: optionLabel(form.data.employment_type, employmentTypeOptions) },
-                    { label: 'Work Location', value: displayValue(form.data.work_location) },
-                    { label: 'Hire Date', value: formatDate(form.data.hire_date) },
-                    { label: 'Probation End Date', value: formatDate(form.data.probation_end_date) },
-                    { label: 'Confirmation Date', value: formatDate(form.data.confirmation_date) },
-                    { label: 'Review Eligibility Date', value: formatDate(form.data.review_eligibility_date) },
-                ],
-            },
-            {
-                key: 'performance' as const,
-                title: 'Performance Setup',
-                rows: [
-                    { label: 'Line Manager', value: optionLabel(form.data.line_manager_user_id, managerOptions) },
-                    { label: 'Approving Manager', value: optionLabel(form.data.approving_manager_user_id, managerOptions) },
-                    { label: 'Review Eligible', value: booleanLabel(form.data.is_review_eligible) },
-                    { label: 'Active Employee', value: booleanLabel(form.data.is_active) },
-                    {
-                        label: 'Assigned Roles',
-                        value:
-                            can.assignRoles && form.data.role_ids.length > 0
-                                ? roleOptions
-                                      .filter((option) => form.data.role_ids.includes(Number(option.value)))
-                                      .map((option) => option.label)
-                                      .join(', ')
-                                : can.assignRoles
-                                  ? 'No roles selected'
-                                  : 'Role assignment not available',
-                    },
-                ],
-            },
-            {
-                key: 'notes' as const,
-                title: 'Notes',
-                rows: [{ label: 'Notes', value: displayValue(form.data.notes) }],
-            },
-        ],
+        () =>
+            (['identity', 'contact', 'employment', 'performance', 'notes'] as ReviewSectionKey[])
+                .map((section) => {
+                    const rows = enabledFormFields
+                        .filter((field) => field.section === section)
+                        .map((field) => ({
+                            key: field.field_key,
+                            label: field.label,
+                            required: field.required,
+                            value: formatFieldValue(field.field_key, form.data, {
+                                authName: auth.user.name,
+                                authEmail: auth.user.email,
+                                departmentOptions,
+                                employmentStatusOptions,
+                                employmentTypeOptions,
+                                genderOptions,
+                                jobTitleOptions,
+                                managerOptions,
+                                maritalStatusOptions,
+                                roleOptions,
+                                canAssignRoles: can.assignRoles,
+                            }),
+                        }));
+
+                    return {
+                        key: section,
+                        title: sectionTitle(section),
+                        rows,
+                    };
+                })
+                .filter((section) => section.rows.length > 0),
         [
             auth.user.email,
             auth.user.name,
             can.assignRoles,
             departmentOptions,
+            enabledFormFields,
             employmentStatusOptions,
             employmentTypeOptions,
-            form.data.approving_manager_user_id,
-            form.data.city,
-            form.data.confirmation_date,
-            form.data.country,
-            form.data.date_of_birth,
-            form.data.department_id,
-            form.data.employee_number,
-            form.data.emergency_contact_name,
-            form.data.emergency_contact_phone,
-            form.data.employment_status,
-            form.data.employment_type,
-            form.data.gender,
-            form.data.hire_date,
-            form.data.home_address_line_1,
-            form.data.home_address_line_2,
-            form.data.is_active,
-            form.data.is_review_eligible,
-            form.data.job_title_id,
-            form.data.line_manager_user_id,
-            form.data.marital_status,
-            form.data.national_id,
-            form.data.notes,
-            form.data.personal_phone,
-            form.data.postal_code,
-            form.data.probation_end_date,
-            form.data.review_eligibility_date,
-            form.data.role_ids,
-            form.data.state_province,
-            form.data.work_location,
+            form.data,
             genderOptions,
             jobTitleOptions,
+            managerOptions,
             maritalStatusOptions,
             roleOptions,
-            userOptions,
-            managerOptions,
         ],
     );
 
@@ -301,17 +208,19 @@ export default function CompleteProfile({
     };
 
     const sectionHasMissingRequiredFields = (sectionKey: ReviewSectionKey) =>
-        requiredFieldsBySection[sectionKey].some((fieldKey) => !hasFormValue(form.data[fieldKey]));
+        reviewSections
+            .find((section) => section.key === sectionKey)
+            ?.rows.some((row) => row.required && !hasFormValue(form.data[row.key as keyof EmployeeProfileFormData])) ?? false;
 
     const goToPreviousStep = () => {
         if (currentIndex > 0) {
-            setCurrentStep(steps[currentIndex - 1].key);
+            setCurrentStep(stepDefinitions[currentIndex - 1].key);
         }
     };
 
     const goToNextStep = () => {
-        if (currentIndex < steps.length - 1) {
-            setCurrentStep(steps[currentIndex + 1].key);
+        if (currentIndex < stepDefinitions.length - 1) {
+            setCurrentStep(stepDefinitions[currentIndex + 1].key);
         }
     };
 
@@ -387,7 +296,7 @@ export default function CompleteProfile({
                                             <StatCard
                                                 icon={<UserRound className="h-4 w-4 text-primary" />}
                                                 label="Profile"
-                                                value={`${currentIndex + 1} of ${steps.length}`}
+                                                value={`${currentIndex + 1} of ${stepDefinitions.length}`}
                                             />
                                             <StatCard
                                                 icon={<Briefcase className="h-4 w-4 text-primary" />}
@@ -472,12 +381,13 @@ export default function CompleteProfile({
                                         ))}
                                     </div>
                                 ) : (
-                                    <EmployeeProfileForm
-                                        form={form}
-                                        mode="edit"
-                                        departmentOptions={departmentOptions}
-                                        jobTitleOptions={jobTitleOptions}
-                                        userOptions={userOptions}
+                                        <EmployeeProfileForm
+                                            form={form}
+                                            mode="edit"
+                                            fieldConfig={fieldConfig}
+                                            departmentOptions={departmentOptions}
+                                            jobTitleOptions={jobTitleOptions}
+                                            userOptions={userOptions}
                                         managerOptions={managerOptions}
                                         roleOptions={roleOptions}
                                         employmentStatusOptions={employmentStatusOptions}
@@ -499,7 +409,7 @@ export default function CompleteProfile({
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent className="grid gap-2 p-4 pt-0">
-                                        {steps.map((step, index) => {
+                                        {stepDefinitions.map((step, index) => {
                                             const isActive = step.key === currentStep;
                                             const isCompleted = index < currentIndex;
 
@@ -549,7 +459,7 @@ export default function CompleteProfile({
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="space-y-2">
                                     <p className="text-sm text-muted-foreground">
-                                        Step {currentIndex + 1} of {steps.length}: {currentStepDefinition.title}
+                                        Step {currentIndex + 1} of {stepDefinitions.length}: {currentStepDefinition.title}
                                     </p>
                                     {isReviewStep ? (
                                         <div className="flex items-start gap-3">
@@ -590,7 +500,7 @@ export default function CompleteProfile({
                                         </Button>
                                     ) : (
                                         <Button type="button" size="sm" onClick={goToNextStep}>
-                                            {currentIndex === steps.length - 2 ? 'Review Details' : 'Continue'}
+                                            {currentIndex === stepDefinitions.length - 2 ? 'Review Details' : 'Continue'}
                                             <ArrowRight className="ml-2 h-4 w-4" />
                                         </Button>
                                     )}
@@ -624,6 +534,26 @@ function StatCard({
             </CardContent>
         </Card>
     );
+}
+
+function sectionTitle(section: EmployeeProfileSectionKey) {
+    return ({
+        identity: 'Identity',
+        contact: 'Contact',
+        employment: 'Employment',
+        performance: 'Performance Setup',
+        notes: 'Notes',
+    })[section];
+}
+
+function sectionDescription(section: EmployeeProfileSectionKey) {
+    return ({
+        identity: 'Confirm who you are and complete your personal details.',
+        contact: 'Add your phone, address, and emergency contact.',
+        employment: 'Capture department, title, and employment dates.',
+        performance: 'Set managers and performance readiness.',
+        notes: 'Add any supporting context relevant to your profile.',
+    })[section];
 }
 
 function optionLabel(value: number | string | null | undefined, options: Option[]) {
@@ -666,6 +596,63 @@ function formatDate(value: string | null | undefined) {
         month: 'short',
         year: 'numeric',
     }).format(date);
+}
+
+function formatFieldValue(
+    fieldKey: string,
+    formData: EmployeeProfileFormData,
+    context: {
+        authName: string;
+        authEmail: string;
+        departmentOptions: Option[];
+        employmentStatusOptions: Option[];
+        employmentTypeOptions: Option[];
+        genderOptions: Option[];
+        jobTitleOptions: Option[];
+        managerOptions: Option[];
+        maritalStatusOptions: Option[];
+        roleOptions: Option[];
+        canAssignRoles: boolean;
+    },
+) {
+    switch (fieldKey) {
+        case 'user_name':
+            return context.authName;
+        case 'user_email':
+            return context.authEmail;
+        case 'department_id':
+            return optionLabel(formData.department_id, context.departmentOptions);
+        case 'job_title_id':
+            return optionLabel(formData.job_title_id, context.jobTitleOptions);
+        case 'gender':
+            return optionLabel(formData.gender, context.genderOptions);
+        case 'marital_status':
+            return optionLabel(formData.marital_status, context.maritalStatusOptions);
+        case 'line_manager_user_id':
+        case 'approving_manager_user_id':
+            return optionLabel(formData[fieldKey], context.managerOptions);
+        case 'employment_status':
+            return optionLabel(formData.employment_status, context.employmentStatusOptions);
+        case 'employment_type':
+            return optionLabel(formData.employment_type, context.employmentTypeOptions);
+        case 'is_review_eligible':
+        case 'is_active':
+            return booleanLabel(Boolean(formData[fieldKey]));
+        case 'role_ids':
+            return context.canAssignRoles && formData.role_ids.length > 0
+                ? context.roleOptions.filter((option) => formData.role_ids.includes(Number(option.value))).map((option) => option.label).join(', ')
+                : context.canAssignRoles
+                  ? 'No roles selected'
+                  : 'Role assignment not available';
+        case 'date_of_birth':
+        case 'hire_date':
+        case 'probation_end_date':
+        case 'confirmation_date':
+        case 'review_eligibility_date':
+            return formatDate(formData[fieldKey]);
+        default:
+            return displayValue(String(formData[fieldKey as keyof EmployeeProfileFormData] ?? ''));
+    }
 }
 
 function sectionIcon(sectionKey: EmployeeProfileSectionKey | 'review') {

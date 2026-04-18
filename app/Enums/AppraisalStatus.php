@@ -12,6 +12,7 @@ enum AppraisalStatus: string
     case ManagerReviewCompleted = 'manager_review_completed';
     case ApprovalPending = 'approval_pending';
     case Approved = 'approved';
+    case CalibrationPending = 'calibration_pending';
     case SentBack = 'sent_back';
     case Finalized = 'finalized';
 }
