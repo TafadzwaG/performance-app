@@ -45,4 +45,10 @@ class UserPolicy
             && ! $managedUser->is_approved
             && $user->can('access.users.approve');
     }
+
+    public function delete(User $user, User $managedUser): bool
+    {
+        return $user->id !== $managedUser->id
+            && $user->can('access.users.delete');
+    }
 }

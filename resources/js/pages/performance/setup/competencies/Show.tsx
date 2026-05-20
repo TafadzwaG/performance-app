@@ -19,7 +19,7 @@ import {
 
 const breadcrumbs = (competency: Competency): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
-    { title: 'Competencies', href: route('performance.setup.competencies.index') },
+    { title: 'Values', href: route('performance.setup.competencies.index') },
     { title: competency.name, href: route('performance.setup.competencies.show', competency.id) },
 ];
 
@@ -41,7 +41,7 @@ export default function CompetencyShow({ competency }: { competency: Competency 
     return (
         <PerformancePage
             title={competency.name}
-            description="Competency detail and usage summary."
+            description="Value detail and usage summary."
             breadcrumbs={breadcrumbs(competency)}
             secondaryActions={
                 <Button asChild variant="outline">
@@ -57,7 +57,7 @@ export default function CompetencyShow({ competency }: { competency: Competency 
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">{competency.name}</h1>
                         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                            {competency.code} | Competency Registry
+                            {competency.code} | Value Registry
                         </p>
                     </div>
 
@@ -65,7 +65,7 @@ export default function CompetencyShow({ competency }: { competency: Competency 
                         <Button asChild variant="outline">
                             <Link href={route('performance.setup.competencies.edit', competency.id)}>
                                 <PencilLine className="mr-2 h-4 w-4" />
-                                Edit Competency
+                                Edit Value
                             </Link>
                         </Button>
                     </div>
@@ -161,7 +161,7 @@ export default function CompetencyShow({ competency }: { competency: Competency 
                                 </CardHeader>
 
                                 <CardContent className="space-y-4">
-                                    <InfoRow label="Competency Name" value={competency.name} />
+                                    <InfoRow label="Value Name" value={competency.name} />
                                     <InfoRow label="Category" value={normalizeCategory(competency.category)} />
                                     <InfoRow label="Scope" value={scopeSummary(competency)} />
                                 </CardContent>

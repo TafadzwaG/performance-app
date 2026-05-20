@@ -299,6 +299,7 @@ trait BuildsPerformanceViewData
             'latestCalibration.actor',
             'latestCalibration.originalOverallRatingLevel',
             'latestCalibration.calibratedOverallRatingLevel',
+            'latestCalibration.evidences',
         ]);
     }
 

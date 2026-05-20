@@ -1,19 +1,19 @@
 import { useMemo, useState } from 'react';
 
 export type Palette = {
-    moss: string;
-    cloud: string;
-    mist: string;
-    coal: string;
+    sand: string;
+    ink: string;
+    cream: string;
+    pine: string;
 };
 
 const PALETTE_KEY = 'app:palette';
 
 export const DEFAULT_PALETTE: Palette = {
-    moss: '#385144',
-    cloud: '#F8F5F2',
-    mist: '#C2D8C4',
-    coal: '#222222',
+    sand: '#BFB48F',
+    ink: '#252627',
+    cream: '#F6F1E6',
+    pine: '#2F4A3F',
 };
 
 function normalizeHex(value: string) {
@@ -24,19 +24,19 @@ function normalizeHex(value: string) {
 
 function sanitizePalette(input: Partial<Palette> | null | undefined): Palette {
     return {
-        moss: normalizeHex(input?.moss ?? '') ?? DEFAULT_PALETTE.moss,
-        cloud: normalizeHex(input?.cloud ?? '') ?? DEFAULT_PALETTE.cloud,
-        mist: normalizeHex(input?.mist ?? '') ?? DEFAULT_PALETTE.mist,
-        coal: normalizeHex(input?.coal ?? '') ?? DEFAULT_PALETTE.coal,
+        sand: normalizeHex(input?.sand ?? '') ?? DEFAULT_PALETTE.sand,
+        ink: normalizeHex(input?.ink ?? '') ?? DEFAULT_PALETTE.ink,
+        cream: normalizeHex(input?.cream ?? '') ?? DEFAULT_PALETTE.cream,
+        pine: normalizeHex(input?.pine ?? '') ?? DEFAULT_PALETTE.pine,
     };
 }
 
 export function applyPalette(palette: Palette) {
     const root = document.documentElement;
-    root.style.setProperty('--palette-moss', palette.moss);
-    root.style.setProperty('--palette-cloud', palette.cloud);
-    root.style.setProperty('--palette-mist', palette.mist);
-    root.style.setProperty('--palette-coal', palette.coal);
+    root.style.setProperty('--palette-sand', palette.sand);
+    root.style.setProperty('--palette-ink', palette.ink);
+    root.style.setProperty('--palette-cream', palette.cream);
+    root.style.setProperty('--palette-pine', palette.pine);
 }
 
 function readStoredPalette(): Palette {
@@ -72,7 +72,7 @@ export function usePalette() {
     };
 
     const previewColors = useMemo(
-        () => [palette.moss, palette.cloud, palette.mist, palette.coal],
+        () => [palette.sand, palette.ink, palette.cream, palette.pine],
         [palette],
     );
 

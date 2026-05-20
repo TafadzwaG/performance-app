@@ -2,20 +2,27 @@
 
 namespace App\Http\Controllers\Access;
 
+use App\Exports\Access\UserImportTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Access\BulkStoreUsersRequest;
+use App\Http\Requests\Access\DeleteUserRequest;
 use App\Http\Requests\Access\ImportUsersRequest;
 use App\Http\Requests\Access\StoreUserRequest;
 use App\Http\Requests\Access\UpdateUserRequest;
+use App\Mail\UserApprovedNotification;
 use App\Models\EmployeeProfile;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Access\UserDeletionService;
 use App\Services\Access\UserImportService;
 use App\Services\Access\UserOnboardingService;
-use App\Exports\Access\UserImportTemplateExport;
+use App\Support\Access\UserProvisionRules;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -232,7 +239,7 @@ class UserController extends Controller
 
         $validator = Validator::make(
             ['users' => $rows],
-            \App\Support\Access\UserProvisionRules::bulk(),
+            UserProvisionRules::bulk(),
         );
 
         if ($validator->fails()) {
@@ -265,6 +272,21 @@ class UserController extends Controller
         return $export->download('user-import-template-'.now()->format('Ymd-Hi').'.xlsx');
     }
 
+    public function deletionImpact(User $user, UserDeletionService $userDeletionService): JsonResponse
+    {
+        $this->authorize('delete', $user);
+
+        return response()->json($userDeletionService->impact($user));
+    }
+
+    public function destroy(DeleteUserRequest $request, User $user, UserDeletionService $userDeletionService): RedirectResponse
+    {
+        $userDeletionService->delete($user, $request->user());
+
+        return to_route('access.users.index')
+            ->with('success', "{$user->name} and all associated records were deleted permanently.");
+    }
+
     public function approve(Request $request, User $user): RedirectResponse
     {
         $this->authorize('approve', $user);
@@ -284,8 +306,32 @@ class UserController extends Controller
             'is_approved' => true,
         ])->save();
 
+        $this->sendApprovalNotification($user, $request->user());
+
         return to_route('access.users.index', [
             'approval_status' => 'pending',
         ])->with('success', "{$user->name} has been approved and can now sign in.");
+    }
+
+    /**
+     * Email the freshly-approved user a styled welcome confirmation.
+     * Failures are logged but never block the approval flow.
+     */
+    private function sendApprovalNotification(User $user, ?User $approvedBy): void
+    {
+        if (! filled($user->email)) {
+            return;
+        }
+
+        try {
+            $user->loadMissing('roles');
+
+            Mail::to($user->email)->send(new UserApprovedNotification($user, $approvedBy));
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to send user approval email', [
+                'user_id' => $user->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 }

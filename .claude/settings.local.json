@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite *)",
+      "Bash(python -c ' *)",
+      "Bash(pip install *)",
+      "Bash(php artisan *)",
+      "Bash(grep -vE \"import|type \\\\{|Competency,|CompetencyRating|competency_id|allow_competencies|competency_rating_scale|competencyScale|competency: \")",
+      "Bash(grep -rE \">Competen|>competen|Competencies\\\\\\\\b|'Competen|\\\\\"Competen\" \"C:/Users/tafad/Documents/PROJECTS/Performance_Appraisal/performance-app/resources/js\")",
+      "Bash(grep -nE \"#fff|#ffffff|rgba\\\\\\\\\\(255|bg-brand-cream|text-brand-cream|bg-white|text-white|bg-brand-bone|bg-brand-ink\" \"C:/Users/tafad/Documents/PROJECTS/Performance_Appraisal/performance-app/resources/js/pages/welcome.tsx\")",
+      "Bash(grep -nE 'protected $fillable|protected $casts|$table' C:/Users/tafad/Documents/PROJECTS/Performance_Appraisal/performance-app/app/Models/EmployeeProfile.php)",
+      "Bash(php -l app/Services/Performance/Export/AppraisalExportService.php)",
+      "Bash(php -l app/Http/Controllers/Performance/AppraisalExportController.php)",
+      "Bash(php -l app/Mail/UserSignupPendingApproval.php)",
+      "Bash(php -l app/Mail/UserApprovedNotification.php)",
+      "Bash(php -l app/Http/Controllers/Auth/RegisteredUserController.php)",
+      "Bash(php -l app/Http/Controllers/Access/UserController.php)",
+      "Bash(php -l app/Services/Performance/Export/AppraisalTemplateExportService.php)",
+      "Bash(php -l app/Http/Controllers/Performance/AppraisalTemplateExportController.php)",
+      "Bash(php scripts/generate-favicon.php)"
+    ]
+  }
+}

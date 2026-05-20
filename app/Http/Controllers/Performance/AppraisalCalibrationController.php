@@ -10,6 +10,7 @@ use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Performance\SubmitCalibrationDecisionRequest;
 use App\Models\Appraisal;
 use App\Models\RatingScaleLevel;
+use App\Services\Performance\AppraisalScoringService;
 use App\Services\Performance\AppraisalWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -21,8 +22,8 @@ class AppraisalCalibrationController extends Controller
 
     public function __construct(
         private readonly AppraisalWorkflowService $workflowService,
-    ) {
-    }
+        private readonly AppraisalScoringService $scoringService,
+    ) {}
 
     public function edit(Appraisal $appraisal): Response
     {
@@ -37,6 +38,8 @@ class AppraisalCalibrationController extends Controller
                     'value' => $level->id,
                     'label' => $level->label,
                     'value_score' => $level->value,
+                    'min_percent' => $level->min_percent,
+                    'max_percent' => $level->max_percent,
                 ])
                 ->values()
                 ->all() ?? [],
@@ -63,8 +66,16 @@ class AppraisalCalibrationController extends Controller
         }
 
         $ratingLevel = null;
-        if ($decision === 'adjusted' && $request->filled('calibrated_overall_rating_scale_level_id')) {
-            $ratingLevel = RatingScaleLevel::query()->findOrFail($request->integer('calibrated_overall_rating_scale_level_id'));
+        if ($decision === 'adjusted' && $request->filled('calibrated_overall_score')) {
+            $ratingLevel = $this->scoringService->resolveOverallLevel(
+                $appraisal,
+                (float) $request->input('calibrated_overall_score'),
+            );
+        }
+
+        $evidenceFiles = $request->file('evidence_files', []);
+        if (! is_array($evidenceFiles)) {
+            $evidenceFiles = $evidenceFiles ? [$evidenceFiles] : [];
         }
 
         $this->workflowService->submitCalibration(
@@ -75,6 +86,7 @@ class AppraisalCalibrationController extends Controller
             $request->input('evidence_summary'),
             $request->filled('calibrated_overall_score') ? (float) $request->input('calibrated_overall_score') : null,
             $ratingLevel,
+            $evidenceFiles,
         );
 
         return request()->user()?->can('finalize', $appraisal->fresh())

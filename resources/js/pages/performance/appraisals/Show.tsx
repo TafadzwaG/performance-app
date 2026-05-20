@@ -19,6 +19,8 @@ import {
     Eye,
     FileCheck2,
     FilePenLine,
+    FileSpreadsheet,
+    FileText,
     FolderClock,
     LayoutDashboard,
     Medal,
@@ -144,12 +146,34 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
                         </Button>
                     ) : null}
                     {abilities.print ? (
-                        <Button asChild className="bg-amber-600 text-white hover:bg-amber-700">
-                            <Link href={route('performance.appraisals.print', appraisal.id)}>
-                                <Printer className="mr-2 h-4 w-4" />
-                                Print
-                            </Link>
-                        </Button>
+                        <>
+                            <Button asChild variant="outline">
+                                <Link href={route('performance.appraisals.print', appraisal.id)}>
+                                    <Printer className="mr-2 h-4 w-4" />
+                                    Print preview
+                                </Link>
+                            </Button>
+                            <Button asChild variant="accent">
+                                <a
+                                    href={route('performance.appraisals.export.pdf', appraisal.id)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    Export PDF
+                                </a>
+                            </Button>
+                            <Button asChild variant="secondary">
+                                <a
+                                    href={route('performance.appraisals.export.excel', appraisal.id)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                    Export Excel
+                                </a>
+                            </Button>
+                        </>
                     ) : null}
                 </>
             }
@@ -165,9 +189,13 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
                                         Read-only appraisal report
                                     </Badge>
 
-                                    <div className="space-y-2">
+                                    <div className="space-y-3">
+                                        <div className="font-mono-brand text-muted-foreground flex items-center gap-3 text-[11px] tracking-[0.22em] uppercase">
+                                            <span className="bg-brand-sand inline-block h-px w-6" />
+                                            <span>§ Performance appraisal</span>
+                                        </div>
                                         <div className="flex flex-wrap items-center gap-3">
-                                            <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">
+                                            <h1 className="font-display text-balance text-foreground text-3xl leading-[1] font-light tracking-tight lg:text-4xl">
                                                 {appraisal.employee_name_snapshot}
                                             </h1>
                                             <Badge className="gap-1.5 px-3 py-1">
@@ -179,8 +207,9 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
                                             </Badge>
                                         </div>
 
-                                        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                                            This page is structured as a performance summary rather than a form, so reviewers can scan progress, scores, comments, and approvals more easily.
+                                        <p className="text-muted-foreground max-w-3xl text-[13px] leading-relaxed">
+                                            A read-only summary of progress, scores, comments, and approvals. Use the
+                                            workflow actions above to advance the cycle.
                                         </p>
                                     </div>
 
@@ -194,10 +223,10 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
                                     <div className="rounded-2xl border bg-background/85 p-4 shadow-sm backdrop-blur">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                             <div>
-                                                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                    Appraisal Progress
+                                                <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                                    § Appraisal Progress
                                                 </div>
-                                                <div className="mt-1 text-sm font-medium text-foreground">
+                                                <div className="font-display text-foreground mt-1 text-base leading-tight font-light tracking-tight">
                                                     {workflowProgress.label}
                                                 </div>
                                             </div>
@@ -460,14 +489,18 @@ function MetricCard({ icon: Icon, label, value, hint }: MetricCardProps) {
             <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-                        <p className="text-2xl font-semibold tracking-tight">{value}</p>
+                        <p className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                            {label}
+                        </p>
+                        <p className="font-display text-foreground text-2xl leading-none font-light tracking-tight">
+                            {value}
+                        </p>
                     </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
                         <Icon className="h-5 w-5" />
                     </div>
                 </div>
-                <p className="mt-3 text-xs text-muted-foreground">{hint}</p>
+                <p className="text-muted-foreground mt-3 text-[12px]">{hint}</p>
             </CardContent>
         </Card>
     );
@@ -485,14 +518,16 @@ function HighlightCard({ icon: Icon, label, value, hint }: HighlightCardProps) {
         <div className="rounded-2xl border bg-background/85 p-4 shadow-sm backdrop-blur">
             <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-                    <p className="text-base font-semibold text-foreground">{value}</p>
+                    <p className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">{label}</p>
+                    <p className="font-display text-foreground text-lg leading-tight font-light tracking-tight">
+                        {value}
+                    </p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
                     <Icon className="h-5 w-5" />
                 </div>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">{hint}</p>
+            <p className="text-muted-foreground mt-3 text-[12px]">{hint}</p>
         </div>
     );
 }

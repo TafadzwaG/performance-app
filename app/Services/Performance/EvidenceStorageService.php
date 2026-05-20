@@ -2,6 +2,8 @@
 
 namespace App\Services\Performance;
 
+use App\Models\AppraisalCalibration;
+use App\Models\AppraisalCalibrationEvidence;
 use App\Models\AppraisalObjective;
 use App\Models\AppraisalObjectiveEvidence;
 use App\Models\User;
@@ -45,5 +47,26 @@ class EvidenceStorageService
         }
 
         $evidence->delete();
+    }
+
+    public function storeCalibrationFile(
+        AppraisalCalibration $calibration,
+        UploadedFile $file,
+        User $user,
+        ?string $notes = null,
+    ): AppraisalCalibrationEvidence {
+        $path = $file->store("performance/calibration-evidence/{$calibration->id}", 'public');
+
+        return AppraisalCalibrationEvidence::create([
+            'appraisal_calibration_id' => $calibration->id,
+            'uploaded_by_user_id' => $user->id,
+            'evidence_type' => 'file',
+            'disk' => 'public',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+            'notes' => $notes,
+        ]);
     }
 }

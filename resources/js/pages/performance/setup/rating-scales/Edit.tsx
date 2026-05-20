@@ -51,7 +51,7 @@ interface RatingScaleForm {
 
 const typeOptions = [
     { value: 'objective', label: 'Objective' },
-    { value: 'competency', label: 'Competency' },
+    { value: 'competency', label: 'Values' },
     { value: 'overall', label: 'Overall' },
 ];
 

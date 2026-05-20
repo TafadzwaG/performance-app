@@ -12,7 +12,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function EmployeeSummary({ rows, reviewCycleOptions, filters }: { rows: Array<Record<string, unknown>>; reviewCycleOptions: Option[]; filters: { review_cycle_id?: number | null } }) {
     return (
-        <PerformancePage title="Employee Summary" description="Per-employee appraisal outcome summary." breadcrumbs={breadcrumbs}>
+        <PerformancePage title="Employee Summary" description="Per-employee appraisal outcome and effective score summary." breadcrumbs={breadcrumbs}>
             <CycleFilters reviewCycleOptions={reviewCycleOptions} reviewCycleId={filters.review_cycle_id ?? null} reportRoute="performance.reports.employee_summary" exportKey="employee-summary" />
             <ReportTable rows={rows} />
         </PerformancePage>

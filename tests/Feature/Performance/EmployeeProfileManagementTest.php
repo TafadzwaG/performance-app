@@ -1,13 +1,20 @@
 <?php
 
+use App\Enums\AppraisalStatus;
 use App\Enums\EmploymentStatus;
+use App\Enums\RatingScaleType;
+use App\Models\Appraisal;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\JobTitle;
 use App\Models\Permission;
+use App\Models\RatingScale;
+use App\Models\RatingScaleLevel;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
+use OpenSpout\Reader\XLSX\Reader;
 
 uses(RefreshDatabase::class);
 
@@ -214,6 +221,226 @@ test('employee profile can be updated with expanded fields', function () {
     ]);
 
     expect($profile->user->fresh()->hasRole($role))->toBeTrue();
+});
+
+test('department detail includes department employees with latest appraisal outcome', function () {
+    $admin = User::factory()->create(['is_approved' => true]);
+    grantPermissions($admin, [
+        'performance.setup.departments.view',
+    ]);
+
+    $department = Department::factory()->create(['name' => 'Operations']);
+    $otherDepartment = Department::factory()->create(['name' => 'Finance']);
+    $jobTitle = JobTitle::factory()->create(['name' => 'Operations Analyst']);
+    $employeeUser = User::factory()->create(['name' => 'Tariro Employee']);
+    $otherUser = User::factory()->create(['name' => 'Other Employee']);
+
+    $profile = EmployeeProfile::factory()
+        ->for($employeeUser, 'user')
+        ->for($department)
+        ->for($jobTitle, 'jobTitle')
+        ->create([
+            'employee_number' => 'EMP-D-001',
+            'employment_status' => EmploymentStatus::Active,
+            'work_location' => 'Harare',
+            'is_review_eligible' => true,
+        ]);
+
+    EmployeeProfile::factory()
+        ->for($otherUser, 'user')
+        ->for($otherDepartment)
+        ->create(['employee_number' => 'EMP-D-999']);
+
+    $ratingScale = RatingScale::factory()->create(['applies_to' => RatingScaleType::Overall]);
+    $originalRating = RatingScaleLevel::create([
+        'rating_scale_id' => $ratingScale->id,
+        'label' => 'Exceeds',
+        'value' => 4,
+        'sort_order' => 1,
+    ]);
+    $calibratedRating = RatingScaleLevel::create([
+        'rating_scale_id' => $ratingScale->id,
+        'label' => 'Meets',
+        'value' => 3,
+        'sort_order' => 2,
+    ]);
+
+    Appraisal::factory()
+        ->for($profile, 'employeeProfile')
+        ->create([
+            'employee_user_id' => $employeeUser->id,
+            'status' => AppraisalStatus::Finalized,
+            'cycle_name_snapshot' => '2026 Annual Review',
+            'overall_score' => 91,
+            'calibrated_overall_score' => 77,
+            'overall_rating_scale_level_id' => $originalRating->id,
+            'calibrated_overall_rating_scale_level_id' => $calibratedRating->id,
+            'finalized_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+    $this->actingAs($admin)
+        ->get(route('performance.setup.departments.show', $department))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('performance/setup/departments/Show')
+            ->has('department.employee_profiles', 1)
+            ->where('department.employee_profiles.0.employee_number', 'EMP-D-001')
+            ->where('department.employee_profiles.0.user.name', 'Tariro Employee')
+            ->where('department.employee_profiles.0.job_title.name', 'Operations Analyst')
+            ->where('department.employee_profiles.0.latest_appraisal.cycle_name_snapshot', '2026 Annual Review')
+            ->where('department.employee_profiles.0.latest_appraisal.calibrated_overall_score', '77.00')
+            ->where('department.employee_profiles.0.latest_appraisal.calibrated_overall_rating_level.label', 'Meets')
+        );
+});
+
+test('employee index provides export column choices from the backend', function () {
+    $admin = User::factory()->create(['is_approved' => true]);
+    grantPermissions($admin, [
+        'performance.employees.view',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('performance.employees.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('performance/employees/Index')
+            ->has('exportColumns')
+            ->where('exportColumns.0.key', 'user_name')
+            ->where('exportColumns.0.label', 'Employee Name')
+            ->where('exportColumns.0.default', true)
+            ->where('exportColumns.0.section', 'identity')
+            ->where('exportColumns.0.required', true)
+        );
+});
+
+test('employees export downloads selected columns with effective latest appraisal values', function () {
+    $admin = User::factory()->create(['is_approved' => true]);
+    grantPermissions($admin, [
+        'performance.employees.view',
+    ]);
+
+    $department = Department::factory()->create(['name' => 'Operations']);
+    $jobTitle = JobTitle::factory()->create(['name' => 'Operations Analyst']);
+    $employeeUser = User::factory()->create(['name' => 'Tariro Employee', 'email' => 'tariro@example.com']);
+
+    $profile = EmployeeProfile::factory()
+        ->for($employeeUser, 'user')
+        ->for($department)
+        ->for($jobTitle, 'jobTitle')
+        ->create([
+            'employee_number' => 'EMP-EXPORT-001',
+            'employment_status' => EmploymentStatus::Active,
+            'is_active' => true,
+            'is_review_eligible' => true,
+        ]);
+
+    $ratingScale = RatingScale::factory()->create(['applies_to' => RatingScaleType::Overall]);
+    $originalRating = RatingScaleLevel::create([
+        'rating_scale_id' => $ratingScale->id,
+        'label' => 'Exceeds',
+        'value' => 4,
+        'sort_order' => 1,
+    ]);
+    $calibratedRating = RatingScaleLevel::create([
+        'rating_scale_id' => $ratingScale->id,
+        'label' => 'Meets',
+        'value' => 3,
+        'sort_order' => 2,
+    ]);
+
+    Appraisal::factory()
+        ->for($profile, 'employeeProfile')
+        ->create([
+            'employee_user_id' => $employeeUser->id,
+            'status' => AppraisalStatus::Finalized,
+            'cycle_name_snapshot' => '2026 Annual Review',
+            'overall_score' => 91,
+            'calibrated_overall_score' => 77,
+            'overall_rating_scale_level_id' => $originalRating->id,
+            'calibrated_overall_rating_scale_level_id' => $calibratedRating->id,
+            'finalized_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+    $response = $this->actingAs($admin)->get(route('performance.employees.export', [
+        'columns' => [
+            'user_name',
+            'employee_number',
+            'department_id',
+            'latest_overall_score',
+            'latest_overall_rating',
+        ],
+    ]));
+
+    $response->assertOk();
+    expect($response->headers->get('content-disposition'))->toContain('employees-');
+
+    $reader = new Reader;
+    $reader->open($response->baseResponse->getFile()->getPathname());
+
+    $rows = [];
+
+    foreach ($reader->getSheetIterator() as $sheet) {
+        foreach ($sheet->getRowIterator() as $row) {
+            $rows[] = $row->toArray();
+        }
+
+        break;
+    }
+
+    $reader->close();
+
+    expect($rows)->toBe([
+        ['Employee Name', 'Employee Number', 'Department', 'Recent Score', 'Recent Rating'],
+        ['Tariro Employee', 'EMP-EXPORT-001', 'Operations', '77.00', 'Meets'],
+    ]);
+});
+
+test('authenticated users can view and update their own employee profile', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+    $profile = EmployeeProfile::factory()->for($user)->create([
+        'city' => 'Cape Town',
+        'personal_phone' => '+27110000000',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('performance.profile.show'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('performance/employees/Show')
+            ->where('isOwnProfile', true)
+            ->where('employeeProfile.id', $profile->id));
+
+    $this->actingAs($user)
+        ->get(route('performance.profile.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('performance/employees/Edit')
+            ->where('isOwnProfile', true));
+
+    $this->actingAs($user)
+        ->put(route('performance.profile.update'), [
+            'national_id' => $profile->national_id,
+            'date_of_birth' => $profile->date_of_birth?->format('Y-m-d'),
+            'gender' => $profile->gender,
+            'marital_status' => $profile->marital_status,
+            'personal_phone' => '+27112223333',
+            'home_address_line_1' => $profile->home_address_line_1,
+            'home_address_line_2' => $profile->home_address_line_2,
+            'city' => 'Johannesburg',
+            'state_province' => $profile->state_province,
+            'postal_code' => $profile->postal_code,
+            'country' => $profile->country,
+            'emergency_contact_name' => $profile->emergency_contact_name ?? 'Jane Contact',
+            'emergency_contact_phone' => '+27719998888',
+            'notes' => $profile->notes,
+        ])
+        ->assertRedirect(route('performance.profile.show'));
+
+    expect($profile->fresh())
+        ->city->toBe('Johannesburg')
+        ->personal_phone->toBe('+27112223333');
 });
 
 function grantPermissions(User $user, array $permissions): void

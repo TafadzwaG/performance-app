@@ -1,3 +1,4 @@
+import DeleteUserDialog from '@/components/access/users/delete-user-dialog';
 import GeneratedCredentialsAlert from '@/components/access/users/GeneratedCredentialsAlert';
 import PaginationLinks from '@/components/performance/PaginationLinks';
 import PerformancePage from '@/components/performance/PerformancePage';
@@ -13,7 +14,7 @@ import type { AccessUserRecord, Option, Paginated } from '@/types/performance';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
-import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Briefcase, CheckCheck, Download, Eye, Filter, LogIn, Pencil, RotateCcw, Search, ShieldCheck, UserPlus, Users } from 'lucide-react';
+import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Briefcase, CheckCheck, Download, Eye, Filter, LogIn, Pencil, RotateCcw, Search, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 
 interface Props {
     users?: Paginated<AccessUserRecord> | null;
@@ -47,6 +48,7 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
     const canImportUsers = auth.permissions.includes('access.users.import');
     const canImpersonateUsers = auth.permissions.includes('access.users.impersonate');
     const canApproveUsers = auth.permissions.includes('access.users.approve');
+    const canDeleteUsers = auth.permissions.includes('access.users.delete');
     const isImpersonating = auth.impersonation?.isImpersonating ?? false;
     const approvalStatus = filters?.approval_status === 'pending' ? 'pending' : 'active';
     const pendingCount = counts?.pending ?? 0;
@@ -54,6 +56,8 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
     const [pendingSelectionId, setPendingSelectionId] = useState<number | null>(null);
     const [approvalModalOpen, setApprovalModalOpen] = useState(false);
     const [approvalRoleIds, setApprovalRoleIds] = useState<number[]>([]);
+    const [deleteTarget, setDeleteTarget] = useState<AccessUserRecord | null>(null);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
     const safeUsers: Paginated<AccessUserRecord> = {
         data: users?.data ?? [],
@@ -219,7 +223,7 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
 
                             <div className="flex flex-wrap gap-2">
                                 {canImportUsers ? (
-                                    <Button asChild type="button" variant="outline">
+                                    <Button asChild type="button" variant="info">
                                         <Link href={route('access.users.import.create')}>
                                             <Download className="mr-2 h-4 w-4" />
                                             Import Users
@@ -229,13 +233,13 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
 
                                 {canCreateUsers ? (
                                     <>
-                                        <Button asChild type="button" variant="outline">
+                                        <Button asChild type="button" variant="soft">
                                             <Link href={route('access.users.bulk_create')}>
                                                 <Users className="mr-2 h-4 w-4" />
                                                 Add Multiple
                                             </Link>
                                         </Button>
-                                        <Button asChild type="button">
+                                        <Button asChild type="button" variant="default">
                                             <Link href={route('access.users.create')}>
                                                 <UserPlus className="mr-2 h-4 w-4" />
                                                 Create User
@@ -276,7 +280,13 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
                         </div>
 
                         {approvalStatus === 'pending' && canApproveUsers ? (
-                            <Button type="button" size="sm" onClick={openActivationModal} disabled={!canOpenActivateModal}>
+                            <Button
+                                type="button"
+                                variant="success"
+                                size="sm"
+                                onClick={openActivationModal}
+                                disabled={!canOpenActivateModal}
+                            >
                                 <CheckCheck className="mr-2 h-4 w-4" />
                                 Activate Selected
                             </Button>
@@ -297,12 +307,12 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
                                 />
                             </div>
 
-                            <Button type="submit" variant="outline" disabled={searchForm.processing}>
+                            <Button type="submit" variant="info" disabled={searchForm.processing}>
                                 <Filter className="mr-2 h-4 w-4" />
                                 Filter
                             </Button>
 
-                            <Button asChild variant="outline">
+                            <Button asChild variant="soft">
                                 <Link href={route('access.users.index', { approval_status: approvalStatus })}>
                                     <RotateCcw className="mr-2 h-4 w-4" />
                                     Reset
@@ -442,28 +452,46 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
 
                                                 <td className="px-6 py-5">
                                                     <div className="flex justify-end gap-2">
-                                                        <Button asChild variant="ghost" size="icon">
+                                                        <Button asChild variant="info" size="icon" title={`View ${user.name}`}>
                                                             <Link href={route('access.users.show', { user: user.id })}>
                                                                 <Eye className="h-4 w-4" />
+                                                                <span className="sr-only">View {user.name}</span>
                                                             </Link>
                                                         </Button>
 
-                                                        <Button asChild variant="ghost" size="icon">
+                                                        <Button asChild variant="warning" size="icon" title={`Edit ${user.name}`}>
                                                             <Link href={route('access.users.edit', { user: user.id })}>
                                                                 <Pencil className="h-4 w-4" />
+                                                                <span className="sr-only">Edit {user.name}</span>
                                                             </Link>
                                                         </Button>
 
                                                         {canImpersonateUsers && approvalStatus === 'active' && !isImpersonating && auth.user.id !== user.id && (
                                                             <Button
                                                                 type="button"
-                                                                variant="outline"
+                                                                variant="accent"
                                                                 size="sm"
                                                                 title={`Impersonate ${user.name}`}
                                                                 onClick={() => startImpersonation(user)}
                                                             >
                                                                 <LogIn className="mr-2 h-4 w-4" />
                                                                 Impersonate
+                                                            </Button>
+                                                        )}
+
+                                                        {canDeleteUsers && auth.user.id !== user.id && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="destructive"
+                                                                size="icon"
+                                                                title={`Delete ${user.name}`}
+                                                                onClick={() => {
+                                                                    setDeleteTarget(user);
+                                                                    setDeleteDialogOpen(true);
+                                                                }}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                                <span className="sr-only">Delete {user.name}</span>
                                                             </Button>
                                                         )}
                                                     </div>
@@ -578,6 +606,8 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
                 </div>
             </div>
 
+            <DeleteUserDialog user={deleteTarget} open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} />
+
             <Dialog open={approvalModalOpen} onOpenChange={setApprovalModalOpen}>
                 <DialogContent>
                     <DialogHeader>
@@ -622,7 +652,7 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
                         <Button type="button" variant="outline" onClick={() => setApprovalModalOpen(false)}>
                             Cancel
                         </Button>
-                        <Button type="button" onClick={approvePendingUser} disabled={approvalRoleIds.length === 0}>
+                        <Button type="button" variant="success" onClick={approvePendingUser} disabled={approvalRoleIds.length === 0}>
                             <CheckCheck className="mr-2 h-4 w-4" />
                             Activate User
                         </Button>

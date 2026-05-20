@@ -349,8 +349,8 @@ export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions
 function SummaryBlock({ label, value }: { label: string; value: string }) {
     return (
         <div className="bg-muted/20 rounded-lg border p-3">
-            <div className="text-muted-foreground text-xs tracking-wide uppercase">{label}</div>
-            <div className="text-foreground mt-1 text-xl font-semibold">{value}</div>
+            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">{label}</div>
+            <div className="font-display text-foreground mt-1 text-xl leading-tight font-light tracking-tight">{value}</div>
         </div>
     );
 }

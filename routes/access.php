@@ -3,6 +3,7 @@
 use App\Http\Controllers\Access\AuditTrailController;
 use App\Http\Controllers\Access\HelpController;
 use App\Http\Controllers\Access\RoleController;
+use App\Http\Controllers\Access\StorageManagementController;
 use App\Http\Controllers\Access\UserController;
 use App\Http\Controllers\Access\UserImpersonationController;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,11 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('access')->as
         ->middleware('permission:access.audit_trails.view')
         ->name('audit-trails.index');
 
+    Route::get('storage', [StorageManagementController::class, 'index'])->name('storage.index');
+    Route::get('storage/download', [StorageManagementController::class, 'download'])->name('storage.download');
+    Route::delete('storage/files', [StorageManagementController::class, 'deleteFile'])->name('storage.files.destroy');
+    Route::delete('storage/{zone}', [StorageManagementController::class, 'purgeZone'])->name('storage.purge');
+
     Route::get('users/bulk-create', [UserController::class, 'bulkCreate'])->name('users.bulk_create');
     Route::post('users/bulk-create', [UserController::class, 'bulkStore'])->name('users.bulk_store');
     Route::get('users/import', [UserController::class, 'importCreate'])->name('users.import.create');
@@ -23,7 +29,8 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('access')->as
 
     Route::resource('users', UserController::class)
         ->parameters(['users' => 'user'])
-        ->only(['index', 'create', 'store', 'show', 'edit', 'update']);
+        ->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
+    Route::get('users/{user}/deletion-impact', [UserController::class, 'deletionImpact'])->name('users.deletion_impact');
     Route::post('users/{user}/approve', [UserController::class, 'approve'])->name('users.approve');
 
     Route::post('users/{user}/impersonate', [UserImpersonationController::class, 'store'])

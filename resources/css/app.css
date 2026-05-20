@@ -9,6 +9,8 @@
 @theme {
     --font-sans:
         'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Fraunces', 'Cormorant Garamond', ui-serif, Georgia, serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -38,6 +40,15 @@
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
 
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
@@ -56,16 +67,17 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
+
+    --color-brand-sand: var(--palette-sand);
+    --color-brand-ink: var(--palette-ink);
+    --color-brand-cream: var(--palette-cream);
+    --color-brand-bone: var(--palette-bone);
+    --color-brand-stone: var(--palette-stone);
+    --color-brand-pine: var(--palette-pine);
+    --color-brand-rust: var(--palette-rust);
+    --color-brand-clay: var(--palette-clay);
 }
 
-/*
-  The default border color has changed to `currentColor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
 @layer base {
     *,
     ::after,
@@ -77,84 +89,103 @@
 }
 
 :root {
-    --palette-moss: #385144;
-    --palette-cloud: #f8f5f2;
-    --palette-mist: #c2d8c4;
-    --palette-coal: #222222;
-    --background: var(--palette-cloud);
-    --foreground: var(--palette-coal);
-    --card: var(--palette-cloud);
-    --card-foreground: var(--palette-coal);
-    --popover: var(--palette-cloud);
-    --popover-foreground: var(--palette-coal);
-    --primary: var(--palette-moss);
-    --primary-foreground: var(--palette-cloud);
-    --secondary: var(--palette-mist);
-    --secondary-foreground: var(--palette-coal);
+    /* Core brand palette — anchored on user-specified #BFB48F and #252627 */
+    --palette-sand: #bfb48f;        /* primary — warm khaki */
+    --palette-ink: #252627;         /* foreground — near-black */
+    --palette-cream: #ffffff;       /* background — pure white */
+    --palette-bone: #f6f2e7;        /* secondary surface — lightest sand wash */
+    --palette-stone: #8a8268;       /* muted sand — darker khaki */
+    --palette-pine: #2f4a3f;        /* deep forest — complementary accent */
+    --palette-rust: #b8593b;        /* burnt copper — warning / energy */
+    --palette-clay: #d9c89a;        /* secondary highlight — buttery sand */
+    --palette-mist: #f3eedd;        /* faint sand wash for muted surfaces */
+
+    --background: #ffffff;
+    --foreground: var(--palette-ink);
+    --card: #ffffff;
+    --card-foreground: var(--palette-ink);
+    --popover: #ffffff;
+    --popover-foreground: var(--palette-ink);
+    --primary: var(--palette-ink);
+    --primary-foreground: var(--palette-cream);
+    --secondary: var(--palette-sand);
+    --secondary-foreground: var(--palette-ink);
     --muted: var(--palette-mist);
-    --muted-foreground: var(--palette-moss);
-    --accent: var(--palette-mist);
-    --accent-foreground: var(--palette-coal);
-    --destructive: var(--palette-coal);
-    --destructive-foreground: var(--palette-cloud);
-    --border: var(--palette-mist);
-    --input: var(--palette-mist);
-    --ring: var(--palette-moss);
-    --chart-1: var(--palette-moss);
-    --chart-2: var(--palette-mist);
-    --chart-3: var(--palette-coal);
-    --chart-4: #4e6b5a;
-    --chart-5: #7c9a84;
-    --radius: 0.4375rem;
-    --sidebar-background: var(--palette-cloud);
-    --sidebar-foreground: var(--palette-coal);
-    --sidebar-primary: var(--palette-moss);
-    --sidebar-primary-foreground: var(--palette-cloud);
-    --sidebar-accent: var(--palette-mist);
-    --sidebar-accent-foreground: var(--palette-coal);
-    --sidebar-border: var(--palette-mist);
-    --sidebar-ring: var(--palette-moss);
+    --muted-foreground: #5f5a4a;
+    --accent: var(--palette-pine);
+    --accent-foreground: var(--palette-cream);
+    --destructive: #9a3a26;
+    --destructive-foreground: var(--palette-cream);
+    --success: #3b6b4a;
+    --success-foreground: var(--palette-cream);
+    --warning: var(--palette-rust);
+    --warning-foreground: var(--palette-cream);
+    --info: #5b6a8a;
+    --info-foreground: var(--palette-cream);
+    --border: color-mix(in oklab, var(--palette-sand) 50%, #ffffff 50%);
+    --input: color-mix(in oklab, var(--palette-sand) 30%, #ffffff 70%);
+    --ring: var(--palette-sand);
+    --chart-1: var(--palette-sand);
+    --chart-2: var(--palette-pine);
+    --chart-3: var(--palette-rust);
+    --chart-4: var(--palette-stone);
+    --chart-5: #6a8077;
+    --radius: 0.5rem;
+    --sidebar-background: #fafafa;
+    --sidebar-foreground: var(--palette-ink);
+    --sidebar-primary: var(--palette-ink);
+    --sidebar-primary-foreground: var(--palette-cream);
+    --sidebar-accent: var(--palette-sand);
+    --sidebar-accent-foreground: var(--palette-ink);
+    --sidebar-border: color-mix(in oklab, var(--palette-sand) 50%, transparent);
+    --sidebar-ring: var(--palette-sand);
 }
 
 .dark {
-    --background: var(--palette-coal);
-    --foreground: var(--palette-cloud);
-    --card: var(--palette-coal);
-    --card-foreground: var(--palette-cloud);
-    --popover: var(--palette-coal);
-    --popover-foreground: var(--palette-cloud);
-    --primary: var(--palette-mist);
-    --primary-foreground: var(--palette-coal);
-    --secondary: var(--palette-moss);
-    --secondary-foreground: var(--palette-cloud);
-    --muted: var(--palette-moss);
-    --muted-foreground: var(--palette-mist);
-    --accent: var(--palette-moss);
-    --accent-foreground: var(--palette-cloud);
-    --destructive: var(--palette-cloud);
-    --destructive-foreground: var(--palette-coal);
-    --border: var(--palette-moss);
-    --input: var(--palette-moss);
-    --ring: var(--palette-mist);
-    --chart-1: var(--palette-mist);
-    --chart-2: var(--palette-moss);
-    --chart-3: var(--palette-cloud);
-    --chart-4: #9cb59f;
-    --chart-5: #5a7564;
-    --sidebar-background: var(--palette-coal);
-    --sidebar-foreground: var(--palette-cloud);
-    --sidebar-primary: var(--palette-mist);
-    --sidebar-primary-foreground: var(--palette-coal);
-    --sidebar-accent: var(--palette-moss);
-    --sidebar-accent-foreground: var(--palette-cloud);
-    --sidebar-border: var(--palette-moss);
-    --sidebar-ring: var(--palette-mist);
+    --background: #1a1a1b;
+    --foreground: var(--palette-cream);
+    --card: #232324;
+    --card-foreground: var(--palette-cream);
+    --popover: #232324;
+    --popover-foreground: var(--palette-cream);
+    --primary: var(--palette-sand);
+    --primary-foreground: var(--palette-ink);
+    --secondary: #2f2f30;
+    --secondary-foreground: var(--palette-cream);
+    --muted: #2a2a2b;
+    --muted-foreground: #b4ad95;
+    --accent: var(--palette-pine);
+    --accent-foreground: var(--palette-cream);
+    --destructive: #c66a52;
+    --destructive-foreground: var(--palette-ink);
+    --success: #6fa07f;
+    --success-foreground: var(--palette-ink);
+    --warning: #d97a59;
+    --warning-foreground: var(--palette-ink);
+    --info: #8da0c4;
+    --info-foreground: var(--palette-ink);
+    --border: #3a3a36;
+    --input: #2f2f2c;
+    --ring: var(--palette-sand);
+    --chart-1: var(--palette-sand);
+    --chart-2: #7ea08e;
+    --chart-3: #d97a59;
+    --chart-4: var(--palette-stone);
+    --chart-5: #c2b48f;
+    --sidebar-background: #1f1f20;
+    --sidebar-foreground: var(--palette-cream);
+    --sidebar-primary: var(--palette-sand);
+    --sidebar-primary-foreground: var(--palette-ink);
+    --sidebar-accent: #2f2f30;
+    --sidebar-accent-foreground: var(--palette-cream);
+    --sidebar-border: #353532;
+    --sidebar-ring: var(--palette-sand);
 }
 
 @layer base {
     html {
         font-size: 15px;
-        scrollbar-color: color-mix(in oklab, var(--primary) 65%, var(--muted) 35%) color-mix(in oklab, var(--muted) 45%, var(--background) 55%);
+        scrollbar-color: color-mix(in oklab, var(--palette-sand) 70%, var(--muted) 30%) color-mix(in oklab, var(--muted) 45%, var(--background) 55%);
         scrollbar-width: thin;
     }
 
@@ -164,6 +195,7 @@
 
     body {
         @apply bg-background text-foreground antialiased;
+        font-feature-settings: 'ss01', 'ss02', 'cv11';
     }
 
     a,
@@ -183,7 +215,7 @@
 
     * {
         scrollbar-width: thin;
-        scrollbar-color: color-mix(in oklab, var(--primary) 65%, var(--muted) 35%) color-mix(in oklab, var(--muted) 45%, var(--background) 55%);
+        scrollbar-color: color-mix(in oklab, var(--palette-sand) 70%, var(--muted) 30%) color-mix(in oklab, var(--muted) 45%, var(--background) 55%);
     }
 
     *::-webkit-scrollbar {
@@ -197,16 +229,209 @@
     }
 
     *::-webkit-scrollbar-thumb {
-        background: color-mix(in oklab, var(--primary) 72%, var(--muted) 28%);
+        background: color-mix(in oklab, var(--palette-sand) 80%, var(--muted) 20%);
         border-radius: 9999px;
         border: 2px solid color-mix(in oklab, var(--muted) 45%, var(--background) 55%);
     }
 
     *::-webkit-scrollbar-thumb:hover {
-        background: color-mix(in oklab, var(--primary) 82%, var(--muted) 18%);
+        background: color-mix(in oklab, var(--palette-sand) 92%, var(--palette-ink) 8%);
     }
 
     *::-webkit-scrollbar-corner {
         background: color-mix(in oklab, var(--muted) 45%, var(--background) 55%);
     }
+
+    ::selection {
+        background: color-mix(in oklab, var(--palette-sand) 55%, transparent);
+        color: var(--palette-ink);
+    }
+}
+
+/* -------------------------------------------------------------------
+ * Brand utility classes — used on the welcome page and editorial bits
+ * ------------------------------------------------------------------- */
+
+.font-display {
+    font-family: var(--font-display);
+    font-feature-settings: 'ss01', 'ss02', 'lnum';
+    letter-spacing: -0.02em;
+}
+
+.font-mono-brand {
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+}
+
+/* Grain — uses the current foreground so it inverts in dark mode */
+.bg-grain {
+    background-image:
+        radial-gradient(color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 1px),
+        radial-gradient(color-mix(in oklab, var(--foreground) 4%, transparent) 1px, transparent 1px);
+    background-size: 3px 3px, 7px 7px;
+    background-position: 0 0, 1px 2px;
+}
+
+/* Page base — follows the theme background */
+.bg-paper {
+    background: var(--background);
+}
+
+/* Topographic contour lines — sand/pine accents work in both modes */
+.bg-topo {
+    background-image:
+        repeating-radial-gradient(
+            circle at 18% 24%,
+            color-mix(in oklab, var(--palette-sand) 22%, transparent) 0,
+            color-mix(in oklab, var(--palette-sand) 22%, transparent) 1px,
+            transparent 1px,
+            transparent 28px
+        ),
+        repeating-radial-gradient(
+            circle at 82% 78%,
+            color-mix(in oklab, var(--palette-pine) 14%, transparent) 0,
+            color-mix(in oklab, var(--palette-pine) 14%, transparent) 1px,
+            transparent 1px,
+            transparent 34px
+        );
+}
+
+/* Diagonal blueprint grid */
+.bg-blueprint {
+    background-image:
+        linear-gradient(to right, color-mix(in oklab, var(--palette-sand) 18%, transparent) 1px, transparent 1px),
+        linear-gradient(to bottom, color-mix(in oklab, var(--palette-sand) 18%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+}
+
+/* Dot grid — uses foreground so it inverts in dark mode */
+.bg-dots {
+    background-image: radial-gradient(
+        color-mix(in oklab, var(--foreground) 18%, transparent) 1px,
+        transparent 1px
+    );
+    background-size: 22px 22px;
+}
+
+/* Photo backdrops — washed with the current page background so the same
+ * utility looks correct in both light and dark themes. */
+.bg-hero-photo {
+    background:
+        linear-gradient(
+            to right,
+            var(--background) 35%,
+            color-mix(in oklab, var(--background) 75%, transparent) 60%,
+            color-mix(in oklab, var(--background) 55%, transparent) 100%
+        ),
+        url('https://images.unsplash.com/photo-1497366216548-37526070297c?w=1800&q=80&auto=format&fit=crop')
+            right center / cover no-repeat;
+}
+
+.bg-cycle-photo {
+    background:
+        linear-gradient(
+            to bottom,
+            color-mix(in oklab, var(--background) 92%, transparent),
+            color-mix(in oklab, var(--background) 85%, transparent)
+        ),
+        url('https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=1800&q=80&auto=format&fit=crop')
+            center / cover no-repeat;
+    background-color: var(--background);
+}
+
+.bg-feature-photo {
+    background:
+        linear-gradient(
+            to bottom,
+            color-mix(in oklab, var(--background) 88%, transparent),
+            color-mix(in oklab, var(--background) 97%, transparent)
+        ),
+        url('https://images.unsplash.com/photo-1604079628040-94301bb21b91?w=1800&q=80&auto=format&fit=crop')
+            center / cover no-repeat;
+    background-color: var(--background);
+}
+
+/* CTA section stays a dark heroic moment in both themes — uses ink directly */
+.bg-cta-photo {
+    background:
+        linear-gradient(
+            to right,
+            color-mix(in oklab, var(--palette-ink) 96%, transparent) 30%,
+            color-mix(in oklab, var(--palette-ink) 85%, transparent) 100%
+        ),
+        radial-gradient(at 78% 28%, color-mix(in oklab, var(--palette-sand) 28%, transparent) 0, transparent 50%),
+        url('https://images.unsplash.com/photo-1554189097-ffe88e998a2b?w=1800&q=80&auto=format&fit=crop')
+            center / cover no-repeat;
+    background-color: var(--palette-ink);
+}
+
+.bg-ink-paper {
+    background:
+        radial-gradient(at 18% 12%, rgba(191, 180, 143, 0.22) 0, transparent 48%),
+        radial-gradient(at 82% 88%, rgba(47, 74, 63, 0.32) 0, transparent 55%),
+        var(--palette-ink);
+}
+
+.text-balance {
+    text-wrap: balance;
+}
+
+.ticker-tape {
+    background: repeating-linear-gradient(
+        90deg,
+        var(--palette-ink) 0 24px,
+        var(--palette-sand) 24px 28px
+    );
+}
+
+.dotted-divider {
+    background-image: radial-gradient(currentColor 1px, transparent 1px);
+    background-size: 8px 8px;
+}
+
+/* Keyframes used in the welcome page */
+@keyframes brand-rise {
+    0% { opacity: 0; transform: translateY(18px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes brand-fade {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+@keyframes brand-marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+@keyframes brand-spin-slow {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes brand-pulse-ring {
+    0% { transform: scale(0.95); opacity: 0.85; }
+    70% { transform: scale(1.25); opacity: 0; }
+    100% { transform: scale(1.25); opacity: 0; }
+}
+
+.animate-brand-rise {
+    animation: brand-rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.animate-brand-fade {
+    animation: brand-fade 1.4s ease both;
+}
+
+.animate-brand-marquee {
+    animation: brand-marquee 38s linear infinite;
+}
+
+.animate-brand-spin-slow {
+    animation: brand-spin-slow 24s linear infinite;
+}
+
+.animate-brand-pulse-ring {
+    animation: brand-pulse-ring 2.6s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
 }

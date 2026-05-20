@@ -18,6 +18,17 @@ class Branding
         return asset('branding/'.$file.'?v='.filemtime(public_path('branding/'.$file)));
     }
 
+    /**
+     * Absolute filesystem path to the "Powered by TJT" lock-up used in PDF
+     * exports. Returns null if the file is missing.
+     */
+    public static function poweredByPath(): ?string
+    {
+        $path = public_path('branding/tjt-logo.png');
+
+        return file_exists($path) ? $path : null;
+    }
+
     public static function updateLogo(UploadedFile $file): void
     {
         $directory = public_path('branding');

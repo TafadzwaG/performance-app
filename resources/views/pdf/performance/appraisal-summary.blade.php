@@ -4,23 +4,40 @@
     <meta charset="UTF-8">
     <title>Appraisal Summary</title>
     <style>
-        body {
-            font-family: DejaVu Sans, sans-serif;
-            color: #111827;
-            font-size: 12px;
-            line-height: 1.45;
+        @page {
+            margin: 24px 28px 32px 28px;
         }
 
-        h1, h2, h3 {
-            margin: 0 0 8px;
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #111827;
+            font-size: 9px;
+            line-height: 1.4;
+        }
+
+        h1 {
+            font-size: 16px;
+            margin: 0 0 4px;
+        }
+
+        h2 {
+            font-size: 11.5px;
+            margin: 0 0 6px;
+        }
+
+        h3 {
+            font-size: 10px;
+            margin: 0 0 4px;
         }
 
         .section {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
+            page-break-inside: avoid;
         }
 
         .muted {
             color: #6b7280;
+            font-size: 8.5px;
         }
 
         .grid {
@@ -29,7 +46,7 @@
 
         .grid td {
             vertical-align: top;
-            padding: 6px 8px 6px 0;
+            padding: 4px 6px 4px 0;
         }
 
         .score-table,
@@ -43,22 +60,62 @@
         .data-table th,
         .data-table td {
             border: 1px solid #d1d5db;
-            padding: 8px;
+            padding: 4px 6px;
             text-align: left;
             vertical-align: top;
+            font-size: 9px;
         }
 
         .score-table th,
         .data-table th {
             background: #f3f4f6;
+            font-size: 8.5px;
         }
 
         .pill {
             display: inline-block;
-            padding: 4px 8px;
+            padding: 2px 6px;
             border: 1px solid #d1d5db;
             border-radius: 999px;
-            font-size: 11px;
+            font-size: 8.5px;
+        }
+
+        .pdf-footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: -16px;
+            padding-top: 4px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 8px;
+        }
+
+        .pdf-footer table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .pdf-footer td {
+            vertical-align: middle;
+        }
+
+        .pdf-footer .right {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .pdf-footer .label {
+            font-size: 7px;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: #9ca3af;
+            margin-right: 4px;
+        }
+
+        .pdf-footer img {
+            height: 16px;
+            vertical-align: middle;
         }
     </style>
 </head>
@@ -85,7 +142,7 @@
                 </td>
                 <td width="50%">
                     <h3>Workflow</h3>
-                    <div><strong>Status:</strong> <span class="pill">{{ str($appraisal->status)->replace('_', ' ')->title() }}</span></div>
+                    <div><strong>Status:</strong> <span class="pill">{{ str((string) ($appraisal->status?->value ?? $appraisal->status))->replace('_', ' ')->title() }}</span></div>
                     <div><strong>Line Manager:</strong> {{ $appraisal->lineManager?->name ?? 'N/A' }}</div>
                     <div><strong>Approving Manager:</strong> {{ $appraisal->approvingManager?->name ?? 'N/A' }}</div>
                     <div><strong>Approved At:</strong> {{ $appraisal->approved_at ?? 'N/A' }}</div>
@@ -238,7 +295,7 @@
             <tbody>
                 @forelse($appraisal->comments as $comment)
                     <tr>
-                        <td>{{ str($comment->comment_type)->replace('_', ' ')->title() }}</td>
+                        <td>{{ str((string) ($comment->comment_type?->value ?? $comment->comment_type))->replace('_', ' ')->title() }}</td>
                         <td>{{ $comment->author?->name ?? 'System' }}</td>
                         <td>{{ $comment->body }}</td>
                     </tr>
@@ -266,8 +323,8 @@
             <tbody>
                 @forelse($appraisal->approvals as $approval)
                     <tr>
-                        <td>{{ str($approval->stage)->replace('_', ' ')->title() }}</td>
-                        <td>{{ str($approval->action)->replace('_', ' ')->title() }}</td>
+                        <td>{{ str((string) ($approval->stage?->value ?? $approval->stage))->replace('_', ' ')->title() }}</td>
+                        <td>{{ str((string) ($approval->action?->value ?? $approval->action))->replace('_', ' ')->title() }}</td>
                         <td>{{ $approval->actor?->name ?? 'System' }}</td>
                         <td>{{ $approval->acted_at ?? 'N/A' }}</td>
                         <td>{{ $approval->comments ?? 'N/A' }}</td>
@@ -312,6 +369,20 @@
                     </tr>
                 @endforelse
             </tbody>
+        </table>
+    </div>
+
+    <div class="pdf-footer">
+        <table>
+            <tr>
+                <td>{{ $appraisal->cycle_name_snapshot }} · {{ $appraisal->employee_name_snapshot }}</td>
+                <td class="right">
+                    @if(!empty($poweredByExists))
+                        <span class="label">Powered by</span>
+                        <img src="{{ $poweredByPath }}" alt="TJT">
+                    @endif
+                </td>
+            </tr>
         </table>
     </div>
 </body>

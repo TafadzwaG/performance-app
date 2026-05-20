@@ -2,20 +2,29 @@
 
 namespace App\Http\Controllers\Performance;
 
+use App\Exports\Performance\EmployeeImportTemplateExport;
+use App\Exports\Performance\EmployeeProfilesExport;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
+use App\Http\Requests\Performance\ConfirmEmployeeImportRequest;
+use App\Http\Requests\Performance\PreviewEmployeeImportRequest;
 use App\Http\Requests\Performance\StoreEmployeeProfileRequest;
 use App\Http\Requests\Performance\UpdateEmployeeLineManagerRequest;
 use App\Http\Requests\Performance\UpdateEmployeeProfileRequest;
 use App\Models\EmployeeProfile;
 use App\Models\Role;
 use App\Services\Performance\EmployeeFieldConfigService;
+use App\Services\Performance\EmployeeImportService;
+use App\Support\Performance\EmployeeExportColumnRegistry;
 use App\Support\Performance\EmployeeFieldRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class EmployeeProfileController extends Controller
 {
@@ -32,39 +41,7 @@ class EmployeeProfileController extends Controller
         $search = (string) $request->string('search');
         $visibleIndexFields = $this->fieldConfigService->enabledFieldKeys(EmployeeFieldRegistry::SCREEN_EMPLOYEE_INDEX);
 
-        $employeeProfiles = EmployeeProfile::query()
-            ->with([
-                'user.roles',
-                'department',
-                'jobTitle',
-                'lineManager',
-                'approvingManager',
-                'latestAppraisal.reviewCycle',
-                'latestAppraisal.overallRatingLevel',
-            ])
-            ->when($search, function ($query) use ($search, $visibleIndexFields) {
-                $query->where(function ($builder) use ($search, $visibleIndexFields) {
-                    if (in_array('employee_number', $visibleIndexFields, true)) {
-                        $builder->orWhere('employee_number', 'like', "%{$search}%");
-                    }
-
-                    if (in_array('national_id', $visibleIndexFields, true)) {
-                        $builder->orWhere('national_id', 'like', "%{$search}%");
-                    }
-
-                    if (in_array('user_name', $visibleIndexFields, true) || in_array('user_email', $visibleIndexFields, true)) {
-                        $builder->orWhereHas('user', function ($userQuery) use ($search, $visibleIndexFields) {
-                            if (in_array('user_name', $visibleIndexFields, true)) {
-                                $userQuery->where('name', 'like', "%{$search}%");
-                            }
-
-                            if (in_array('user_email', $visibleIndexFields, true)) {
-                                $userQuery->orWhere('email', 'like', "%{$search}%");
-                            }
-                        });
-                    }
-                });
-            })
+        $employeeProfiles = $this->employeeIndexQuery($search, $visibleIndexFields)
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -73,10 +50,126 @@ class EmployeeProfileController extends Controller
             'employeeProfiles' => $employeeProfiles,
             'filters' => ['search' => $search],
             'fieldConfig' => $this->fieldConfigService->forScreen(EmployeeFieldRegistry::SCREEN_EMPLOYEE_INDEX)->all(),
+            'exportColumns' => EmployeeExportColumnRegistry::columns()->all(),
             'can' => [
                 'create' => $request->user()->can('performance.employees.create'),
+                'import' => $request->user()->can('create', EmployeeProfile::class),
+                'export' => $request->user()->can('performance.employees.view'),
             ],
         ]);
+    }
+
+    public function uploadCreate(Request $request): Response
+    {
+        $this->authorize('create', EmployeeProfile::class);
+
+        return Inertia::render('performance/employees/Upload');
+    }
+
+    public function uploadPreview(PreviewEmployeeImportRequest $request, EmployeeImportService $employeeImportService): Response
+    {
+        $this->authorize('create', EmployeeProfile::class);
+
+        $file = $request->file('file');
+        $preview = $employeeImportService->preview($file);
+
+        $request->session()->put(EmployeeImportService::SESSION_KEY, [
+            'path' => $employeeImportService->storeUploadForSession($file),
+            'original_name' => $file->getClientOriginalName(),
+            'preview' => $preview,
+        ]);
+
+        return Inertia::render('performance/employees/UploadPreview', [
+            'preview' => $preview,
+            'departmentOptions' => $this->departmentOptions(),
+            'jobTitleOptions' => $this->jobTitleOptions(),
+        ]);
+    }
+
+    public function uploadStore(ConfirmEmployeeImportRequest $request, EmployeeImportService $employeeImportService): RedirectResponse
+    {
+        $this->authorize('create', EmployeeProfile::class);
+
+        $session = $request->session()->get(EmployeeImportService::SESSION_KEY);
+
+        if (! is_array($session) || ! isset($session['path'])) {
+            return to_route('performance.employees.upload')
+                ->withErrors(['file' => 'Upload session expired. Please upload your file again.']);
+        }
+
+        $this->assertMappingsComplete($session['preview'] ?? [], $request->validated());
+
+        $departmentMappings = collect($request->validated('department_mappings'))
+            ->mapWithKeys(fn (array $item) => [$item['source'] => (string) $item['department_id']])
+            ->all();
+        $jobTitleMappings = collect($request->validated('job_title_mappings'))
+            ->mapWithKeys(fn (array $item) => [$item['source'] => (string) $item['job_title_id']])
+            ->all();
+
+        $file = $employeeImportService->uploadedFileFromSession($session);
+        $rows = $employeeImportService->parse($file, $departmentMappings, $jobTitleMappings);
+        $count = $employeeImportService->import($rows);
+
+        $employeeImportService->clearSessionUpload($session);
+        $request->session()->forget(EmployeeImportService::SESSION_KEY);
+
+        return to_route('performance.employees.index')
+            ->with('success', "{$count} employee profiles imported successfully.");
+    }
+
+    /**
+     * @param  array<string, mixed>  $preview
+     * @param  array<string, mixed>  $validated
+     */
+    private function assertMappingsComplete(array $preview, array $validated): void
+    {
+        $departmentSources = collect($preview['departments'] ?? [])->pluck('source')->all();
+        $jobTitleSources = collect($preview['job_titles'] ?? [])->pluck('source')->all();
+
+        $mappedDepartments = collect($validated['department_mappings'] ?? [])->pluck('source')->all();
+        $mappedJobTitles = collect($validated['job_title_mappings'] ?? [])->pluck('source')->all();
+
+        $missingDepartments = array_diff($departmentSources, $mappedDepartments);
+        $missingJobTitles = array_diff($jobTitleSources, $mappedJobTitles);
+
+        if ($missingDepartments !== [] || $missingJobTitles !== []) {
+            throw ValidationException::withMessages([
+                'department_mappings' => 'Complete all department and job title mappings before importing.',
+            ]);
+        }
+    }
+
+    public function downloadUploadTemplate(EmployeeImportTemplateExport $export): BinaryFileResponse
+    {
+        $this->authorize('create', EmployeeProfile::class);
+
+        return $export->download('employee-upload-template-'.now()->format('Ymd-Hi').'.xlsx');
+    }
+
+    public function export(Request $request): BinaryFileResponse
+    {
+        $this->authorize('viewAny', EmployeeProfile::class);
+
+        $validated = $request->validate([
+            'search' => ['nullable', 'string'],
+            'columns' => ['nullable', 'array'],
+            'columns.*' => ['string', Rule::in(EmployeeExportColumnRegistry::allowedKeys())],
+        ]);
+
+        $requestedColumns = $validated['columns'] ?? EmployeeExportColumnRegistry::defaultKeys();
+        $columns = collect($requestedColumns)
+            ->prepend('user_name')
+            ->unique()
+            ->values()
+            ->all();
+
+        $visibleIndexFields = $this->fieldConfigService->enabledFieldKeys(EmployeeFieldRegistry::SCREEN_EMPLOYEE_INDEX);
+        $employees = $this->employeeIndexQuery((string) ($validated['search'] ?? ''), $visibleIndexFields)
+            ->latest()
+            ->get();
+
+        return (new EmployeeProfilesExport($employees, $columns))
+            ->download('employees-'.now()->format('Ymd-Hi').'.xlsx');
     }
 
     public function create(Request $request): Response
@@ -125,6 +218,7 @@ class EmployeeProfileController extends Controller
             'can' => [
                 'assignManagers' => $request->user()->can('performance.employees.assign_managers')
                     || $request->user()->can('performance.employees.update'),
+                'edit' => $request->user()->can('update', $employeeProfile),
             ],
         ]);
     }
@@ -199,6 +293,44 @@ class EmployeeProfileController extends Controller
                     || $request->user()->can('access.roles.assign_users'),
             ],
         ];
+    }
+
+    private function employeeIndexQuery(string $search, array $visibleIndexFields)
+    {
+        return EmployeeProfile::query()
+            ->with([
+                'user.roles',
+                'department',
+                'jobTitle',
+                'lineManager',
+                'approvingManager',
+                'latestAppraisal.reviewCycle',
+                'latestAppraisal.overallRatingLevel',
+                'latestAppraisal.calibratedOverallRatingLevel',
+            ])
+            ->when($search, function ($query) use ($search, $visibleIndexFields) {
+                $query->where(function ($builder) use ($search, $visibleIndexFields) {
+                    if (in_array('employee_number', $visibleIndexFields, true)) {
+                        $builder->orWhere('employee_number', 'like', "%{$search}%");
+                    }
+
+                    if (in_array('national_id', $visibleIndexFields, true)) {
+                        $builder->orWhere('national_id', 'like', "%{$search}%");
+                    }
+
+                    if (in_array('user_name', $visibleIndexFields, true) || in_array('user_email', $visibleIndexFields, true)) {
+                        $builder->orWhereHas('user', function ($userQuery) use ($search, $visibleIndexFields) {
+                            if (in_array('user_name', $visibleIndexFields, true)) {
+                                $userQuery->where('name', 'like', "%{$search}%");
+                            }
+
+                            if (in_array('user_email', $visibleIndexFields, true)) {
+                                $userQuery->orWhere('email', 'like', "%{$search}%");
+                            }
+                        });
+                    }
+                });
+            });
     }
 
     private function employeeFormDefaults(?EmployeeProfile $employeeProfile = null): array

@@ -1,3 +1,4 @@
+import EmployeeProfileEditSummary from '@/components/performance/employees/EmployeeProfileEditSummary';
 import EmployeeProfileForm from '@/components/performance/employees/EmployeeProfileForm';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,10 @@ interface Props {
     can: { assignRoles: boolean };
 }
 
+interface EditProps extends Props {
+    isOwnProfile?: boolean;
+}
+
 export default function EmployeeEdit({
     employeeProfile,
     formDefaults,
@@ -39,28 +44,43 @@ export default function EmployeeEdit({
     employmentTypeOptions,
     fieldConfig,
     can,
-}: Props) {
-    const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Performance', href: '/performance/dashboard' },
-        { title: 'Employees', href: route('performance.employees.index') },
-        {
-            title: employeeProfile.user?.name ?? employeeProfile.employee_number,
-            href: route('performance.employees.show', employeeProfile.id),
-        },
-        { title: 'Edit', href: route('performance.employees.edit', employeeProfile.id) },
-    ];
+    isOwnProfile = false,
+}: EditProps) {
+    const breadcrumbs: BreadcrumbItem[] = isOwnProfile
+        ? [
+              { title: 'Dashboard', href: '/dashboard' },
+              { title: 'Profile', href: route('performance.profile.show') },
+              { title: 'Edit', href: route('performance.profile.edit') },
+          ]
+        : [
+              { title: 'Performance', href: '/performance/dashboard' },
+              { title: 'Employees', href: route('performance.employees.index') },
+              {
+                  title: employeeProfile.user?.name ?? employeeProfile.employee_number,
+                  href: route('performance.employees.show', employeeProfile.id),
+              },
+              { title: 'Edit', href: route('performance.employees.edit', employeeProfile.id) },
+          ];
 
     const form = useForm<EmployeeProfileFormData>(formDefaults);
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.put(route('performance.employees.update', employeeProfile.id));
+        form.put(
+            isOwnProfile
+                ? route('performance.profile.update')
+                : route('performance.employees.update', employeeProfile.id),
+        );
     };
 
     return (
         <PerformancePage
-            title="Edit Employee Profile"
-            description="Update identity, reporting, employment, and performance-readiness details."
+            title={isOwnProfile ? 'Edit My Profile' : 'Edit Employee Profile'}
+            description={
+                isOwnProfile
+                    ? 'Update your personal and contact details.'
+                    : 'Update identity, reporting, employment, and performance-readiness details.'
+            }
             breadcrumbs={breadcrumbs}
         >
             <form onSubmit={submit} className="space-y-6">
@@ -68,15 +88,17 @@ export default function EmployeeEdit({
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-3">
                             <Badge variant="secondary" className="w-fit">
-                                Employee administration
+                                {isOwnProfile ? 'My profile' : 'Employee administration'}
                             </Badge>
 
                             <div>
                                 <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                                    Edit Employee Profile
+                                    {isOwnProfile ? 'Edit My Profile' : 'Edit Employee Profile'}
                                 </h1>
                                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                                    Update employee identity, contact, reporting line, and performance setup details.
+                                    {isOwnProfile
+                                        ? 'Update your personal and contact information. Employment details are managed by HR.'
+                                        : 'Update employee identity, contact, reporting line, and performance setup details.'}
                                 </p>
                             </div>
                         </div>
@@ -127,28 +149,63 @@ export default function EmployeeEdit({
                     </div>
                 </div>
 
-                <EmployeeProfileForm
-                    form={form}
-                    mode="edit"
-                    departmentOptions={departmentOptions}
-                    jobTitleOptions={jobTitleOptions}
-                    userOptions={userOptions}
-                    managerOptions={managerOptions}
-                    roleOptions={roleOptions}
-                    employmentStatusOptions={employmentStatusOptions}
-                    genderOptions={genderOptions}
-                    maritalStatusOptions={maritalStatusOptions}
-                    employmentTypeOptions={employmentTypeOptions}
-                    fieldConfig={fieldConfig}
-                    canAssignRoles={can.assignRoles}
-                />
+                {isOwnProfile ? (
+                    <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
+                        <div className="space-y-6 lg:col-span-8">
+                            <EmployeeProfileForm
+                                form={form}
+                                mode="edit"
+                                departmentOptions={departmentOptions}
+                                jobTitleOptions={jobTitleOptions}
+                                userOptions={userOptions}
+                                managerOptions={managerOptions}
+                                roleOptions={roleOptions}
+                                employmentStatusOptions={employmentStatusOptions}
+                                genderOptions={genderOptions}
+                                maritalStatusOptions={maritalStatusOptions}
+                                employmentTypeOptions={employmentTypeOptions}
+                                fieldConfig={fieldConfig}
+                                canAssignRoles={can.assignRoles}
+                            />
 
-                <div className="flex items-center justify-end border-t pt-6">
-                    <Button type="submit" disabled={form.processing}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Update Employee Profile
-                    </Button>
-                </div>
+                            <div className="flex items-center justify-end border-t pt-6">
+                                <Button type="submit" disabled={form.processing}>
+                                    <Save className="mr-2 h-4 w-4" />
+                                    Save Profile
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="lg:col-span-4">
+                            <EmployeeProfileEditSummary employeeProfile={employeeProfile} formData={form.data} />
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <EmployeeProfileForm
+                            form={form}
+                            mode="edit"
+                            departmentOptions={departmentOptions}
+                            jobTitleOptions={jobTitleOptions}
+                            userOptions={userOptions}
+                            managerOptions={managerOptions}
+                            roleOptions={roleOptions}
+                            employmentStatusOptions={employmentStatusOptions}
+                            genderOptions={genderOptions}
+                            maritalStatusOptions={maritalStatusOptions}
+                            employmentTypeOptions={employmentTypeOptions}
+                            fieldConfig={fieldConfig}
+                            canAssignRoles={can.assignRoles}
+                        />
+
+                        <div className="flex items-center justify-end border-t pt-6">
+                            <Button type="submit" disabled={form.processing}>
+                                <Save className="mr-2 h-4 w-4" />
+                                Update Employee Profile
+                            </Button>
+                        </div>
+                    </>
+                )}
             </form>
         </PerformancePage>
     );

@@ -263,7 +263,7 @@ export default function TemplateCreate(props: Props) {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="competency_rating_scale_id">Competency Scale</Label>
+                                        <Label htmlFor="competency_rating_scale_id">Values Scale</Label>
                                         <select
                                             id="competency_rating_scale_id"
                                             className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -272,7 +272,7 @@ export default function TemplateCreate(props: Props) {
                                                 setData('competency_rating_scale_id', event.target.value)
                                             }
                                         >
-                                            <option value="">Competency scale</option>
+                                            <option value="">Values scale</option>
                                             {props.competencyScaleOptions.map((option) => (
                                                 <option key={option.value} value={option.value}>
                                                     {option.label}
@@ -480,7 +480,7 @@ export default function TemplateCreate(props: Props) {
 
                             <CardContent className="space-y-3 text-sm">
                                 <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
-                                    <span className="text-muted-foreground">Competencies</span>
+                                    <span className="text-muted-foreground">Values</span>
                                     <span className="font-medium text-foreground">
                                         {data.allow_competencies ? 'Enabled' : 'Disabled'}
                                     </span>

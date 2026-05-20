@@ -59,7 +59,7 @@ function scopeSummary(data: CompetencyForm) {
 export default function CompetencyEdit({ competency, departmentOptions, jobTitleOptions }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Performance', href: '/performance/dashboard' },
-        { title: 'Competencies', href: route('performance.setup.competencies.index') },
+        { title: 'Values', href: route('performance.setup.competencies.index') },
         { title: competency.name, href: route('performance.setup.competencies.show', competency.id) },
         { title: 'Edit', href: route('performance.setup.competencies.edit', competency.id) },
     ];
@@ -81,8 +81,8 @@ export default function CompetencyEdit({ competency, departmentOptions, jobTitle
 
     return (
         <PerformancePage
-            title="Edit Competency"
-            description="Update competency metadata, scope, and lifecycle state."
+            title="Edit Value"
+            description="Update value metadata, scope, and lifecycle state."
             breadcrumbs={breadcrumbs}
         >
             <form onSubmit={submit} className="space-y-6">
@@ -94,9 +94,9 @@ export default function CompetencyEdit({ competency, departmentOptions, jobTitle
                             </Badge>
 
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight text-foreground">Edit Competency</h1>
+                                <h1 className="text-3xl font-bold tracking-tight text-foreground">Edit Value</h1>
                                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                                    Maintain the behavioural definition, scope, and active status of this competency entry.
+                                    Maintain the definition, scope, and active status of this value entry.
                                 </p>
                             </div>
                         </div>
@@ -104,7 +104,7 @@ export default function CompetencyEdit({ competency, departmentOptions, jobTitle
                         <div className="flex items-center gap-3">
                             <Button type="submit" disabled={processing}>
                                 <Save className="mr-2 h-4 w-4" />
-                                Update Competency
+                                Update Value
                             </Button>
                         </div>
                     </div>
@@ -135,7 +135,7 @@ export default function CompetencyEdit({ competency, departmentOptions, jobTitle
                             <CardContent className="p-6">
                                 <div className="grid gap-6 md:grid-cols-2">
                                     <div className="space-y-2">
-                                        <Label htmlFor="name">Competency Name</Label>
+                                        <Label htmlFor="name">Value Name</Label>
                                         <Input
                                             id="name"
                                             value={data.name}
@@ -145,7 +145,7 @@ export default function CompetencyEdit({ competency, departmentOptions, jobTitle
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="code">Competency Code</Label>
+                                        <Label htmlFor="code">Value Code</Label>
                                         <Input
                                             id="code"
                                             value={data.code}
@@ -195,7 +195,7 @@ export default function CompetencyEdit({ competency, departmentOptions, jobTitle
                                     <div>
                                         <CardTitle className="text-lg">Scope & Applicability</CardTitle>
                                         <CardDescription>
-                                            Adjust whether this competency is general, departmental, or role-specific.
+                                            Adjust whether this value is general, departmental, or role-specific.
                                         </CardDescription>
                                     </div>
                                 </div>
@@ -352,12 +352,12 @@ export default function CompetencyEdit({ competency, departmentOptions, jobTitle
 
                                 <div className="mt-4 rounded-lg border bg-muted/20 p-4">
                                     <div className="flex items-center gap-2">
-                                        <p className="text-sm font-semibold text-foreground">{data.name || 'Competency name'}</p>
+                                        <p className="text-sm font-semibold text-foreground">{data.name || 'Value name'}</p>
                                         <Badge variant="outline">
                                             {categoryOptions.find((option) => option.value === data.category)?.label ?? 'Category'}
                                         </Badge>
                                     </div>
-                                    <p className="mt-1 text-xs text-muted-foreground">{data.code || 'Competency code'}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{data.code || 'Value code'}</p>
                                     <p className="mt-2 text-[11px] text-muted-foreground">{scopeSummary(data)}</p>
                                 </div>
                             </CardContent>

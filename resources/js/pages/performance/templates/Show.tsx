@@ -13,6 +13,7 @@ import {
     ChevronRight,
     ClipboardList,
     Edit,
+    FileSpreadsheet,
     FileText,
     Layers3,
     Lightbulb,
@@ -124,6 +125,28 @@ export default function TemplateShow({ template }: { template: Template }) {
                                     <Edit className="mr-2 h-4 w-4" />
                                     Edit Template
                                 </Link>
+                            </Button>
+
+                            <Button asChild variant="accent">
+                                <a
+                                    href={route('performance.templates.export.pdf', template.id)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    Export PDF
+                                </a>
+                            </Button>
+
+                            <Button asChild variant="secondary">
+                                <a
+                                    href={route('performance.templates.export.excel', template.id)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                    Export Excel
+                                </a>
                             </Button>
 
                             <Button asChild>

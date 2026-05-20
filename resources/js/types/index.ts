@@ -38,9 +38,12 @@ export interface SharedData {
     auth: Auth;
     nav?: {
         employeesCount?: number | null;
+        pendingAppraisalsCount?: number | null;
+        profileUrl?: string | null;
     };
     branding?: {
         logoUrl?: string | null;
+        companyName?: string | null;
     };
     flash: {
         success?: string | null;

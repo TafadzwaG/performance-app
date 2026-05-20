@@ -43,7 +43,7 @@ interface CompetencyForm {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Performance', href: '/performance/dashboard' },
-    { title: 'Competencies', href: route('performance.setup.competencies.index') },
+    { title: 'Values', href: route('performance.setup.competencies.index') },
     { title: 'Create', href: route('performance.setup.competencies.create') },
 ];
 
@@ -78,8 +78,8 @@ export default function CompetencyCreate({ departmentOptions, jobTitleOptions }:
 
     return (
         <PerformancePage
-            title="Create Competency"
-            description="Add a competency, value, or behaviour definition for manager review and appraisal scoring."
+            title="Create Value"
+            description="Add a core value or behaviour definition for manager review and appraisal scoring."
             breadcrumbs={breadcrumbs}
         >
             <form onSubmit={submit} className="space-y-6">
@@ -91,9 +91,9 @@ export default function CompetencyCreate({ departmentOptions, jobTitleOptions }:
                             </Badge>
 
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight text-foreground">Create Competency</h1>
+                                <h1 className="text-3xl font-bold tracking-tight text-foreground">Create Value</h1>
                                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                                    Define a behavioural or values-based catalogue entry that can be reused across templates,
+                                    Define a core value or behavioural expectation that can be reused across templates,
                                     role frameworks, and manager evaluations.
                                 </p>
                             </div>
@@ -102,7 +102,7 @@ export default function CompetencyCreate({ departmentOptions, jobTitleOptions }:
                         <div className="flex items-center gap-3">
                             <Button type="submit" disabled={processing}>
                                 <Save className="mr-2 h-4 w-4" />
-                                Save Competency
+                                Save Value
                             </Button>
                         </div>
                     </div>
@@ -133,18 +133,18 @@ export default function CompetencyCreate({ departmentOptions, jobTitleOptions }:
                             <CardContent className="p-6">
                                 <div className="grid gap-6 md:grid-cols-2">
                                     <div className="space-y-2">
-                                        <Label htmlFor="name">Competency Name</Label>
+                                        <Label htmlFor="name">Value Name</Label>
                                         <Input
                                             id="name"
                                             value={data.name}
                                             onChange={(event) => setData('name', event.target.value)}
-                                            placeholder="e.g. Strategic thinking"
+                                            placeholder="e.g. We love to win"
                                         />
                                         <InputError message={errors.name} />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="code">Competency Code</Label>
+                                        <Label htmlFor="code">Value Code</Label>
                                         <Input
                                             id="code"
                                             value={data.code}
@@ -196,7 +196,7 @@ export default function CompetencyCreate({ departmentOptions, jobTitleOptions }:
                                     <div>
                                         <CardTitle className="text-lg">Scope & Applicability</CardTitle>
                                         <CardDescription>
-                                            Narrow the competency to a specific department or job title when needed.
+                                            Narrow the value to a specific department or job title when needed.
                                         </CardDescription>
                                     </div>
                                 </div>
@@ -253,7 +253,7 @@ export default function CompetencyCreate({ departmentOptions, jobTitleOptions }:
                                     <div>
                                         <CardTitle className="text-lg">Lifecycle & Status</CardTitle>
                                         <CardDescription>
-                                            Control whether this competency is immediately available in the system.
+                                            Control whether this value is immediately available in the system.
                                         </CardDescription>
                                     </div>
                                 </div>
@@ -293,14 +293,14 @@ export default function CompetencyCreate({ departmentOptions, jobTitleOptions }:
 
                             <CardContent className="space-y-4 text-sm text-muted-foreground">
                                 <p className="leading-6">
-                                    Keep competency definitions concise and observable. Clear definitions lead to more consistent
+                                    Keep value definitions concise and observable. Clear definitions lead to more consistent
                                     manager scoring and better development planning.
                                 </p>
 
                                 <div className="flex items-start gap-3 rounded-lg border bg-muted/10 p-3">
                                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
                                     <p className="text-xs leading-5">
-                                        Use scoped entries only when a competency genuinely differs by department or role. Otherwise, keep it global.
+                                        Use scoped entries only when a value genuinely differs by department or role. Otherwise, keep it global.
                                     </p>
                                 </div>
                             </CardContent>
@@ -354,12 +354,12 @@ export default function CompetencyCreate({ departmentOptions, jobTitleOptions }:
 
                                 <div className="mt-4 rounded-lg border bg-muted/20 p-4">
                                     <div className="flex items-center gap-2">
-                                        <p className="text-sm font-semibold text-foreground">{data.name || 'Draft competency name'}</p>
+                                        <p className="text-sm font-semibold text-foreground">{data.name || 'Draft value name'}</p>
                                         <Badge variant="outline">
                                             {categoryOptions.find((option) => option.value === data.category)?.label ?? 'Category'}
                                         </Badge>
                                     </div>
-                                    <p className="mt-1 text-xs text-muted-foreground">{data.code || 'Draft competency code'}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{data.code || 'Draft value code'}</p>
                                     <p className="mt-2 text-[11px] text-muted-foreground">{scopeSummary(data)}</p>
                                 </div>
                             </CardContent>

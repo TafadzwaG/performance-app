@@ -16,6 +16,7 @@ use App\Models\AppraisalComment;
 use App\Models\AppraisalStatusHistory;
 use App\Models\RatingScaleLevel;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -24,8 +25,8 @@ class AppraisalWorkflowService
 {
     public function __construct(
         private readonly AppraisalScoringService $scoringService,
-    ) {
-    }
+        private readonly EvidenceStorageService $evidenceStorageService,
+    ) {}
 
     public function submitGoalPlan(Appraisal $appraisal, User $actor): Appraisal
     {
@@ -204,6 +205,9 @@ class AppraisalWorkflowService
         });
     }
 
+    /**
+     * @param  array<int, UploadedFile>  $evidenceFiles
+     */
     public function submitCalibration(
         Appraisal $appraisal,
         User $actor,
@@ -212,6 +216,7 @@ class AppraisalWorkflowService
         ?string $evidenceSummary = null,
         ?float $calibratedOverallScore = null,
         ?RatingScaleLevel $calibratedOverallRatingLevel = null,
+        array $evidenceFiles = [],
     ): Appraisal {
         return DB::transaction(function () use (
             $appraisal,
@@ -221,6 +226,7 @@ class AppraisalWorkflowService
             $evidenceSummary,
             $calibratedOverallScore,
             $calibratedOverallRatingLevel,
+            $evidenceFiles,
         ) {
             if ($appraisal->status !== AppraisalStatus::CalibrationPending) {
                 throw ValidationException::withMessages([
@@ -234,7 +240,7 @@ class AppraisalWorkflowService
                 ]);
             }
 
-            AppraisalCalibration::create([
+            $calibration = AppraisalCalibration::create([
                 'appraisal_id' => $appraisal->id,
                 'actor_user_id' => $actor->id,
                 'decision' => $decision,
@@ -247,6 +253,10 @@ class AppraisalWorkflowService
                 'comments' => $comments,
                 'evidence_summary' => $evidenceSummary,
             ]);
+
+            foreach ($evidenceFiles as $file) {
+                $this->evidenceStorageService->storeCalibrationFile($calibration, $file, $actor);
+            }
 
             $appraisal->forceFill([
                 'calibrated_overall_score' => $decision === CalibrationDecision::Adjusted ? $calibratedOverallScore : $appraisal->overall_score,

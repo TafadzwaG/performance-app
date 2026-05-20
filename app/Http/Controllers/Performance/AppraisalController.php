@@ -7,6 +7,7 @@ use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Models\Appraisal;
 use App\Models\AppraisalTemplate;
 use App\Models\ReviewCycle;
+use App\Services\Performance\PendingAppraisalNavService;
 use App\Services\Performance\ReviewCycleAssignmentService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -20,8 +21,8 @@ class AppraisalController extends Controller
 
     public function __construct(
         private readonly ReviewCycleAssignmentService $assignmentService,
-    ) {
-    }
+        private readonly PendingAppraisalNavService $pendingAppraisalNav,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -29,15 +30,20 @@ class AppraisalController extends Controller
 
         $search = (string) $request->string('search');
         $status = $request->string('status')->toString();
+        $needsAction = $request->boolean('needs_action');
+        $user = $request->user();
 
-        $appraisals = $this->visibleAppraisals($request->user())
+        $appraisals = $this->visibleAppraisals($user)
             ->with(['reviewCycle', 'employeeProfile.user', 'template', 'overallRatingLevel'])
             ->when($search, function (Builder $query) use ($search) {
-                $query->where('employee_name_snapshot', 'like', "%{$search}%")
-                    ->orWhere('employee_number_snapshot', 'like', "%{$search}%")
-                    ->orWhere('cycle_name_snapshot', 'like', "%{$search}%");
+                $query->where(function (Builder $scoped) use ($search) {
+                    $scoped->where('employee_name_snapshot', 'like', "%{$search}%")
+                        ->orWhere('employee_number_snapshot', 'like', "%{$search}%")
+                        ->orWhere('cycle_name_snapshot', 'like', "%{$search}%");
+                });
             })
             ->when($status, fn (Builder $query) => $query->where('status', $status))
+            ->when($needsAction, fn (Builder $query) => $this->pendingAppraisalNav->applyNeedsActionScope($query, $user))
             ->latest('updated_at')
             ->paginate(10)
             ->withQueryString();
@@ -47,6 +53,7 @@ class AppraisalController extends Controller
             'filters' => [
                 'search' => $search,
                 'status' => $status,
+                'needs_action' => $needsAction,
             ],
             'can' => [
                 'create' => $request->user()->can('performance.review_cycles.assign_employees') || $request->user()->can('performance.appraisals.view_all'),
@@ -58,11 +65,10 @@ class AppraisalController extends Controller
     {
         $this->authorize('create', Appraisal::class);
 
-        return Inertia::render('performance/appraisals/Create', [
-            'reviewCycleOptions' => $this->reviewCycleOptions(),
-            'employeeProfileOptions' => $this->employeeProfileOptions(),
-            'templateOptions' => $this->templateOptions(),
-        ]);
+        // Dropdown data is now fetched on-demand via AppraisalLookupController
+        // (see /performance/appraisals/lookup/...), so we no longer eager-load
+        // the full catalogues here.
+        return Inertia::render('performance/appraisals/Create');
     }
 
     public function store(Request $request): RedirectResponse
@@ -82,6 +88,35 @@ class AppraisalController extends Controller
             ->first();
 
         return to_route('performance.appraisals.show', $appraisal);
+    }
+
+    /**
+     * Bulk-assign a single template + cycle to multiple employees in one shot.
+     * Used by the "Assign to many" modal on the create screen.
+     */
+    public function bulkStore(Request $request): RedirectResponse
+    {
+        $this->authorize('create', Appraisal::class);
+
+        $validated = $request->validate([
+            'review_cycle_id' => ['required', 'exists:review_cycles,id'],
+            'template_id' => ['required', 'exists:appraisal_templates,id'],
+            'employee_profile_ids' => ['required', 'array', 'min:1'],
+            'employee_profile_ids.*' => ['integer', 'exists:employee_profiles,id'],
+        ]);
+
+        $cycle = ReviewCycle::query()->findOrFail($validated['review_cycle_id']);
+        $template = AppraisalTemplate::query()->findOrFail($validated['template_id']);
+
+        $assigned = $this->assignmentService->assign(
+            $cycle,
+            $validated['employee_profile_ids'],
+            $template,
+            $request->user(),
+        );
+
+        return to_route('performance.appraisals.index')
+            ->with('success', "Assigned {$assigned->count()} appraisal".($assigned->count() === 1 ? '' : 's').' successfully.');
     }
 
     public function show(Appraisal $appraisal): Response

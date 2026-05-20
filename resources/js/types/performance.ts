@@ -53,6 +53,7 @@ export interface Department {
     employee_profiles_count?: number;
     goal_library_items_count?: number;
     appraisal_templates_count?: number;
+    employee_profiles?: EmployeeProfile[];
 }
 
 export interface JobTitle {
@@ -365,6 +366,15 @@ export interface AppraisalApproval {
     actor?: BasicUser | null;
 }
 
+export interface CalibrationEvidence {
+    id: number;
+    evidence_type: string;
+    original_name?: string | null;
+    url?: string | null;
+    path?: string | null;
+    notes?: string | null;
+}
+
 export interface AppraisalCalibration {
     id: number;
     decision: string;
@@ -375,6 +385,7 @@ export interface AppraisalCalibration {
     actor?: BasicUser | null;
     original_overall_rating_level?: RatingScaleLevel | null;
     calibrated_overall_rating_level?: RatingScaleLevel | null;
+    evidences?: CalibrationEvidence[];
     created_at?: string;
     updated_at?: string;
 }

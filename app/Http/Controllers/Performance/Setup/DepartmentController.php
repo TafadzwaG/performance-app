@@ -53,7 +53,19 @@ class DepartmentController extends Controller
 
     public function show(Department $department): Response
     {
-        $department->loadCount(['employeeProfiles', 'goalLibraryItems', 'appraisalTemplates']);
+        $department
+            ->loadCount(['employeeProfiles', 'goalLibraryItems', 'appraisalTemplates'])
+            ->load([
+                'employeeProfiles' => fn ($query) => $query
+                    ->with([
+                        'user',
+                        'jobTitle',
+                        'latestAppraisal.reviewCycle',
+                        'latestAppraisal.overallRatingLevel',
+                        'latestAppraisal.calibratedOverallRatingLevel',
+                    ])
+                    ->orderBy('employee_number'),
+            ]);
 
         return Inertia::render('performance/setup/departments/Show', [
             'department' => $department,

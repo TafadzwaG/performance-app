@@ -31,6 +31,7 @@ use App\Policies\RatingScalePolicy;
 use App\Policies\ReviewCyclePolicy;
 use App\Policies\RolePolicy;
 use App\Policies\UserPolicy;
+use App\Services\Settings\MailSettingsService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -73,5 +74,7 @@ class AppServiceProvider extends ServiceProvider
             AppraisalStatusChanged::class,
             InvalidateDashboardCache::class,
         );
+
+        app(MailSettingsService::class)->apply();
     }
 }

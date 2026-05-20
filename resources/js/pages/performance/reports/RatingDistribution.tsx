@@ -12,7 +12,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function RatingDistribution({ rows, reviewCycleOptions, filters }: { rows: Array<Record<string, unknown>>; reviewCycleOptions: Option[]; filters: { review_cycle_id?: number | null } }) {
     return (
-        <PerformancePage title="Rating Distribution" description="Distribution of final performance ratings." breadcrumbs={breadcrumbs}>
+        <PerformancePage title="Rating Distribution" description="Distribution of effective performance ratings." breadcrumbs={breadcrumbs}>
             <CycleFilters reviewCycleOptions={reviewCycleOptions} reviewCycleId={filters.review_cycle_id ?? null} reportRoute="performance.reports.rating_distribution" exportKey="rating-distribution" />
             <ReportTable rows={rows} />
         </PerformancePage>

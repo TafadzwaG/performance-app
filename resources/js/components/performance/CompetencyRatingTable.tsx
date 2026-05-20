@@ -104,7 +104,7 @@ export default function CompetencyRatingTable({ ratings, mode, ratingLevels, onC
             <table className="min-w-full text-sm">
                 <thead className="bg-muted/50 text-left">
                     <tr>
-                        <th className="p-2">Competency</th>
+                        <th className="p-2">Value</th>
                         <th className="p-2">{mode === 'manager' ? 'Self / Manager rating' : 'Rating'}</th>
                         <th className="p-2">{mode === 'manager' ? 'Employee / Manager comments' : 'Comment'}</th>
                     </tr>

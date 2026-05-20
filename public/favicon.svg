@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Performance Appraisal Studio">
+    <!-- Ink outer plate with rounded corners -->
+    <rect x="2" y="2" width="60" height="60" rx="10" ry="10" fill="#252627"/>
+
+    <!-- Sand inset — the brand inset mark -->
+    <rect x="8" y="8" width="48" height="48" rx="6" ry="6" fill="#BFB48F"/>
+
+    <!-- Subtle inner edge for depth (very faint pine) -->
+    <rect x="8" y="8" width="48" height="48" rx="6" ry="6" fill="none" stroke="#2F4A3F" stroke-opacity="0.08" stroke-width="1"/>
+
+    <!-- "P" wordmark — ink, geometric, serif-flavoured -->
+    <path d="M 22 16
+             L 22 50
+             L 29 50
+             L 29 39
+             L 36 39
+             C 43 39 47 35 47 28
+             C 47 21 43 16 36 16 Z
+             M 29 22
+             L 35 22
+             C 38 22 40 24 40 28
+             C 40 32 38 34 35 34
+             L 29 34 Z"
+          fill="#252627"
+          fill-rule="evenodd"/>
+
+    <!-- Tiny pine dot — references the accent palette -->
+    <circle cx="48" cy="48" r="3" fill="#2F4A3F"/>
+</svg>

@@ -15,8 +15,7 @@ class ReportController extends Controller
 
     public function __construct(
         private readonly ReportQueryService $reportQueryService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -24,6 +23,8 @@ class ReportController extends Controller
 
         return Inertia::render('performance/reports/Index', [
             'reviewCycleOptions' => $this->reviewCycleOptions(),
+            'filters' => $this->filters($request),
+            'reports' => $this->reportQueryService->comprehensiveReports($this->filters($request)),
         ]);
     }
 

@@ -6,7 +6,7 @@ class EmployeeSummaryExport extends BasePerformanceExport
 {
     protected function headings(): array
     {
-        return ['Employee', 'Employee Number', 'Cycle', 'Status', 'Business Score', 'Values Score', 'Overall Score'];
+        return ['Employee', 'Employee Number', 'Cycle', 'Status', 'Business Score', 'Values Score', 'Effective Overall Score'];
     }
 
     protected function mapRow(mixed $row): array
@@ -18,7 +18,7 @@ class EmployeeSummaryExport extends BasePerformanceExport
             $row->status?->value ?? $row->status,
             $row->business_score,
             $row->values_score,
-            $row->overall_score,
+            $row->effective_overall_score,
         ];
     }
 }

@@ -3,20 +3,26 @@ import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { BreadcrumbItem } from '@/types';
 import type { EmployeeFieldConfigItem, EmployeeProfile, Paginated } from '@/types/performance';
 import { Link, useForm } from '@inertiajs/react';
-import type { FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import {
     Briefcase,
+    Download,
     Eye,
+    FileSpreadsheet,
     Filter,
     PencilLine,
     PieChart,
     Plus,
     Search,
     ShieldCheck,
+    UploadCloud,
+    UserCheck,
     Users,
 } from 'lucide-react';
 
@@ -24,7 +30,16 @@ interface Props {
     employeeProfiles: Paginated<EmployeeProfile>;
     filters: { search: string };
     fieldConfig: EmployeeFieldConfigItem[];
-    can: { create: boolean };
+    exportColumns: EmployeeExportColumn[];
+    can: { create: boolean; import: boolean; export: boolean };
+}
+
+interface EmployeeExportColumn {
+    key: string;
+    label: string;
+    section: string;
+    default: boolean;
+    required: boolean;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -50,8 +65,12 @@ function maskNationalId(value?: string | null) {
     return `*** ** ${clean.slice(-4)}`;
 }
 
-export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig, can }: Props) {
+export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig, exportColumns, can }: Props) {
     const searchForm = useForm({ search: filters.search ?? '' });
+    const [exportModalOpen, setExportModalOpen] = useState(false);
+    const [selectedExportColumns, setSelectedExportColumns] = useState<string[]>(
+        exportColumns.filter((column) => column.default || column.required).map((column) => column.key),
+    );
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -69,50 +88,124 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
     const from = employeeProfiles.from ?? 0;
     const to = employeeProfiles.to ?? totalOnPage;
     const visibleColumns = fieldConfig.filter((field) => field.enabled);
+    const exportColumnsBySection = useMemo(() => {
+        return exportColumns.reduce<Record<string, EmployeeExportColumn[]>>((groups, column) => {
+            groups[column.section] = groups[column.section] ?? [];
+            groups[column.section].push(column);
+
+            return groups;
+        }, {});
+    }, [exportColumns]);
+
+    const toggleExportColumn = (column: EmployeeExportColumn, checked: boolean) => {
+        if (column.required) return;
+
+        setSelectedExportColumns((current) => {
+            if (checked) {
+                return [...new Set([...current, column.key])];
+            }
+
+            return current.filter((key) => key !== column.key);
+        });
+    };
+
+    const handleExport = () => {
+        const url = new URL(route('performance.employees.export'), window.location.origin);
+
+        if (filters.search) {
+            url.searchParams.set('search', filters.search);
+        }
+
+        selectedExportColumns.forEach((column) => {
+            url.searchParams.append('columns[]', column);
+        });
+
+        window.location.assign(url.toString());
+        setExportModalOpen(false);
+    };
 
     return (
         <PerformancePage
             title="Employees"
             description="Manage employee records, reporting lines, and performance readiness."
             breadcrumbs={breadcrumbs}
-          
         >
-            <div className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-3">
+            <div className="space-y-8">
+                {/* Editorial header — matches the welcome / dashboard typography */}
+                <header className="bg-card relative overflow-hidden rounded-2xl border p-6 lg:p-8">
+                    <div className="bg-brand-sand/12 absolute -top-16 -right-16 h-48 w-48 rounded-full blur-3xl" />
+                    <div className="relative">
+                        <div className="font-mono-brand text-foreground/60 flex items-center gap-3 text-[11px] tracking-[0.22em] uppercase">
+                            <span className="bg-brand-sand inline-block h-px w-8" />
+                            <span>§ People · Directory</span>
+                        </div>
+                        <h1 className="font-display text-balance text-foreground mt-4 text-4xl leading-[1] font-light tracking-tight lg:text-5xl">
+                            Every person, <span className="text-brand-pine dark:text-brand-sand italic">in one place</span>.
+                        </h1>
+                        <p className="text-foreground/65 mt-4 max-w-2xl text-[14px] leading-relaxed">
+                            Manage employee records, reporting lines, and performance readiness. Search by number, name,
+                            department, or job title — and export a tailored slice whenever you need it.
+                        </p>
+                    </div>
+                </header>
+
+                <div className="grid gap-4 md:grid-cols-3">
                     <Card className="border shadow-sm">
-                        <CardContent className="p-6">
-                            <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                Employees On This Page
-                            </p>
-                            <div className="flex items-baseline gap-2">
-                                <h3 className="text-3xl font-bold tracking-tight text-foreground">{totalOnPage}</h3>
-                                <span className="text-xs text-muted-foreground">of {totalRecords} total</span>
+                        <CardContent className="flex items-center justify-between gap-4 p-6">
+                            <div>
+                                <p className="font-mono-brand text-muted-foreground mb-2 text-[10px] tracking-[0.22em] uppercase">
+                                    Employees On This Page
+                                </p>
+                                <div className="flex items-baseline gap-2">
+                                    <h3 className="font-display text-foreground text-4xl leading-none font-light tracking-tight">
+                                        {totalOnPage}
+                                    </h3>
+                                    <span className="text-muted-foreground text-xs">of {totalRecords} total</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-muted/30 text-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border">
+                                <Users className="h-5 w-5" />
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card className="border shadow-sm">
-                        <CardContent className="p-6">
-                            <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                Active Employees
-                            </p>
-                            <div className="flex items-baseline gap-2">
-                                <h3 className="text-3xl font-bold tracking-tight text-foreground">{activeCount}</h3>
-                                <span className="text-xs text-muted-foreground">visible records</span>
+                        <CardContent className="flex items-center justify-between gap-4 p-6">
+                            <div>
+                                <p className="font-mono-brand text-muted-foreground mb-2 text-[10px] tracking-[0.22em] uppercase">
+                                    Active Employees
+                                </p>
+                                <div className="flex items-baseline gap-2">
+                                    <h3 className="font-display text-foreground text-4xl leading-none font-light tracking-tight">
+                                        {activeCount}
+                                    </h3>
+                                    <span className="text-muted-foreground text-xs">visible records</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-muted/30 text-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border">
+                                <UserCheck className="h-5 w-5" />
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card className="border shadow-sm">
-                        <CardContent className="p-6">
-                            <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                Review Eligible
-                            </p>
-                            <div className="flex items-baseline gap-2">
-                                <h3 className="text-3xl font-bold tracking-tight text-foreground">
-                                    {reviewEligibleCount}
-                                </h3>
-                                <span className="text-xs text-muted-foreground">ready this cycle</span>
+                        <CardContent className="flex items-center justify-between gap-4 p-6">
+                            <div>
+                                <p className="font-mono-brand text-muted-foreground mb-2 text-[10px] tracking-[0.22em] uppercase">
+                                    Review Eligible
+                                </p>
+                                <div className="flex items-baseline gap-2">
+                                    <h3 className="font-display text-foreground text-4xl leading-none font-light tracking-tight">
+                                        {reviewEligibleCount}
+                                    </h3>
+                                    <span className="text-muted-foreground text-xs">ready this cycle</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-muted/30 text-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border">
+                                <ShieldCheck className="h-5 w-5" />
                             </div>
                         </CardContent>
                     </Card>
@@ -121,8 +214,13 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
                 <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
                     <div className="flex flex-col gap-4 border-b px-6 py-5 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <h2 className="text-lg font-semibold tracking-tight text-foreground">Employee Directory</h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
+                            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                § Directory
+                            </div>
+                            <h2 className="font-display text-foreground mt-1 text-2xl leading-tight font-light tracking-tight">
+                                Employee directory
+                            </h2>
+                            <p className="text-muted-foreground mt-1 text-[13px]">
                                 Search profiles by employee number, name, email, or national ID.
                             </p>
                         </div>
@@ -145,6 +243,22 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
                                 </Button>
                             </form>
 
+                            {can.export ? (
+                                <Button type="button" variant="outline" onClick={() => setExportModalOpen(true)}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Export
+                                </Button>
+                            ) : null}
+
+                            {can.import ? (
+                                <Button asChild variant="info">
+                                    <Link href={route('performance.employees.upload')}>
+                                        <UploadCloud className="mr-2 h-4 w-4" />
+                                        Upload Employees
+                                    </Link>
+                                </Button>
+                            ) : null}
+
                             {can.create ? (
                                 <Button asChild>
                                     <Link href={route('performance.employees.create')}>
@@ -161,11 +275,11 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
                             <thead>
                                 <tr className="bg-muted/30">
                                     {visibleColumns.map((column) => (
-                                        <th key={column.field_key} className="px-6 py-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                        <th key={column.field_key} className="font-mono-brand text-muted-foreground px-6 py-4 text-[10px] tracking-[0.22em] uppercase">
                                             {column.label}
                                         </th>
                                     ))}
-                                    <th className="px-6 py-4 text-right text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                    <th className="font-mono-brand text-muted-foreground px-6 py-4 text-right text-[10px] tracking-[0.22em] uppercase">
                                         Actions
                                     </th>
                                 </tr>
@@ -205,11 +319,13 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
                                     <tr>
                                         <td colSpan={visibleColumns.length + 1} className="px-6 py-14 text-center">
                                             <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
-                                                <div className="rounded-full border bg-muted p-3 text-muted-foreground">
+                                                <div className="bg-muted text-muted-foreground rounded-full border p-3">
                                                     <Users className="h-5 w-5" />
                                                 </div>
-                                                <div className="font-medium">No employee profiles found</div>
-                                                <p className="text-sm text-muted-foreground">
+                                                <div className="font-display text-foreground text-xl font-light">
+                                                    No employee profiles found
+                                                </div>
+                                                <p className="text-muted-foreground text-[13px]">
                                                     Adjust the search term or create a new employee profile.
                                                 </p>
                                             </div>
@@ -229,6 +345,64 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
                     </div>
                 </section>
 
+                <Dialog open={exportModalOpen} onOpenChange={setExportModalOpen}>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                § Export
+                            </div>
+                            <DialogTitle className="font-display flex items-center gap-2 text-2xl font-light tracking-tight">
+                                <FileSpreadsheet className="h-5 w-5" />
+                                Export Employees
+                            </DialogTitle>
+                            <DialogDescription className="text-[13px]">
+                                Choose the columns to include in the employee spreadsheet.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="max-h-[55vh] space-y-5 overflow-y-auto pr-1">
+                            {Object.entries(exportColumnsBySection).map(([section, columns]) => (
+                                <section key={section} className="space-y-3">
+                                    <h3 className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                        {labelize(section)}
+                                    </h3>
+
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        {columns.map((column) => {
+                                            const checked = selectedExportColumns.includes(column.key);
+
+                                            return (
+                                                <label
+                                                    key={column.key}
+                                                    className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2 text-sm"
+                                                >
+                                                    <Checkbox
+                                                        checked={checked}
+                                                        disabled={column.required}
+                                                        onCheckedChange={(value) => toggleExportColumn(column, value === true)}
+                                                    />
+                                                    <span className="flex-1 font-medium text-foreground">{column.label}</span>
+                                                    {column.required ? <Badge variant="outline">Required</Badge> : null}
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            ))}
+                        </div>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setExportModalOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="button" onClick={handleExport} disabled={selectedExportColumns.length === 0}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Download XLSX
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
                 <div className="grid gap-6 md:grid-cols-2">
                     <Card className="border shadow-sm">
                         <CardContent className="flex gap-4 p-6">
@@ -237,10 +411,13 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
                             </div>
 
                             <div>
-                                <h4 className="text-sm font-semibold uppercase tracking-tight text-foreground">
-                                    Profile Coverage
+                                <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                    § Note
+                                </div>
+                                <h4 className="font-display text-foreground mt-1 text-xl font-light tracking-tight">
+                                    Profile coverage
                                 </h4>
-                                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                                <p className="text-muted-foreground mt-1 text-[13px] leading-6">
                                     Use employee profiles to connect users, reporting lines, and appraisal ownership in
                                     one place.
                                 </p>
@@ -255,10 +432,13 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
                             </div>
 
                             <div>
-                                <h4 className="text-sm font-semibold uppercase tracking-tight text-foreground">
-                                    Performance Setup
+                                <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                    § Note
+                                </div>
+                                <h4 className="font-display text-foreground mt-1 text-xl font-light tracking-tight">
+                                    Performance setup
                                 </h4>
-                                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                                <p className="text-muted-foreground mt-1 text-[13px] leading-6">
                                     Work location, employment type, eligibility, and manager assignments are maintained
                                     on the employee profile.
                                 </p>
@@ -295,12 +475,14 @@ function renderIndexColumn(profile: EmployeeProfile, column: EmployeeFieldConfig
         case 'line_manager_user_id':
             return <span className="text-sm text-muted-foreground">{profile.line_manager?.name ?? '-'}</span>;
         case 'latest_overall_score':
+            const score = effectiveLatestScore(profile);
+
             return (
                 <div className="flex items-center gap-2">
-                    <ScoreDonut score={profile.latest_appraisal?.overall_score} />
+                    <ScoreDonut score={score} />
                     <div className="text-xs text-muted-foreground">
-                        {profile.latest_appraisal?.overall_score !== null && profile.latest_appraisal?.overall_score !== undefined
-                            ? `${Number(profile.latest_appraisal.overall_score).toFixed(1)}%`
+                        {score !== null && score !== undefined
+                            ? `${Number(score).toFixed(1)}%`
                             : '-'}
                     </div>
                 </div>
@@ -315,6 +497,14 @@ function renderIndexColumn(profile: EmployeeProfile, column: EmployeeFieldConfig
         default:
             return <span className="text-sm text-muted-foreground">-</span>;
     }
+}
+
+function effectiveLatestScore(profile: EmployeeProfile) {
+    return profile.latest_appraisal?.calibrated_overall_score ?? profile.latest_appraisal?.overall_score;
+}
+
+function labelize(value: string) {
+    return value.replace(/[_-]/g, ' ');
 }
 
 function ScoreDonut({ score }: { score?: number | null }) {

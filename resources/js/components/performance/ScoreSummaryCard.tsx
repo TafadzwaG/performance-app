@@ -20,9 +20,14 @@ export default function ScoreSummaryCard({
     const commentary = buildRatingComment(overallScore, ratingLabel);
 
     return (
-        <Card>
+        <Card className="shadow-sm">
             <CardHeader>
-                <CardTitle>Score Summary</CardTitle>
+                <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                    § Score Summary
+                </div>
+                <CardTitle className="font-display mt-1 text-2xl font-light tracking-tight">
+                    Performance snapshot
+                </CardTitle>
             </CardHeader>
 
             <CardContent className={layout === 'row' ? 'space-y-3' : 'grid gap-4 lg:grid-cols-4'}>
@@ -87,13 +92,15 @@ function ScoreDonutRow({
                             strokeLinecap="round"
                         />
                     </svg>
-                    <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-foreground">
+                    <div className="font-display absolute inset-0 flex items-center justify-center text-[11px] font-medium text-foreground">
                         {formatPercent(value)}
                     </div>
                 </div>
 
                 <div className="space-y-1">
-                    <div className="text-sm font-medium text-foreground">{label}</div>
+                    <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                        {label}
+                    </div>
                     <div
                         className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${tone.badgeClass}`}
                     >
@@ -108,8 +115,8 @@ function ScoreDonutRow({
             </div>
 
             <div className="text-right">
-                <div className="text-xs text-muted-foreground">Score</div>
-                <div className="text-lg font-semibold text-foreground">{formatPercent(value)}</div>
+                <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">Score</div>
+                <div className="font-display text-foreground mt-1 text-2xl leading-none font-light">{formatPercent(value)}</div>
             </div>
         </div>
     );
@@ -130,25 +137,27 @@ function FinalRatingRow({
         <div className="rounded-lg border bg-muted/20 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                        <BadgeCheck className="h-4 w-4 text-muted-foreground" />
+                    <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                        <BadgeCheck className="h-3.5 w-3.5" />
                         Final Rating
                     </div>
 
+                    <div className="font-display text-foreground text-xl leading-tight font-light">{ratingLabel}</div>
+
                     <div
-                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${tone.badgeClass}`}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${tone.badgeClass}`}
                     >
                         <CircleGauge className="h-3.5 w-3.5" />
-                        {ratingLabel}
+                        {tone.label}
                     </div>
                 </div>
 
                 <div className="w-full rounded-md border bg-background/70 p-3 md:max-w-xl">
-                    <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <div className="font-mono-brand text-muted-foreground mb-2 flex items-center gap-1.5 text-[10px] tracking-[0.22em] uppercase">
                         <CircleAlert className="h-3.5 w-3.5" />
                         Performance Comment
                     </div>
-                    <p className="text-sm leading-relaxed text-foreground">{commentary}</p>
+                    <p className="text-foreground text-[13px] leading-relaxed">{commentary}</p>
                 </div>
             </div>
         </div>
@@ -168,22 +177,23 @@ function FinalRatingCard({
 
     return (
         <div className="rounded-lg border bg-muted/20 p-4">
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-                <BadgeCheck className="h-4 w-4 text-muted-foreground" />
+            <div className="font-mono-brand text-muted-foreground mb-2 flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                <BadgeCheck className="h-3.5 w-3.5" />
                 Final Rating
             </div>
+            <div className="font-display text-foreground mb-2 text-xl leading-tight font-light">{ratingLabel}</div>
             <div
-                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${tone.badgeClass}`}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${tone.badgeClass}`}
             >
                 <CircleGauge className="h-3.5 w-3.5" />
-                {ratingLabel}
+                {tone.label}
             </div>
             <div className="mt-3 rounded-md border bg-background/70 p-3">
-                <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <div className="font-mono-brand text-muted-foreground mb-1 flex items-center gap-1.5 text-[10px] tracking-[0.22em] uppercase">
                     <CircleAlert className="h-3.5 w-3.5" />
                     Performance Comment
                 </div>
-                <p className="text-sm leading-relaxed text-foreground">{commentary}</p>
+                <p className="text-foreground text-[13px] leading-relaxed">{commentary}</p>
             </div>
         </div>
     );
@@ -207,7 +217,7 @@ function ScoreDonut({
 
     return (
         <div className="rounded-lg border bg-muted/20 p-4">
-            <div className="mb-3 text-sm text-muted-foreground">{label}</div>
+            <div className="font-mono-brand text-muted-foreground mb-3 text-[10px] tracking-[0.22em] uppercase">{label}</div>
             <div className="flex items-center gap-3">
                 <div className="relative" style={{ width: size, height: size }}>
                     <svg viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
@@ -231,7 +241,7 @@ function ScoreDonut({
                             strokeLinecap="round"
                         />
                     </svg>
-                    <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-foreground">
+                    <div className="font-display absolute inset-0 flex items-center justify-center text-[11px] font-medium text-foreground">
                         {formatPercent(value)}
                     </div>
                 </div>

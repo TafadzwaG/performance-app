@@ -1,790 +1,864 @@
+import { GetStartedPopover, InlineHint } from '@/components/get-started-popover';
+import { Reveal } from '@/components/reveal';
+import { Button } from '@/components/ui/button';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
+import {
+    ArrowRight,
+    ArrowUpRight,
+    BarChart3,
+    CalendarClock,
+    CheckCircle2,
+    ClipboardList,
+    Compass,
+    LineChart,
+    MoveRight,
+    ScrollText,
+    ShieldCheck,
+    Sparkles,
+    Star,
+    Target,
+    TrendingUp,
+    Users,
+} from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, XAxis } from 'recharts';
+
+/* -----------------------------------------------------------
+ * Small inline data — purely illustrative for the landing infographics.
+ * ----------------------------------------------------------- */
+
+const performanceTrend = [
+    { month: 'Jan', score: 62 },
+    { month: 'Feb', score: 68 },
+    { month: 'Mar', score: 71 },
+    { month: 'Apr', score: 74 },
+    { month: 'May', score: 78 },
+    { month: 'Jun', score: 81 },
+    { month: 'Jul', score: 84 },
+    { month: 'Aug', score: 87 },
+];
+
+const competencyMix = [
+    { name: 'Delivery', value: 38 },
+    { name: 'Craft', value: 26 },
+    { name: 'Collaboration', value: 22 },
+    { name: 'Leadership', value: 14 },
+];
+
+const competencyColors = ['var(--palette-sand)', 'var(--palette-pine)', 'var(--palette-rust)', 'var(--palette-stone)'];
+
+const cycleSteps = [
+    {
+        index: '01',
+        title: 'Plan',
+        copy: 'Set the goals, the cadence, the weightings. Calibrate before the work begins.',
+        icon: Target,
+        accent: 'var(--palette-sand)',
+    },
+    {
+        index: '02',
+        title: 'Track',
+        copy: 'Capture evidence as it happens — projects, feedback, KPIs, milestones.',
+        icon: LineChart,
+        accent: 'var(--palette-pine)',
+    },
+    {
+        index: '03',
+        title: 'Review',
+        copy: 'Structured conversations grounded in data, not memory. Fair and consistent.',
+        icon: ClipboardList,
+        accent: 'var(--palette-rust)',
+    },
+    {
+        index: '04',
+        title: 'Reward',
+        copy: 'Decisions you can defend. Recognition, growth plans, transparent outcomes.',
+        icon: Star,
+        accent: 'var(--palette-stone)',
+    },
+];
+
+const features = [
+    {
+        title: 'Continuous feedback',
+        copy: '360° feedback, peer reviews, and self-assessments tied to your values framework.',
+        icon: Users,
+    },
+    {
+        title: 'Goal alignment',
+        copy: 'Cascade objectives from executive priorities down to individual key results.',
+        icon: Compass,
+    },
+    {
+        title: 'Calibrated ratings',
+        copy: 'Manager calibration sessions, distribution guardrails, and anti-bias prompts.',
+        icon: ShieldCheck,
+    },
+    {
+        title: 'Living development plans',
+        copy: 'Coaching notes, skill gap tracking, and learning paths that evolve with the role.',
+        icon: ScrollText,
+    },
+    {
+        title: 'Cycle automation',
+        copy: 'Quarterly, biannual, or rolling — set the cadence once and let the system orchestrate.',
+        icon: CalendarClock,
+    },
+    {
+        title: 'Insight, not noise',
+        copy: 'Dashboards built for the people who actually make the decisions.',
+        icon: BarChart3,
+    },
+];
+
+const stats = [
+    { value: '4×', label: 'faster review cycles', detail: 'compared to spreadsheets & email threads' },
+    { value: '92%', label: 'completion rate', detail: 'across organisations on the platform' },
+    { value: '1:1', label: 'evidence to rating', detail: 'every score traceable to an artefact' },
+    { value: '0', label: 'lost feedback', detail: 'fully audited, immutable history' },
+];
+
+const tickerItems = [
+    'GOALS  ▲  ALIGNED',
+    'FEEDBACK  ◆  CONTINUOUS',
+    'REVIEWS  ●  CALIBRATED',
+    'GROWTH  ✶  TRACKED',
+    'DECISIONS  ◇  DEFENSIBLE',
+    'TEAMS  ▲  HEARD',
+];
 
 export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
 
     return (
         <>
-            <Head title="Welcome">
+            <Head title="Performance, measured with care">
                 <link rel="preconnect" href="https://fonts.bunny.net" />
-                <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
+                <link
+                    href="https://fonts.bunny.net/css?family=fraunces:300,400,500,600,700|instrument-sans:400,500,600|jetbrains-mono:400,500"
+                    rel="stylesheet"
+                />
             </Head>
-            <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
-                <header className="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
-                    <nav className="flex items-center justify-end gap-4">
-                        {auth.user ? (
-                            <Link
-                                href={route('dashboard')}
-                                className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                            >
-                                Dashboard
-                            </Link>
-                        ) : (
-                            <>
-                                <Link
-                                    href={route('login')}
-                                    className="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#19140035] dark:text-[#EDEDEC] dark:hover:border-[#3E3E3A]"
-                                >
-                                    Log in
-                                </Link>
-                                <Link
-                                    href={route('register')}
-                                    className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                                >
-                                    Register
-                                </Link>
-                            </>
-                        )}
-                    </nav>
+
+            <div className="bg-paper text-foreground relative min-h-screen overflow-x-hidden">
+                {/* Decorative grain overlay — multiply in light mode, screen in dark */}
+                <div className="bg-grain pointer-events-none fixed inset-0 z-0 opacity-20 mix-blend-multiply dark:opacity-25 dark:mix-blend-screen" />
+
+                {/* Full-bleed topographic backdrop — barely-there architectural lines */}
+                <div className="bg-topo pointer-events-none fixed inset-0 z-0 opacity-40 dark:opacity-25" />
+
+                {/* ============================================================ NAV */}
+                <header className="relative z-20">
+                    <div className="mx-auto flex max-w-7xl items-center justify-between px-6 pt-6 lg:px-10 lg:pt-8">
+                        <Link href="/" className="group flex items-center gap-3">
+                            <div className="bg-brand-ink relative grid h-9 w-9 place-items-center overflow-hidden rounded-sm">
+                                <div className="bg-brand-sand absolute inset-1 rounded-[2px]" />
+                                <span className="text-brand-ink relative font-display text-[15px] font-bold">P</span>
+                            </div>
+                            <div className="flex flex-col leading-none">
+                                <span className="font-display text-[15px] font-medium tracking-tight">Performance</span>
+                                <span className="font-mono-brand text-foreground/60 text-[9px] tracking-[0.22em] uppercase">
+                                    Appraisal Studio
+                                </span>
+                            </div>
+                        </Link>
+
+                        <nav className="font-mono-brand hidden items-center gap-8 text-[11px] tracking-[0.18em] uppercase lg:flex">
+                            <a href="#manifesto" className="hover:text-brand-pine dark:hover:text-brand-sand transition-colors">
+                                Manifesto
+                            </a>
+                            <a href="#cycle" className="hover:text-brand-pine dark:hover:text-brand-sand transition-colors">
+                                The Cycle
+                            </a>
+                            <a href="#features" className="hover:text-brand-pine dark:hover:text-brand-sand transition-colors">
+                                Features
+                            </a>
+                            <a href="#metrics" className="hover:text-brand-pine dark:hover:text-brand-sand transition-colors">
+                                Metrics
+                            </a>
+                        </nav>
+
+                        <div className="flex items-center gap-2">
+                            {auth.user ? (
+                                <Button asChild size="sm">
+                                    <Link href={route('dashboard')}>
+                                        Open dashboard
+                                        <ArrowRight className="ml-1" />
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <>
+                                    <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                                        <Link href={route('login')}>Log in</Link>
+                                    </Button>
+                                    <Button asChild size="sm">
+                                        <Link href={route('login')}>
+                                            Enter studio
+                                            <ArrowRight className="ml-1" />
+                                        </Link>
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                    <div className="bg-foreground/10 mx-auto mt-6 h-px max-w-7xl px-6 lg:px-10" />
                 </header>
-                <div className="flex w-full items-center justify-center opacity-100 transition-opacity duration-750 lg:grow starting:opacity-0">
-                    <main className="flex w-full max-w-[335px] flex-col-reverse lg:max-w-4xl lg:flex-row">
-                        <div className="flex-1 rounded-br-lg rounded-bl-lg bg-white p-6 pb-12 text-[13px] leading-[20px] shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] lg:rounded-tl-lg lg:rounded-br-none lg:p-20 dark:bg-[#161615] dark:text-[#EDEDEC] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]">
-                            <h1 className="mb-1 font-medium">Let's get started</h1>
-                            <p className="mb-2 text-[#706f6c] dark:text-[#A1A09A]">
-                                Laravel has an incredibly rich ecosystem.
-                                <br />
-                                We suggest you start with the following.
-                            </p>
-                            <ul className="mb-4 flex flex-col lg:mb-6">
-                                <li className="relative flex items-center gap-4 py-2 before:absolute before:top-1/2 before:bottom-0 before:left-[0.4rem] before:border-l before:border-[#e3e3e0] dark:before:border-[#3E3E3A]">
-                                    <span className="relative bg-white py-1 dark:bg-[#161615]">
-                                        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#e3e3e0] bg-[#FDFDFC] shadow-[0px_0px_1px_0px_rgba(0,0,0,0.03),0px_1px_2px_0px_rgba(0,0,0,0.06)] dark:border-[#3E3E3A] dark:bg-[#161615]">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-[#dbdbd7] dark:bg-[#3E3E3A]" />
-                                        </span>
-                                    </span>
-                                    <span>
-                                        Read the
-                                        <a
-                                            href="https://laravel.com/docs"
-                                            target="_blank"
-                                            className="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
-                                        >
-                                            <span>Documentation</span>
-                                            <svg
-                                                width={10}
-                                                height={11}
-                                                viewBox="0 0 10 11"
-                                                fill="none"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-2.5 w-2.5"
-                                            >
-                                                <path
-                                                    d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                                    stroke="currentColor"
-                                                    strokeLinecap="square"
-                                                />
-                                            </svg>
-                                        </a>
-                                    </span>
-                                </li>
-                                <li className="relative flex items-center gap-4 py-2 before:absolute before:top-0 before:bottom-1/2 before:left-[0.4rem] before:border-l before:border-[#e3e3e0] dark:before:border-[#3E3E3A]">
-                                    <span className="relative bg-white py-1 dark:bg-[#161615]">
-                                        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#e3e3e0] bg-[#FDFDFC] shadow-[0px_0px_1px_0px_rgba(0,0,0,0.03),0px_1px_2px_0px_rgba(0,0,0,0.06)] dark:border-[#3E3E3A] dark:bg-[#161615]">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-[#dbdbd7] dark:bg-[#3E3E3A]" />
-                                        </span>
-                                    </span>
-                                    <span>
-                                        Watch video tutorials at
-                                        <a
-                                            href="https://laracasts.com"
-                                            target="_blank"
-                                            className="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
-                                        >
-                                            <span>Laracasts</span>
-                                            <svg
-                                                width={10}
-                                                height={11}
-                                                viewBox="0 0 10 11"
-                                                fill="none"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-2.5 w-2.5"
-                                            >
-                                                <path
-                                                    d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                                    stroke="currentColor"
-                                                    strokeLinecap="square"
-                                                />
-                                            </svg>
-                                        </a>
-                                    </span>
-                                </li>
-                            </ul>
-                            <ul className="flex gap-3 text-sm leading-normal">
-                                <li>
-                                    <a
-                                        href="https://cloud.laravel.com"
-                                        target="_blank"
-                                        className="inline-block rounded-sm border border-black bg-[#1b1b18] px-5 py-1.5 text-sm leading-normal text-white hover:border-black hover:bg-black dark:border-[#eeeeec] dark:bg-[#eeeeec] dark:text-[#1C1C1A] dark:hover:border-white dark:hover:bg-white"
+
+                {/* ============================================================ HERO */}
+                <section className="relative z-10 overflow-hidden">
+                    {/* Hero photo — sits behind, fades into white from left to right */}
+                    <div className="bg-hero-photo pointer-events-none absolute inset-0 opacity-90" aria-hidden />
+                    <div className="relative mx-auto max-w-7xl px-6 pt-10 pb-20 lg:px-10 lg:pt-16 lg:pb-28">
+                    <div className="grid grid-cols-12 gap-6 lg:gap-10">
+                        {/* Marginalia — left rail */}
+                        <aside className="col-span-12 lg:col-span-2">
+                            <div className="font-mono-brand text-foreground/55 sticky top-8 space-y-3 text-[10px] tracking-[0.18em] uppercase">
+                                <div className="animate-brand-fade flex items-center gap-2">
+                                    <span className="bg-brand-pine inline-block h-1.5 w-1.5 animate-brand-pulse-ring rounded-full" />
+                                    <span>v 4.0 — 2026 edition</span>
+                                </div>
+                                <p className="text-foreground/75 max-w-[140px] leading-relaxed normal-case">
+                                    A studio for the people who run performance — not a tool that runs them.
+                                </p>
+                                <div className="text-foreground/40 dotted-divider h-1.5 w-full" />
+                                <p>Vol. 01 — Issue 02</p>
+                            </div>
+                        </aside>
+
+                        {/* Headline column */}
+                        <div className="col-span-12 lg:col-span-8">
+                            <div className="font-mono-brand text-brand-pine dark:text-brand-sand mb-6 flex items-center gap-3 text-[11px] tracking-[0.22em] uppercase">
+                                <span className="bg-brand-pine dark:bg-brand-sand inline-block h-px w-8" />
+                                <span>Performance Management · since 2024</span>
+                            </div>
+
+                            <h1 className="font-display text-balance animate-brand-rise text-[clamp(2.75rem,7.5vw,7rem)] leading-[0.92] font-light tracking-tight" style={{ animationDelay: '50ms' }}>
+                                Performance,{' '}
+                                <span className="text-brand-pine dark:text-brand-sand relative italic">
+                                    measured
+                                    <svg
+                                        viewBox="0 0 240 14"
+                                        className="absolute -bottom-2 left-0 w-full"
+                                        preserveAspectRatio="none"
+                                        aria-hidden
                                     >
-                                        Deploy now
-                                    </a>
-                                </li>
+                                        <path
+                                            d="M2 8 Q 60 -2 120 7 T 238 6"
+                                            stroke="var(--palette-sand)"
+                                            strokeWidth="3"
+                                            fill="none"
+                                            strokeLinecap="round"
+                                        />
+                                    </svg>
+                                </span>{' '}
+                                with care.
+                            </h1>
+
+                            <Reveal delay={150} variant="rise">
+                                <p className="text-foreground/75 mt-8 max-w-xl text-base leading-relaxed lg:text-lg">
+                                    A patient, evidence-led system for goals, feedback, calibration, and reviews. Built for
+                                    organisations that want appraisals people actually <em className="text-brand-pine dark:text-brand-sand">trust</em>.
+                                </p>
+                            </Reveal>
+
+                            <Reveal delay={300} variant="rise">
+                                <div className="mt-10 flex flex-wrap items-center gap-3">
+                                    <Button asChild size="xl" variant="default">
+                                        <Link href={auth.user ? route('dashboard') : route('login')}>
+                                            {auth.user ? 'Open your dashboard' : 'Begin a cycle'}
+                                            <MoveRight />
+                                        </Link>
+                                    </Button>
+                                    <Button asChild size="xl" variant="outline">
+                                        <a href="#cycle">See the method</a>
+                                    </Button>
+                                    <GetStartedPopover triggerVariant="inline" />
+                                </div>
+                            </Reveal>
+                        </div>
+
+                        {/* Rotating seal — right column */}
+                        <div className="col-span-12 lg:col-span-2">
+                            <div className="relative flex items-start justify-end">
+                                <div className="relative h-32 w-32 lg:h-36 lg:w-36">
+                                    <svg className="animate-brand-spin-slow absolute inset-0" viewBox="0 0 200 200">
+                                        <defs>
+                                            <path id="seal" d="M 100, 100 m -78, 0 a 78,78 0 1,1 156,0 a 78,78 0 1,1 -156,0" />
+                                        </defs>
+                                        <text
+                                            fontSize="11.5"
+                                            fill="var(--palette-ink)"
+                                            fontFamily="var(--font-mono)"
+                                            letterSpacing="4"
+                                        >
+                                            <textPath href="#seal">
+                                                EVIDENCE · CALIBRATION · GROWTH · TRUST · EVIDENCE · CALIBRATION · GROWTH · TRUST ·
+                                            </textPath>
+                                        </text>
+                                    </svg>
+                                    <div className="absolute inset-7 grid place-items-center rounded-full border border-foreground/15">
+                                        <Sparkles className="text-brand-pine dark:text-brand-sand h-6 w-6" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Stats strip */}
+                    <div id="metrics" className="border-foreground/15 mt-20 grid grid-cols-2 gap-y-10 border-t pt-10 lg:grid-cols-4 lg:gap-x-10">
+                        {stats.map((s, i) => (
+                            <Reveal key={s.label} delay={i * 120} variant="rise" className="group relative pl-5">
+                                <span className="bg-brand-sand absolute top-1 left-0 inline-block h-3 w-1" />
+                                <div className="font-display text-5xl leading-none font-light lg:text-6xl">{s.value}</div>
+                                <div className="font-mono-brand text-foreground/60 mt-3 text-[10px] tracking-[0.2em] uppercase">
+                                    No. 0{i + 1}
+                                </div>
+                                <div className="mt-1 text-[13px] font-medium">{s.label}</div>
+                                <div className="text-foreground/55 mt-1 text-[12px] leading-snug">{s.detail}</div>
+                            </Reveal>
+                        ))}
+                    </div>
+                    </div>
+                </section>
+
+                {/* ============================================================ TICKER */}
+                <section
+                    aria-hidden
+                    className="bg-brand-ink text-brand-cream dark:bg-brand-sand dark:text-brand-ink relative z-10 overflow-hidden border-y border-foreground/20 py-5"
+                >
+                    <div className="animate-brand-marquee flex w-max gap-12 whitespace-nowrap">
+                        {[...tickerItems, ...tickerItems, ...tickerItems, ...tickerItems].map((t, i) => (
+                            <div key={i} className="font-display flex items-center gap-12 text-2xl tracking-tight">
+                                <span
+                                    className={
+                                        i % 2 === 0
+                                            ? 'text-brand-cream dark:text-brand-ink'
+                                            : 'text-brand-sand italic dark:text-brand-pine'
+                                    }
+                                >
+                                    {t}
+                                </span>
+                                <span className="text-brand-sand dark:text-brand-pine">✦</span>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* ============================================================ MANIFESTO */}
+                <section id="manifesto" className="relative z-10 mx-auto max-w-7xl px-6 py-24 lg:px-10 lg:py-32">
+                    <div className="grid grid-cols-12 gap-6 lg:gap-10">
+                        <div className="col-span-12 lg:col-span-3">
+                            <div className="font-mono-brand text-foreground/60 text-[11px] tracking-[0.22em] uppercase">
+                                § Manifesto
+                            </div>
+                            <div className="bg-brand-sand mt-4 h-px w-12" />
+                            <p className="text-foreground/55 font-mono-brand mt-6 max-w-[200px] text-[11px] leading-relaxed">
+                                Three commitments. Held in tension. Never traded.
+                            </p>
+                        </div>
+                        <div className="col-span-12 lg:col-span-9">
+                            <Reveal variant="rise">
+                                <p className="font-display text-balance text-3xl leading-[1.15] font-light lg:text-[2.6rem]">
+                                    We believe a fair appraisal is the cheapest thing an organisation can give its people —
+                                    and the most expensive thing to do badly. So we built a system that{' '}
+                                    <span className="text-brand-pine dark:text-brand-sand italic">refuses to forget</span>, refuses to flatter,
+                                    and refuses to be in a hurry.
+                                </p>
+                            </Reveal>
+
+                            <div className="border-foreground/15 mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-md border bg-foreground/15 md:grid-cols-3">
+                                {[
+                                    {
+                                        n: 'I',
+                                        t: 'Evidence over recall',
+                                        c: 'Performance is the ledger, not the last conversation. We capture it as it happens.',
+                                    },
+                                    {
+                                        n: 'II',
+                                        t: 'Calibrate before crowning',
+                                        c: 'Ratings without calibration are vanity. We make calibration the default, not the exception.',
+                                    },
+                                    {
+                                        n: 'III',
+                                        t: 'Growth is the goal',
+                                        c: 'Reviews end. Development plans continue. We treat appraisals as a beginning, not a verdict.',
+                                    },
+                                ].map((m, i) => (
+                                    <Reveal key={m.n} delay={i * 140} variant="rise" className="bg-card relative p-8">
+                                        <div className="font-display text-brand-sand text-7xl leading-none font-light">
+                                            {m.n}
+                                        </div>
+                                        <div className="font-display mt-6 text-xl">{m.t}</div>
+                                        <p className="text-foreground/65 mt-3 text-[13px] leading-relaxed">{m.c}</p>
+                                    </Reveal>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ============================================================ CYCLE INFOGRAPHIC */}
+                <section id="cycle" className="bg-cycle-photo relative z-10 overflow-hidden border-y border-foreground/15">
+                    <div className="bg-blueprint pointer-events-none absolute inset-0 opacity-50" aria-hidden />
+                    <div className="relative mx-auto max-w-7xl px-6 py-24 lg:px-10 lg:py-32">
+                        <div className="grid grid-cols-12 gap-6 lg:gap-10">
+                            <div className="col-span-12 lg:col-span-4">
+                                <div className="font-mono-brand text-foreground/60 text-[11px] tracking-[0.22em] uppercase">
+                                    § The Cycle
+                                </div>
+                                <h2 className="font-display text-balance mt-4 text-5xl leading-[0.95] font-light lg:text-6xl">
+                                    A four-act method.
+                                </h2>
+                                <p className="text-foreground/70 mt-6 max-w-md leading-relaxed">
+                                    Performance is rarely an event. We treat the cycle as a loop — each act feeding the
+                                    next, no act skipped, no act rushed.
+                                </p>
+                                <div className="mt-10 hidden lg:block">
+                                    <CycleDiagram />
+                                </div>
+                            </div>
+
+                            <div className="col-span-12 lg:col-span-8">
+                                <ol className="relative space-y-px overflow-hidden rounded-lg border border-foreground/15 bg-foreground/15">
+                                    {cycleSteps.map((step, i) => (
+                                        <Reveal
+                                            as="li"
+                                            key={step.index}
+                                            delay={i * 130}
+                                            variant="slide-right"
+                                            className="bg-card group relative grid grid-cols-12 gap-4 p-6 lg:p-8"
+                                        >
+                                            <div className="col-span-2 lg:col-span-1">
+                                                <span
+                                                    className="font-display block text-4xl leading-none font-light lg:text-5xl"
+                                                    style={{ color: step.accent }}
+                                                >
+                                                    {step.index}
+                                                </span>
+                                            </div>
+                                            <div className="col-span-9 lg:col-span-9">
+                                                <div className="flex items-center gap-3">
+                                                    <step.icon className="text-foreground h-5 w-5" />
+                                                    <h3 className="font-display text-2xl lg:text-3xl">{step.title}</h3>
+                                                </div>
+                                                <p className="text-foreground/70 mt-3 max-w-xl text-[14px] leading-relaxed">
+                                                    {step.copy}
+                                                </p>
+                                            </div>
+                                            <div className="col-span-1 flex items-start justify-end">
+                                                <ArrowUpRight
+                                                    className="text-foreground/30 group-hover:text-brand-pine dark:group-hover:text-brand-sand h-5 w-5 transition-all group-hover:rotate-12"
+                                                />
+                                            </div>
+                                            {i < cycleSteps.length - 1 && (
+                                                <div
+                                                    aria-hidden
+                                                    className="absolute right-8 bottom-0 h-3 w-px translate-y-1/2 bg-foreground/30"
+                                                />
+                                            )}
+                                        </Reveal>
+                                    ))}
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ============================================================ CHARTS / DATA */}
+                <section className="relative z-10 mx-auto max-w-7xl px-6 py-24 lg:px-10 lg:py-32">
+                    <div className="mb-14 grid grid-cols-12 items-end gap-6 lg:gap-10">
+                        <div className="col-span-12 lg:col-span-8">
+                            <div className="font-mono-brand text-foreground/60 text-[11px] tracking-[0.22em] uppercase">
+                                § Read the room
+                            </div>
+                            <h2 className="font-display text-balance mt-4 text-5xl leading-[0.95] font-light lg:text-6xl">
+                                Numbers, kept honest.
+                            </h2>
+                        </div>
+                        <div className="col-span-12 lg:col-span-4">
+                            <p className="text-foreground/70 leading-relaxed">
+                                Live dashboards for executives, managers, and individual contributors — each cut from
+                                the same source of truth.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-4 lg:gap-6">
+                        {/* Performance trend */}
+                        <Reveal variant="slide-right" className="bg-card relative col-span-12 overflow-hidden rounded-xl border border-foreground/12 p-6 lg:col-span-8 lg:p-8">
+                            <div className="mb-4 flex items-start justify-between">
+                                <div>
+                                    <div className="font-mono-brand text-foreground/60 text-[10px] tracking-[0.2em] uppercase">
+                                        Fig. 01 — Trend
+                                    </div>
+                                    <div className="font-display mt-2 text-2xl">Organisation-wide performance index</div>
+                                </div>
+                                <div className="border-brand-pine/40 bg-brand-pine/10 text-brand-pine dark:border-brand-sand/50 dark:bg-brand-sand/15 dark:text-brand-sand flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs">
+                                    <TrendingUp className="h-3.5 w-3.5" />
+                                    <span className="font-medium">+22 pts YTD</span>
+                                </div>
+                            </div>
+                            <div className="-mx-2 h-64">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={performanceTrend} margin={{ top: 10, right: 8, left: 8, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="barFill" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="var(--palette-sand)" stopOpacity={1} />
+                                                <stop offset="100%" stopColor="var(--palette-sand)" stopOpacity={0.55} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid stroke="var(--palette-ink)" strokeOpacity={0.06} vertical={false} />
+                                        <XAxis
+                                            dataKey="month"
+                                            stroke="var(--palette-ink)"
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tick={{ fontSize: 11, fill: 'var(--palette-ink)', opacity: 0.65 }}
+                                        />
+                                        <Bar dataKey="score" fill="url(#barFill)" radius={[4, 4, 0, 0]} maxBarSize={42} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="font-mono-brand text-foreground/55 mt-2 flex items-center gap-3 text-[10px] tracking-[0.18em] uppercase">
+                                <span>Jan → Aug 2026</span>
+                                <span className="dotted-divider h-px flex-1 text-foreground/30" />
+                                <span>n = 1,284</span>
+                            </div>
+                        </Reveal>
+
+                        {/* Values pie */}
+                        <Reveal delay={120} variant="slide-left" className="bg-card relative col-span-12 overflow-hidden rounded-xl border border-foreground/12 p-6 lg:col-span-4 lg:p-8">
+                            <div className="font-mono-brand text-foreground/60 text-[10px] tracking-[0.2em] uppercase">
+                                Fig. 02 — Mix
+                            </div>
+                            <div className="font-display mt-2 text-2xl">Values weighting</div>
+
+                            <div className="relative h-44">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={competencyMix}
+                                            innerRadius={48}
+                                            outerRadius={74}
+                                            paddingAngle={2}
+                                            dataKey="value"
+                                            stroke="var(--palette-cream)"
+                                            strokeWidth={2}
+                                        >
+                                            {competencyMix.map((_, i) => (
+                                                <Cell key={i} fill={competencyColors[i]} />
+                                            ))}
+                                        </Pie>
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                                    <div className="text-center">
+                                        <div className="font-display text-3xl leading-none">04</div>
+                                        <div className="font-mono-brand text-foreground/60 mt-0.5 text-[9px] tracking-[0.2em] uppercase">
+                                            pillars
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <ul className="mt-2 space-y-1.5">
+                                {competencyMix.map((c, i) => (
+                                    <li key={c.name} className="flex items-center justify-between text-[12px]">
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className="inline-block h-2.5 w-2.5 rounded-sm"
+                                                style={{ background: competencyColors[i] }}
+                                            />
+                                            <span>{c.name}</span>
+                                        </div>
+                                        <span className="font-mono-brand text-foreground/70">{c.value}%</span>
+                                    </li>
+                                ))}
                             </ul>
+                        </Reveal>
+
+                        {/* Inline KPI cards */}
+                        <Reveal variant="zoom" className="bg-brand-ink text-brand-cream dark:border dark:border-brand-sand/30 relative col-span-12 overflow-hidden rounded-xl p-6 md:col-span-6 lg:col-span-4 lg:p-8">
+                            <div className="bg-brand-sand/10 absolute -top-12 -right-12 h-40 w-40 rounded-full blur-2xl" />
+                            <div className="font-mono-brand text-brand-cream/60 relative text-[10px] tracking-[0.2em] uppercase">
+                                Fig. 03 — Snapshot
+                            </div>
+                            <div className="font-display relative mt-4 text-6xl leading-none font-light">
+                                <span className="text-brand-sand">87</span>
+                                <span className="text-brand-cream/40 text-3xl">/100</span>
+                            </div>
+                            <p className="text-brand-cream/70 mt-3 text-[13px]">
+                                Median engagement score this cycle. Up from 78 last quarter.
+                            </p>
+                            <div className="relative mt-6 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                                <div className="bg-brand-sand h-full w-[87%] rounded-full" />
+                            </div>
+                        </Reveal>
+
+                        {/* Goal completion */}
+                        <Reveal delay={120} variant="zoom" className="bg-brand-pine text-brand-cream relative col-span-12 overflow-hidden rounded-xl p-6 md:col-span-6 lg:col-span-4 lg:p-8">
+                            <div className="font-mono-brand text-brand-cream/60 text-[10px] tracking-[0.2em] uppercase">
+                                Fig. 04 — Goals
+                            </div>
+                            <div className="font-display mt-4 text-4xl leading-none">312 of 348</div>
+                            <p className="text-brand-cream/75 mt-2 text-[13px]">objectives closed on time this cycle</p>
+                            <div className="mt-5 grid grid-cols-12 gap-1">
+                                {Array.from({ length: 24 }).map((_, i) => (
+                                    <span
+                                        key={i}
+                                        className={`h-3 rounded-sm ${i < 21 ? 'bg-brand-sand' : 'bg-white/20'}`}
+                                    />
+                                ))}
+                            </div>
+                            <div className="font-mono-brand text-brand-cream/70 mt-3 flex items-center justify-between text-[10px] tracking-[0.18em] uppercase">
+                                <span>89% completion</span>
+                                <span>Q2 · 2026</span>
+                            </div>
+                        </Reveal>
+
+                        {/* Feedback velocity */}
+                        <Reveal delay={240} variant="zoom" className="bg-card relative col-span-12 overflow-hidden rounded-xl border border-foreground/12 p-6 md:col-span-12 lg:col-span-4 lg:p-8">
+                            <div className="font-mono-brand text-foreground/60 text-[10px] tracking-[0.2em] uppercase">
+                                Fig. 05 — Velocity
+                            </div>
+                            <div className="font-display mt-4 text-4xl leading-none">2,140</div>
+                            <p className="text-foreground/65 mt-2 text-[13px]">pieces of feedback exchanged this month</p>
+                            <div className="mt-6 flex h-16 items-end gap-1.5">
+                                {[8, 14, 11, 18, 22, 16, 26, 30, 24, 33, 28, 41].map((h, i) => (
+                                    <div
+                                        key={i}
+                                        className="bg-brand-rust/70 hover:bg-brand-rust flex-1 rounded-t-sm transition-all"
+                                        style={{ height: `${(h / 41) * 100}%` }}
+                                    />
+                                ))}
+                            </div>
+                            <div className="font-mono-brand text-foreground/55 mt-3 flex items-center justify-between text-[10px] tracking-[0.18em] uppercase">
+                                <span>last 12 weeks</span>
+                                <span className="text-brand-rust">+38%</span>
+                            </div>
+                        </Reveal>
+                    </div>
+                </section>
+
+                {/* ============================================================ FEATURES */}
+                <section id="features" className="bg-feature-photo relative z-10 overflow-hidden border-y border-foreground/10">
+                    <div className="bg-dots pointer-events-none absolute inset-0 opacity-40" aria-hidden />
+                    <div className="relative mx-auto max-w-7xl px-6 py-24 lg:px-10 lg:py-28">
+                    <div className="mb-14 grid grid-cols-12 gap-6 lg:gap-10">
+                        <div className="col-span-12 lg:col-span-6">
+                            <div className="font-mono-brand text-foreground/60 flex items-center gap-3 text-[11px] tracking-[0.22em] uppercase">
+                                <span>§ The Studio</span>
+                                <InlineHint
+                                    title="What's in here?"
+                                    body="Six surface-level pillars — open the dashboard to see configuration depth, plugins, and integrations."
+                                />
+                            </div>
+                            <h2 className="font-display text-balance mt-4 text-5xl leading-[0.95] font-light lg:text-6xl">
+                                Everything an HR team needs — nothing they don't.
+                            </h2>
                         </div>
-                        <div className="relative -mb-px aspect-[335/376] w-full shrink-0 overflow-hidden rounded-t-lg bg-[#fff2f2] lg:mb-0 lg:-ml-px lg:aspect-auto lg:w-[438px] lg:rounded-t-none lg:rounded-r-lg dark:bg-[#1D0002]">
-                            <svg
-                                className="w-full max-w-none translate-y-0 text-[#F53003] opacity-100 transition-all duration-750 dark:text-[#F61500] starting:translate-y-6 starting:opacity-0"
-                                viewBox="0 0 438 104"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path d="M17.2036 -3H0V102.197H49.5189V86.7187H17.2036V-3Z" fill="currentColor" />
-                                <path
-                                    d="M110.256 41.6337C108.061 38.1275 104.945 35.3731 100.905 33.3681C96.8667 31.3647 92.8016 30.3618 88.7131 30.3618C83.4247 30.3618 78.5885 31.3389 74.201 33.2923C69.8111 35.2456 66.0474 37.928 62.9059 41.3333C59.7643 44.7401 57.3198 48.6726 55.5754 53.1293C53.8287 57.589 52.9572 62.274 52.9572 67.1813C52.9572 72.1925 53.8287 76.8995 55.5754 81.3069C57.3191 85.7173 59.7636 89.6241 62.9059 93.0293C66.0474 96.4361 69.8119 99.1155 74.201 101.069C78.5885 103.022 83.4247 103.999 88.7131 103.999C92.8016 103.999 96.8667 102.997 100.905 100.994C104.945 98.9911 108.061 96.2359 110.256 92.7282V102.195H126.563V32.1642H110.256V41.6337ZM108.76 75.7472C107.762 78.4531 106.366 80.8078 104.572 82.8112C102.776 84.8161 100.606 86.4183 98.0637 87.6206C95.5202 88.823 92.7004 89.4238 89.6103 89.4238C86.5178 89.4238 83.7252 88.823 81.2324 87.6206C78.7388 86.4183 76.5949 84.8161 74.7998 82.8112C73.004 80.8078 71.6319 78.4531 70.6856 75.7472C69.7356 73.0421 69.2644 70.1868 69.2644 67.1821C69.2644 64.1758 69.7356 61.3205 70.6856 58.6154C71.6319 55.9102 73.004 53.5571 74.7998 51.5522C76.5949 49.5495 78.738 47.9451 81.2324 46.7427C83.7252 45.5404 86.5178 44.9396 89.6103 44.9396C92.7012 44.9396 95.5202 45.5404 98.0637 46.7427C100.606 47.9451 102.776 49.5487 104.572 51.5522C106.367 53.5571 107.762 55.9102 108.76 58.6154C109.756 61.3205 110.256 64.1758 110.256 67.1821C110.256 70.1868 109.756 73.0421 108.76 75.7472Z"
-                                    fill="currentColor"
-                                />
-                                <path
-                                    d="M242.805 41.6337C240.611 38.1275 237.494 35.3731 233.455 33.3681C229.416 31.3647 225.351 30.3618 221.262 30.3618C215.974 30.3618 211.138 31.3389 206.75 33.2923C202.36 35.2456 198.597 37.928 195.455 41.3333C192.314 44.7401 189.869 48.6726 188.125 53.1293C186.378 57.589 185.507 62.274 185.507 67.1813C185.507 72.1925 186.378 76.8995 188.125 81.3069C189.868 85.7173 192.313 89.6241 195.455 93.0293C198.597 96.4361 202.361 99.1155 206.75 101.069C211.138 103.022 215.974 103.999 221.262 103.999C225.351 103.999 229.416 102.997 233.455 100.994C237.494 98.9911 240.611 96.2359 242.805 92.7282V102.195H259.112V32.1642H242.805V41.6337ZM241.31 75.7472C240.312 78.4531 238.916 80.8078 237.122 82.8112C235.326 84.8161 233.156 86.4183 230.614 87.6206C228.07 88.823 225.251 89.4238 222.16 89.4238C219.068 89.4238 216.275 88.823 213.782 87.6206C211.289 86.4183 209.145 84.8161 207.35 82.8112C205.554 80.8078 204.182 78.4531 203.236 75.7472C202.286 73.0421 201.814 70.1868 201.814 67.1821C201.814 64.1758 202.286 61.3205 203.236 58.6154C204.182 55.9102 205.554 53.5571 207.35 51.5522C209.145 49.5495 211.288 47.9451 213.782 46.7427C216.275 45.5404 219.068 44.9396 222.16 44.9396C225.251 44.9396 228.07 45.5404 230.614 46.7427C233.156 47.9451 235.326 49.5487 237.122 51.5522C238.917 53.5571 240.312 55.9102 241.31 58.6154C242.306 61.3205 242.806 64.1758 242.806 67.1821C242.805 70.1868 242.305 73.0421 241.31 75.7472Z"
-                                    fill="currentColor"
-                                />
-                                <path d="M438 -3H421.694V102.197H438V-3Z" fill="currentColor" />
-                                <path d="M139.43 102.197H155.735V48.2834H183.712V32.1665H139.43V102.197Z" fill="currentColor" />
-                                <path
-                                    d="M324.49 32.1665L303.995 85.794L283.498 32.1665H266.983L293.748 102.197H314.242L341.006 32.1665H324.49Z"
-                                    fill="currentColor"
-                                />
-                                <path
-                                    d="M376.571 30.3656C356.603 30.3656 340.797 46.8497 340.797 67.1828C340.797 89.6597 356.094 104 378.661 104C391.29 104 399.354 99.1488 409.206 88.5848L398.189 80.0226C398.183 80.031 389.874 90.9895 377.468 90.9895C363.048 90.9895 356.977 79.3111 356.977 73.269H411.075C413.917 50.1328 398.775 30.3656 376.571 30.3656ZM357.02 61.0967C357.145 59.7487 359.023 43.3761 376.442 43.3761C393.861 43.3761 395.978 59.7464 396.099 61.0967H357.02Z"
-                                    fill="currentColor"
-                                />
-                            </svg>
-                            <svg
-                                className="relative -mt-[4.9rem] -ml-8 w-[448px] max-w-none lg:-mt-[6.6rem] lg:ml-0 dark:hidden"
-                                viewBox="0 0 440 376"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <g className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0">
-                                    <path
-                                        d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                        fill="black"
-                                    />
-                                    <path
-                                        d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                        fill="black"
-                                    />
-                                    <path
-                                        d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                        fill="#F8B803"
-                                    />
-                                    <path
-                                        d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                        fill="#F8B803"
-                                    />
-                                    <path
-                                        d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                >
-                                    <path
-                                        d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                        fill="#F0ACB8"
-                                    />
-                                    <path
-                                        d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                        fill="#F0ACB8"
-                                    />
-                                    <path
-                                        d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g
-                                    style={{ mixBlendMode: 'lighten' }}
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                >
-                                    <path
-                                        d="M230.951 281.792L231.282 281.793C238.128 274.907 248.453 265.823 262.256 254.539C275.617 243.256 285.666 234.267 292.402 227.573C299.027 220.688 303.554 213.421 305.983 205.771C308.412 198.12 307.253 190.183 302.504 181.959C297.203 172.778 289.749 165.415 280.142 159.868C270.645 154.13 260.596 151.26 249.995 151.26C239.615 151.26 232.823 154.033 229.621 159.579C226.309 164.934 227.413 172.393 232.935 181.956L168.335 181.954C159.058 165.888 155.082 151.543 156.407 138.92C157.953 126.298 164.247 116.544 175.289 109.659C186.442 102.583 201.294 99.045 219.846 99.0457C239.281 99.0464 258.551 102.585 277.655 109.663C296.649 116.549 313.986 126.303 329.667 138.927C345.349 151.551 357.827 165.895 367.104 181.961C375.718 196.88 379.528 209.981 378.535 221.265C377.762 232.549 374.063 242.399 367.438 250.814C361.033 259.229 351.095 269.557 337.624 281.796L419.782 281.8L448.605 331.719L259.774 331.712L230.951 281.792Z"
-                                        fill="#F3BEC7"
-                                    />
-                                    <path
-                                        d="M51.8063 152.402L28.9479 152.401L-0.0411453 102.195L85.7608 102.198L218.282 331.711L155.339 331.709L51.8063 152.402Z"
-                                        fill="#F3BEC7"
-                                    />
-                                    <path
-                                        d="M230.951 281.792L231.282 281.793C238.128 274.907 248.453 265.823 262.256 254.539C275.617 243.256 285.666 234.267 292.402 227.573C299.027 220.688 303.554 213.421 305.983 205.771C308.412 198.12 307.253 190.183 302.504 181.959C297.203 172.778 289.749 165.415 280.142 159.868C270.645 154.13 260.596 151.26 249.995 151.26C239.615 151.26 232.823 154.033 229.621 159.579C226.309 164.934 227.413 172.393 232.935 181.956L168.335 181.954C159.058 165.888 155.082 151.543 156.407 138.92C157.953 126.298 164.247 116.544 175.289 109.659C186.442 102.583 201.294 99.045 219.846 99.0457C239.281 99.0464 258.551 102.585 277.655 109.663C296.649 116.549 313.986 126.303 329.667 138.927C345.349 151.551 357.827 165.895 367.104 181.961C375.718 196.88 379.528 209.981 378.535 221.265C377.762 232.549 374.063 242.399 367.438 250.814C361.033 259.229 351.095 269.557 337.624 281.796L419.782 281.8L448.605 331.719L259.774 331.712L230.951 281.792Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M51.8063 152.402L28.9479 152.401L-0.0411453 102.195L85.7608 102.198L218.282 331.711L155.339 331.709L51.8063 152.402Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0">
-                                    <path
-                                        d="M188.467 355.363L188.798 355.363C195.644 348.478 205.969 339.393 219.772 328.11C233.133 316.826 243.181 307.837 249.917 301.144C253.696 297.217 256.792 293.166 259.205 288.991C261.024 285.845 262.455 282.628 263.499 279.341C265.928 271.691 264.768 263.753 260.02 255.529C254.719 246.349 247.265 238.985 237.657 233.438C228.16 227.7 218.111 224.831 207.51 224.83C197.13 224.83 190.339 227.603 187.137 233.149C183.824 238.504 184.929 245.963 190.45 255.527L125.851 255.524C116.574 239.458 112.598 225.114 113.923 212.491C114.615 206.836 116.261 201.756 118.859 197.253C122.061 191.704 126.709 187.03 132.805 183.229C143.958 176.153 158.81 172.615 177.362 172.616C196.797 172.617 216.067 176.156 235.171 183.233C254.164 190.119 271.502 199.874 287.183 212.497C302.864 225.121 315.343 239.466 324.62 255.532C333.233 270.45 337.044 283.551 336.05 294.835C335.46 303.459 333.16 311.245 329.151 318.194C327.915 320.337 326.515 322.4 324.953 324.384C318.549 332.799 308.611 343.127 295.139 355.367L377.297 355.37L406.121 405.289L217.29 405.282L188.467 355.363Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M9.32197 225.972L-13.5365 225.971L-42.5255 175.765L43.2765 175.768L175.798 405.282L112.854 405.279L9.32197 225.972Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M345.247 111.915C329.566 99.2919 312.229 89.5371 293.235 82.6512L235.167 183.228C254.161 190.114 271.498 199.869 287.179 212.492L345.247 111.915Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M382.686 154.964C373.41 138.898 360.931 124.553 345.25 111.93L287.182 212.506C302.863 225.13 315.342 239.475 324.618 255.541L382.686 154.964Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M293.243 82.6472C274.139 75.57 254.869 72.031 235.434 72.0303L177.366 172.607C196.801 172.608 216.071 176.147 235.175 183.224L293.243 82.6472Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M394.118 194.257C395.112 182.973 391.301 169.872 382.688 154.953L324.619 255.53C333.233 270.448 337.044 283.55 336.05 294.834L394.118 194.257Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M235.432 72.0311C216.88 72.0304 202.027 75.5681 190.875 82.6442L132.806 183.221C143.959 176.145 158.812 172.607 177.363 172.608L235.432 72.0311Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M265.59 124.25C276.191 124.251 286.24 127.12 295.737 132.858L237.669 233.435C228.172 227.697 218.123 224.828 207.522 224.827L265.59 124.25Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M295.719 132.859C305.326 138.406 312.78 145.77 318.081 154.95L260.013 255.527C254.712 246.347 247.258 238.983 237.651 233.436L295.719 132.859Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M387.218 217.608C391.227 210.66 393.527 202.874 394.117 194.25L336.049 294.827C335.459 303.451 333.159 311.237 329.15 318.185L387.218 217.608Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M245.211 132.577C248.413 127.03 255.204 124.257 265.584 124.258L207.516 224.835C197.136 224.834 190.345 227.607 187.143 233.154L245.211 132.577Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M318.094 154.945C322.842 163.17 324.002 171.107 321.573 178.757L263.505 279.334C265.934 271.684 264.774 263.746 260.026 255.522L318.094 154.945Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M176.925 96.6737C180.127 91.1249 184.776 86.4503 190.871 82.6499L132.803 183.227C126.708 187.027 122.059 191.702 118.857 197.25L176.925 96.6737Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M387.226 217.606C385.989 219.749 384.59 221.813 383.028 223.797L324.96 324.373C326.522 322.39 327.921 320.326 329.157 318.183L387.226 217.606Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M317.269 188.408C319.087 185.262 320.519 182.045 321.562 178.758L263.494 279.335C262.451 282.622 261.019 285.839 259.201 288.985L317.269 188.408Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M245.208 132.573C241.895 137.928 243 145.387 248.522 154.95L190.454 255.527C184.932 245.964 183.827 238.505 187.14 233.15L245.208 132.573Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M176.93 96.6719C174.331 101.175 172.686 106.255 171.993 111.91L113.925 212.487C114.618 206.831 116.263 201.752 118.862 197.249L176.93 96.6719Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M317.266 188.413C314.853 192.589 311.757 196.64 307.978 200.566L249.91 301.143C253.689 297.216 256.785 293.166 259.198 288.99L317.266 188.413Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M464.198 304.708L435.375 254.789L377.307 355.366L406.13 405.285L464.198 304.708Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M353.209 254.787C366.68 242.548 376.618 232.22 383.023 223.805L324.955 324.382C318.55 332.797 308.612 343.124 295.141 355.364L353.209 254.787Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M435.37 254.787L353.212 254.784L295.144 355.361L377.302 355.364L435.37 254.787Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M183.921 154.947L248.521 154.95L190.453 255.527L125.853 255.524L183.921 154.947Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M171.992 111.914C170.668 124.537 174.643 138.881 183.92 154.947L125.852 255.524C116.575 239.458 112.599 225.114 113.924 212.491L171.992 111.914Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M307.987 200.562C301.251 207.256 291.203 216.244 277.842 227.528L219.774 328.105C233.135 316.821 243.183 307.832 249.919 301.139L307.987 200.562Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M15.5469 75.1797L44.5359 125.386L-13.5321 225.963L-42.5212 175.756L15.5469 75.1797Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M277.836 227.536C264.033 238.82 253.708 247.904 246.862 254.789L188.794 355.366C195.64 348.481 205.965 339.397 219.768 328.113L277.836 227.536Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M275.358 304.706L464.189 304.713L406.12 405.29L217.29 405.283L275.358 304.706Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M44.5279 125.39L67.3864 125.39L9.31834 225.967L-13.5401 225.966L44.5279 125.39Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M101.341 75.1911L233.863 304.705L175.795 405.282L43.2733 175.768L101.341 75.1911ZM15.5431 75.19L-42.525 175.767L43.277 175.77L101.345 75.1932L15.5431 75.19Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M246.866 254.784L246.534 254.784L188.466 355.361L188.798 355.361L246.866 254.784Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M246.539 254.781L275.362 304.701L217.294 405.277L188.471 355.358L246.539 254.781Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M67.3906 125.391L170.923 304.698L112.855 405.275L9.32257 225.967L67.3906 125.391Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M170.921 304.699L233.865 304.701L175.797 405.278L112.853 405.276L170.921 304.699Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                </g>
-                                <g
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                >
-                                    <path
-                                        d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                        fill="#F0ACB8"
-                                    />
-                                    <path
-                                        d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                        strokeLinejoin="round"
-                                    />
-                                </g>
-                                <g
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                >
-                                    <path
-                                        d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                        fill="#F0ACB8"
-                                    />
-                                    <path
-                                        d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                        stroke="#1B1B18"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                            </svg>
-                            <svg
-                                className="relative -mt-[4.9rem] -ml-8 hidden w-[448px] max-w-none lg:-mt-[6.6rem] lg:ml-0 dark:block"
-                                viewBox="0 0 440 376"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <g className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0">
-                                    <path
-                                        d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                        fill="black"
-                                    />
-                                    <path
-                                        d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                        fill="black"
-                                    />
-                                    <path
-                                        d="M188.263 355.73L188.595 355.73C195.441 348.845 205.766 339.761 219.569 328.477C232.93 317.193 242.978 308.205 249.714 301.511C256.34 294.626 260.867 287.358 263.296 279.708C265.725 272.058 264.565 264.121 259.816 255.896C254.516 246.716 247.062 239.352 237.454 233.805C227.957 228.067 217.908 225.198 207.307 225.198C196.927 225.197 190.136 227.97 186.934 233.516C183.621 238.872 184.726 246.331 190.247 255.894L125.647 255.891C116.371 239.825 112.395 225.481 113.72 212.858C115.265 200.235 121.559 190.481 132.602 183.596C143.754 176.52 158.607 172.982 177.159 172.983C196.594 172.984 215.863 176.523 234.968 183.6C253.961 190.486 271.299 200.241 286.98 212.864C302.661 225.488 315.14 239.833 324.416 255.899C333.03 270.817 336.841 283.918 335.847 295.203C335.075 306.487 331.376 316.336 324.75 324.751C318.346 333.167 308.408 343.494 294.936 355.734L377.094 355.737L405.917 405.656L217.087 405.649L188.263 355.73Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M9.11884 226.339L-13.7396 226.338L-42.7286 176.132L43.0733 176.135L175.595 405.649L112.651 405.647L9.11884 226.339Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                        fill="#391800"
-                                    />
-                                    <path
-                                        d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                        fill="#391800"
-                                    />
-                                    <path
-                                        d="M204.592 327.449L204.923 327.449C211.769 320.564 222.094 311.479 235.897 300.196C249.258 288.912 259.306 279.923 266.042 273.23C272.668 266.345 277.195 259.077 279.624 251.427C282.053 243.777 280.893 235.839 276.145 227.615C270.844 218.435 263.39 211.071 253.782 205.524C244.285 199.786 234.236 196.917 223.635 196.916C213.255 196.916 206.464 199.689 203.262 205.235C199.949 210.59 201.054 218.049 206.575 227.612L141.975 227.61C132.699 211.544 128.723 197.2 130.048 184.577C131.593 171.954 137.887 162.2 148.93 155.315C160.083 148.239 174.935 144.701 193.487 144.702C212.922 144.703 232.192 148.242 251.296 155.319C270.289 162.205 287.627 171.96 303.308 184.583C318.989 197.207 331.468 211.552 340.745 227.618C349.358 242.536 353.169 255.637 352.175 266.921C351.403 278.205 347.704 288.055 341.078 296.47C334.674 304.885 324.736 315.213 311.264 327.453L393.422 327.456L422.246 377.375L233.415 377.368L204.592 327.449Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M25.447 198.058L2.58852 198.057L-26.4005 147.851L59.4015 147.854L191.923 377.368L128.979 377.365L25.447 198.058Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                >
-                                    <path
-                                        d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                        fill="#733000"
-                                    />
-                                    <path
-                                        d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                        fill="#733000"
-                                    />
-                                    <path
-                                        d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.725 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0">
-                                    <path
-                                        d="M217.342 305.363L217.673 305.363C224.519 298.478 234.844 289.393 248.647 278.11C262.008 266.826 272.056 257.837 278.792 251.144C285.418 244.259 289.945 236.991 292.374 229.341C294.803 221.691 293.643 213.753 288.895 205.529C283.594 196.349 276.14 188.985 266.532 183.438C257.035 177.7 246.986 174.831 236.385 174.83C226.005 174.83 219.214 177.603 216.012 183.149C212.699 188.504 213.804 195.963 219.325 205.527L154.726 205.524C145.449 189.458 141.473 175.114 142.798 162.491C144.343 149.868 150.637 140.114 161.68 133.229C172.833 126.153 187.685 122.615 206.237 122.616C225.672 122.617 244.942 126.156 264.046 133.233C283.039 140.119 300.377 149.874 316.058 162.497C331.739 175.121 344.218 189.466 353.495 205.532C362.108 220.45 365.919 233.551 364.925 244.835C364.153 256.12 360.454 265.969 353.828 274.384C347.424 282.799 337.486 293.127 324.014 305.367L406.172 305.37L434.996 355.289L246.165 355.282L217.342 305.363Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                    <path
-                                        d="M38.197 175.972L15.3385 175.971L-13.6505 125.765L72.1515 125.768L204.673 355.282L141.729 355.279L38.197 175.972Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                                <g className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0">
-                                    <path
-                                        d="M188.467 355.363L188.798 355.363C195.644 348.478 205.969 339.393 219.772 328.11C233.133 316.826 243.181 307.837 249.917 301.144C253.696 297.217 256.792 293.166 259.205 288.991C261.024 285.845 262.455 282.628 263.499 279.341C265.928 271.691 264.768 263.753 260.02 255.529C254.719 246.349 247.265 238.985 237.657 233.438C228.16 227.7 218.111 224.831 207.51 224.83C197.13 224.83 190.339 227.603 187.137 233.149C183.824 238.504 184.929 245.963 190.45 255.527L125.851 255.524C116.574 239.458 112.598 225.114 113.923 212.491C114.615 206.836 116.261 201.756 118.859 197.253C122.061 191.704 126.709 187.03 132.805 183.229C143.958 176.153 158.81 172.615 177.362 172.616C196.797 172.617 216.067 176.156 235.171 183.233C254.164 190.119 271.502 199.874 287.183 212.497C302.864 225.121 315.343 239.466 324.62 255.532C333.233 270.45 337.044 283.551 336.05 294.835C335.46 303.459 333.16 311.245 329.151 318.194C327.915 320.337 326.515 322.4 324.953 324.384C318.549 332.799 308.611 343.127 295.139 355.367L377.297 355.37L406.121 405.289L217.29 405.282L188.467 355.363Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M9.32197 225.972L-13.5365 225.971L-42.5255 175.765L43.2765 175.768L175.798 405.282L112.854 405.279L9.32197 225.972Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M345.247 111.915C329.566 99.2919 312.229 89.5371 293.235 82.6512L235.167 183.228C254.161 190.114 271.498 199.869 287.179 212.492L345.247 111.915Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M382.686 154.964C373.41 138.898 360.931 124.553 345.25 111.93L287.182 212.506C302.863 225.13 315.342 239.475 324.618 255.541L382.686 154.964Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M293.243 82.6472C274.139 75.57 254.869 72.031 235.434 72.0303L177.366 172.607C196.801 172.608 216.071 176.147 235.175 183.224L293.243 82.6472Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M394.118 194.257C395.112 182.973 391.301 169.872 382.688 154.953L324.619 255.53C333.233 270.448 337.044 283.55 336.05 294.834L394.118 194.257Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M235.432 72.0311C216.88 72.0304 202.027 75.5681 190.875 82.6442L132.806 183.221C143.959 176.145 158.812 172.607 177.363 172.608L235.432 72.0311Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M265.59 124.25C276.191 124.251 286.24 127.12 295.737 132.858L237.669 233.435C228.172 227.697 218.123 224.828 207.522 224.827L265.59 124.25Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M295.719 132.859C305.326 138.406 312.78 145.77 318.081 154.95L260.013 255.527C254.712 246.347 247.258 238.983 237.651 233.436L295.719 132.859Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M387.218 217.608C391.227 210.66 393.527 202.874 394.117 194.25L336.049 294.827C335.459 303.451 333.159 311.237 329.15 318.185L387.218 217.608Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M245.211 132.577C248.413 127.03 255.204 124.257 265.584 124.258L207.516 224.835C197.136 224.834 190.345 227.607 187.143 233.154L245.211 132.577Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M318.094 154.945C322.842 163.17 324.002 171.107 321.573 178.757L263.505 279.334C265.934 271.684 264.774 263.746 260.026 255.522L318.094 154.945Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M176.925 96.6737C180.127 91.1249 184.776 86.4503 190.871 82.6499L132.803 183.227C126.708 187.027 122.059 191.702 118.857 197.25L176.925 96.6737Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M387.226 217.606C385.989 219.749 384.59 221.813 383.028 223.797L324.96 324.373C326.522 322.39 327.921 320.326 329.157 318.183L387.226 217.606Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M317.269 188.408C319.087 185.262 320.519 182.045 321.562 178.758L263.494 279.335C262.451 282.622 261.019 285.839 259.201 288.985L317.269 188.408Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M245.208 132.573C241.895 137.928 243 145.387 248.522 154.95L190.454 255.527C184.932 245.964 183.827 238.505 187.14 233.15L245.208 132.573Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M176.93 96.6719C174.331 101.175 172.686 106.255 171.993 111.91L113.925 212.487C114.618 206.831 116.263 201.752 118.862 197.249L176.93 96.6719Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M317.266 188.413C314.853 192.589 311.757 196.64 307.978 200.566L249.91 301.143C253.689 297.216 256.785 293.166 259.198 288.99L317.266 188.413Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M464.198 304.708L435.375 254.789L377.307 355.366L406.13 405.285L464.198 304.708Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M353.209 254.787C366.68 242.548 376.618 232.22 383.023 223.805L324.955 324.382C318.55 332.797 308.612 343.124 295.141 355.364L353.209 254.787Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M435.37 254.787L353.212 254.784L295.144 355.361L377.302 355.364L435.37 254.787Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M183.921 154.947L248.521 154.95L190.453 255.527L125.853 255.524L183.921 154.947Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M171.992 111.914C170.668 124.537 174.643 138.881 183.92 154.947L125.852 255.524C116.575 239.458 112.599 225.114 113.924 212.491L171.992 111.914Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M307.987 200.562C301.251 207.256 291.203 216.244 277.842 227.528L219.774 328.105C233.135 316.821 243.183 307.832 249.919 301.139L307.987 200.562Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M15.5469 75.1797L44.5359 125.386L-13.5321 225.963L-42.5212 175.756L15.5469 75.1797Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M277.836 227.536C264.033 238.82 253.708 247.904 246.862 254.789L188.794 355.366C195.64 348.481 205.965 339.397 219.768 328.113L277.836 227.536Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M275.358 304.706L464.189 304.713L406.12 405.29L217.29 405.283L275.358 304.706Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M44.5279 125.39L67.3864 125.39L9.31834 225.967L-13.5401 225.966L44.5279 125.39Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M101.341 75.1911L233.863 304.705L175.795 405.282L43.2733 175.768L101.341 75.1911ZM15.5431 75.19L-42.525 175.767L43.277 175.77L101.345 75.1932L15.5431 75.19Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M246.866 254.784L246.534 254.784L188.466 355.361L188.798 355.361L246.866 254.784Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M246.539 254.781L275.362 304.701L217.294 405.277L188.471 355.358L246.539 254.781Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M67.3906 125.391L170.923 304.698L112.855 405.275L9.32257 225.967L67.3906 125.391Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                    <path
-                                        d="M170.921 304.699L233.865 304.701L175.797 405.278L112.853 405.276L170.921 304.699Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="bevel"
-                                    />
-                                </g>
-                                <g
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                >
-                                    <path
-                                        d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                        fill="#4B0600"
-                                    />
-                                    <path
-                                        d="M246.544 254.79L246.875 254.79C253.722 247.905 264.046 238.82 277.849 227.537C291.21 216.253 301.259 207.264 307.995 200.57C314.62 193.685 319.147 186.418 321.577 178.768C324.006 171.117 322.846 163.18 318.097 154.956C312.796 145.775 305.342 138.412 295.735 132.865C286.238 127.127 276.189 124.258 265.588 124.257C255.208 124.257 248.416 127.03 245.214 132.576C241.902 137.931 243.006 145.39 248.528 154.953L183.928 154.951C174.652 138.885 170.676 124.541 172 111.918C173.546 99.2946 179.84 89.5408 190.882 82.6559C202.035 75.5798 216.887 72.0421 235.439 72.0428C254.874 72.0435 274.144 75.5825 293.248 82.6598C312.242 89.5457 329.579 99.3005 345.261 111.924C360.942 124.548 373.421 138.892 382.697 154.958C391.311 169.877 395.121 182.978 394.128 194.262C393.355 205.546 389.656 215.396 383.031 223.811C376.627 232.226 366.688 242.554 353.217 254.794L435.375 254.797L464.198 304.716L275.367 304.709L246.544 254.79Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                        strokeLinejoin="round"
-                                    />
-                                </g>
-                                <g
-                                    className="translate-y-0 opacity-100 transition-all delay-300 duration-750 starting:translate-y-4 starting:opacity-0"
-                                    style={{ mixBlendMode: 'hard-light' }}
-                                >
-                                    <path
-                                        d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                        fill="#4B0600"
-                                    />
-                                    <path
-                                        d="M67.41 125.402L44.5515 125.401L15.5625 75.1953L101.364 75.1985L233.886 304.712L170.942 304.71L67.41 125.402Z"
-                                        stroke="#FF750F"
-                                        strokeWidth={1}
-                                    />
-                                </g>
-                            </svg>
-                            <div className="absolute inset-0 rounded-t-lg shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] lg:rounded-t-none lg:rounded-r-lg dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]" />
+                        <div className="col-span-12 lg:col-span-5 lg:col-start-8 lg:self-end">
+                            <p className="text-foreground/70 leading-relaxed">
+                                Performance Appraisal Studio is opinionated where opinion matters — and adjustable
+                                where it doesn't. Configure once, run forever.
+                            </p>
                         </div>
-                    </main>
-                </div>
-                <div className="hidden h-14.5 lg:block"></div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-foreground/15 bg-foreground/15 sm:grid-cols-2 lg:grid-cols-3">
+                        {features.map((f, i) => (
+                            <Reveal
+                                as="article"
+                                key={f.title}
+                                delay={(i % 3) * 100 + Math.floor(i / 3) * 80}
+                                variant="rise"
+                                className="bg-card group relative flex flex-col p-7 lg:p-8"
+                            >
+                                <div className="text-foreground/40 font-mono-brand absolute top-4 right-5 text-[10px] tracking-[0.18em]">
+                                    0{i + 1}
+                                </div>
+                                <div className="bg-brand-sand/15 text-brand-pine dark:text-brand-sand flex h-11 w-11 items-center justify-center rounded-md">
+                                    <f.icon className="h-5 w-5" />
+                                </div>
+                                <h3 className="font-display mt-6 text-2xl">{f.title}</h3>
+                                <p className="text-foreground/65 mt-2 text-[13px] leading-relaxed">{f.copy}</p>
+                                <div className="border-foreground/10 mt-6 flex items-center gap-2 border-t pt-4 text-[11px] font-medium">
+                                    <CheckCircle2 className="text-brand-pine dark:text-brand-sand h-3.5 w-3.5" />
+                                    <span className="text-foreground/70">Included in every plan</span>
+                                </div>
+                            </Reveal>
+                        ))}
+                    </div>
+                    </div>
+                </section>
+
+                {/* ============================================================ BUTTON SHOWCASE (subtle) */}
+                <section className="relative z-10 mx-auto max-w-7xl px-6 pb-24 lg:px-10 lg:pb-32">
+                    <div className="bg-card border-foreground/12 rounded-xl border p-8 lg:p-12">
+                        <div className="mb-8 grid grid-cols-12 gap-4">
+                            <div className="col-span-12 lg:col-span-7">
+                                <div className="font-mono-brand text-foreground/60 text-[11px] tracking-[0.22em] uppercase">
+                                    § System
+                                </div>
+                                <h3 className="font-display mt-3 text-3xl lg:text-4xl">A consistent vocabulary, top to bottom.</h3>
+                            </div>
+                            <p className="text-foreground/65 col-span-12 self-end text-[13px] lg:col-span-5">
+                                Every action speaks the same language across the studio — same shape, same weight, same
+                                colour meaning.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                            {[
+                                { variant: 'default' as const, label: 'Primary' },
+                                { variant: 'secondary' as const, label: 'Secondary' },
+                                { variant: 'accent' as const, label: 'Accent' },
+                                { variant: 'success' as const, label: 'Approve' },
+                                { variant: 'warning' as const, label: 'Pending' },
+                                { variant: 'destructive' as const, label: 'Reject' },
+                                { variant: 'info' as const, label: 'Inform' },
+                                { variant: 'outline' as const, label: 'Outline' },
+                                { variant: 'soft' as const, label: 'Soft' },
+                                { variant: 'ghost' as const, label: 'Ghost' },
+                            ].map((b) => (
+                                <Button key={b.label} variant={b.variant} size="lg" className="w-full">
+                                    {b.label}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ============================================================ CTA */}
+                <section className="bg-cta-photo text-brand-cream relative z-10 overflow-hidden">
+                    <div className="dotted-divider absolute top-0 right-0 left-0 h-px text-brand-cream/30" />
+                    <div className="mx-auto grid max-w-7xl grid-cols-12 gap-6 px-6 py-24 lg:gap-10 lg:px-10 lg:py-32">
+                        <Reveal variant="rise" className="col-span-12 lg:col-span-7">
+                            <div className="font-mono-brand text-brand-cream/55 text-[11px] tracking-[0.22em] uppercase">
+                                § Begin
+                            </div>
+                            <h2 className="font-display text-balance mt-5 text-5xl leading-[0.95] font-light lg:text-7xl">
+                                Run the review your people <span className="text-brand-sand italic">deserve</span>.
+                            </h2>
+                            <p className="text-brand-cream/70 mt-6 max-w-xl leading-relaxed">
+                                Start a cycle today — set goals tomorrow, capture evidence next week, calibrate next
+                                quarter. The studio holds it all together.
+                            </p>
+
+                            <div className="mt-10 flex flex-wrap gap-3">
+                                <Button asChild size="xl" variant="secondary">
+                                    <Link href={auth.user ? route('dashboard') : route('login')}>
+                                        {auth.user ? 'Open dashboard' : 'Enter the studio'}
+                                        <MoveRight />
+                                    </Link>
+                                </Button>
+                                <Button asChild size="xl" variant="outline" className="border-brand-cream/30 bg-transparent text-brand-cream hover:bg-brand-cream/10 hover:border-brand-cream/60">
+                                    <a href="#manifesto">Re-read the manifesto</a>
+                                </Button>
+                            </div>
+                        </Reveal>
+
+                        <Reveal delay={180} variant="slide-left" className="col-span-12 lg:col-span-5">
+                            <div className="border-brand-cream/15 grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-brand-cream/15">
+                                {[
+                                    { k: 'Cycles run', v: '8,420+' },
+                                    { k: 'Org sizes', v: '12 – 12k' },
+                                    { k: 'Languages', v: '11' },
+                                    { k: 'Uptime', v: '99.98%' },
+                                ].map((kv) => (
+                                    <div key={kv.k} className="bg-brand-ink/95 p-6 lg:p-7">
+                                        <div className="font-display text-brand-sand text-4xl leading-none lg:text-5xl">
+                                            {kv.v}
+                                        </div>
+                                        <div className="font-mono-brand text-brand-cream/60 mt-3 text-[10px] tracking-[0.2em] uppercase">
+                                            {kv.k}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </Reveal>
+                    </div>
+                </section>
+
+                {/* ============================================================ FOOTER */}
+                <footer className="border-foreground/15 relative z-10 border-t">
+                    <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-8 sm:flex-row lg:px-10">
+                        <div className="font-mono-brand text-foreground/60 text-[10px] tracking-[0.22em] uppercase">
+                            © 2026 — Performance Appraisal Studio · Made with care
+                        </div>
+                        <div className="font-mono-brand text-foreground/60 flex items-center gap-4 text-[10px] tracking-[0.22em] uppercase">
+                            <span className="flex items-center gap-2">
+                                <span className="bg-brand-sand inline-block h-2 w-2" />
+                                Sand · #BFB48F
+                            </span>
+                            <span className="flex items-center gap-2">
+                                <span className="bg-brand-ink inline-block h-2 w-2" />
+                                Ink · #252627
+                            </span>
+                        </div>
+                    </div>
+                </footer>
+
+                {/* Floating onboarding popover — sits above everything */}
+                <GetStartedPopover triggerVariant="floating" />
             </div>
         </>
+    );
+}
+
+/* -----------------------------------------------------------
+ * Circular cycle diagram (SVG) — decorative
+ * ----------------------------------------------------------- */
+function CycleDiagram() {
+    const size = 220;
+    const center = size / 2;
+    const radius = 86;
+    const steps = ['Plan', 'Track', 'Review', 'Reward'];
+
+    return (
+        <svg viewBox={`0 0 ${size} ${size}`} className="text-foreground h-56 w-56">
+            {/* Outer ring */}
+            <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeOpacity={0.15} />
+            <circle cx={center} cy={center} r={radius - 14} fill="none" stroke="currentColor" strokeOpacity={0.08} strokeDasharray="2 4" />
+
+            {/* Arrows */}
+            {steps.map((label, i) => {
+                const angle = (i / steps.length) * Math.PI * 2 - Math.PI / 2;
+                const x = center + Math.cos(angle) * radius;
+                const y = center + Math.sin(angle) * radius;
+                const colors = ['var(--palette-sand)', 'var(--palette-pine)', 'var(--palette-rust)', 'var(--palette-stone)'];
+                return (
+                    <g key={label}>
+                        <circle cx={x} cy={y} r={9} fill={colors[i]} />
+                        <text
+                            x={x}
+                            y={y - 16}
+                            textAnchor="middle"
+                            fontSize="10.5"
+                            fontFamily="var(--font-mono)"
+                            fill="currentColor"
+                            letterSpacing="2"
+                        >
+                            {label.toUpperCase()}
+                        </text>
+                    </g>
+                );
+            })}
+
+            {/* Center mark */}
+            <circle cx={center} cy={center} r={3} fill="var(--palette-ink)" />
+            <text
+                x={center}
+                y={center + 28}
+                textAnchor="middle"
+                fontSize="9"
+                letterSpacing="3"
+                fontFamily="var(--font-mono)"
+                fill="currentColor"
+                opacity="0.55"
+            >
+                THE LOOP
+            </text>
+        </svg>
     );
 }

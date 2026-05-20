@@ -19,11 +19,11 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const fields: Array<{ key: keyof Palette; label: string }> = [
-    { key: 'moss', label: 'Moss Velvet' },
-    { key: 'cloud', label: 'Cloud Milk' },
-    { key: 'mist', label: 'Match Mist' },
-    { key: 'coal', label: 'Dusty Coal' },
+const fields: Array<{ key: keyof Palette; label: string; hint: string }> = [
+    { key: 'sand', label: 'Sand — Primary', hint: 'Warm khaki used for secondary surfaces, ratings, and chart accents.' },
+    { key: 'ink', label: 'Ink — Foreground', hint: 'Near-black used for primary buttons, text, and CTAs.' },
+    { key: 'cream', label: 'Cream — Background', hint: 'Soft paper tone used for app backgrounds and surfaces.' },
+    { key: 'pine', label: 'Pine — Accent', hint: 'Deep forest used for highlights, success-adjacent moments, and feature cards.' },
 ];
 
 function normalizeHex(value: string) {
@@ -105,14 +105,17 @@ export default function PaletteSettingsPage() {
                                 <PaletteIcon className="h-5 w-5 text-primary" />
                                 Live Palette
                             </CardTitle>
-                            <CardDescription>Use color picker or HEX values (example: #385144).</CardDescription>
+                            <CardDescription>Use color picker or HEX values (example: #BFB48F).</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-5">
                             {fields.map((field) => (
-                                <div key={field.key} className="grid gap-2 md:grid-cols-[220px_1fr_140px] md:items-center">
-                                    <Label htmlFor={`palette-${field.key}`} className="font-medium">
-                                        {field.label}
-                                    </Label>
+                                <div key={field.key} className="grid gap-2 md:grid-cols-[260px_1fr_140px] md:items-center">
+                                    <div>
+                                        <Label htmlFor={`palette-${field.key}`} className="font-medium">
+                                            {field.label}
+                                        </Label>
+                                        <p className="text-muted-foreground mt-0.5 text-[11px]">{field.hint}</p>
+                                    </div>
                                     <Input
                                         id={`palette-${field.key}`}
                                         type="color"

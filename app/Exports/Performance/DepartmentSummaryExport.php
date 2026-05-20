@@ -6,7 +6,7 @@ class DepartmentSummaryExport extends BasePerformanceExport
 {
     protected function headings(): array
     {
-        return ['Department', 'Total Appraisals', 'Average Score'];
+        return ['Department', 'Total Appraisals', 'Average Effective Score'];
     }
 
     protected function mapRow(mixed $row): array

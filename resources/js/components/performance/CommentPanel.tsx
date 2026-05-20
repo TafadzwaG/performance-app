@@ -48,12 +48,21 @@ export default function CommentPanel({
 
                 <div className="space-y-3">
                     {comments.map((comment) => (
-                        <div key={comment.id} className="rounded-lg border p-3 text-sm">
-                            <div className="font-medium">{comment.author?.name ?? 'System'} · {comment.comment_type.replaceAll('_', ' ')}</div>
-                            <div className="mt-2 whitespace-pre-wrap text-muted-foreground">{comment.body}</div>
+                        <div key={comment.id} className="rounded-lg border bg-muted/15 p-4">
+                            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                § {String(comment.comment_type ?? '').replaceAll('_', ' ')}
+                            </div>
+                            <div className="font-display text-foreground mt-1 text-base font-light tracking-tight">
+                                {comment.author?.name ?? 'System'}
+                            </div>
+                            <div className="text-foreground/80 mt-2 text-[13px] leading-relaxed whitespace-pre-wrap">
+                                {comment.body}
+                            </div>
                         </div>
                     ))}
-                    {comments.length === 0 ? <div className="text-sm text-muted-foreground">No comments yet.</div> : null}
+                    {comments.length === 0 ? (
+                        <div className="text-muted-foreground text-[13px]">No comments yet.</div>
+                    ) : null}
                 </div>
             </CardContent>
         </Card>

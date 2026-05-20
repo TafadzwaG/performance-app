@@ -1,351 +1,501 @@
 import PerformancePage from '@/components/performance/PerformancePage';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import type { BreadcrumbItem } from '@/types';
 import type { Option } from '@/types/performance';
 import { Link, router } from '@inertiajs/react';
-import type { LucideIcon } from 'lucide-react';
 import {
     ArrowRight,
     BarChart3,
     Building2,
     CheckCircle2,
+    CircleAlert,
     Clock3,
-    Download,
     FileSpreadsheet,
-    FolderKanban,
-    Layers3,
-    Sparkles,
+    GitCompareArrows,
+    RotateCcw,
+    ShieldAlert,
+    TrendingUp,
     UserRound,
+    Users,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Performance', href: '/performance/dashboard' },
     { title: 'Reports', href: route('performance.reports.index') },
 ];
 
-type ReportItem = {
-    title: string;
-    routeName: string;
-    description: string;
-    icon: LucideIcon;
-    tag: string;
+type ReportsPayload = {
+    executive_summary: {
+        total_appraisals: number;
+        finalized_reviews: number;
+        completion_rate: number;
+        open_reviews: number;
+        overdue_reviews: number;
+        overdue_rate: number;
+        sent_back_count: number;
+        sent_back_rate: number;
+        average_score: number;
+    };
+    workflow_pipeline: Array<{ status: string; label: string; total: number; share: number }>;
+    department_breakdown: Array<{
+        department: string;
+        total: number;
+        finalized: number;
+        completion_rate: number;
+        average_score: number;
+        overdue_count: number;
+        overdue_rate: number;
+        sent_back_count: number;
+        risk_level: string;
+    }>;
+    manager_accountability: Array<{
+        manager: string;
+        assigned_reviews: number;
+        pending_manager_reviews: number;
+        overdue_reviews: number;
+        sent_back_count: number;
+        average_turnaround_days: number;
+    }>;
+    employee_exception_report: Array<{
+        employee: string;
+        employee_number: string;
+        department: string | null;
+        cycle: string;
+        status: string;
+        manager: string;
+        flags: string;
+        days_overdue: number;
+        effective_overall_score: number | null;
+    }>;
+    rating_quality: {
+        average_score: number;
+        median_score: number;
+        highest_score: number;
+        lowest_score: number;
+        score_spread: number;
+        business_average: number;
+        values_average: number;
+        business_values_gap: number;
+        unrated_finalized_reviews: number;
+    };
+    overdue_analysis: {
+        total_overdue: number;
+        average_days_overdue: number;
+        oldest_days_overdue: number;
+        buckets: Array<{ bucket: string; total: number }>;
+    };
+    cycle_comparison: {
+        current_cycle: string;
+        previous_cycle: string | null;
+        current_average_score: number;
+        previous_average_score: number;
+        average_score_delta: number;
+        current_completion_rate: number;
+        previous_completion_rate: number;
+        completion_rate_delta: number;
+    };
 };
 
-const reportLinks: ReportItem[] = [
-    {
-        title: 'Cycle Summary',
-        routeName: 'performance.reports.cycle_summary',
-        description: 'High-level overview of active and historical review cycles across the organization.',
-        icon: Layers3,
-        tag: 'Cycle analytics',
-    },
-    {
-        title: 'Department Summary',
-        routeName: 'performance.reports.department_summary',
-        description: 'Performance breakdown by department, leadership units, and business functions.',
-        icon: Building2,
-        tag: 'Department view',
-    },
-    {
-        title: 'Employee Summary',
-        routeName: 'performance.reports.employee_summary',
-        description: 'Individual performance history, scoring trends, and progress visibility.',
-        icon: UserRound,
-        tag: 'Employee insights',
-    },
-    {
-        title: 'Completion Status',
-        routeName: 'performance.reports.completion_status',
-        description: 'Track submission progress, pending actions, and review completion rates.',
-        icon: CheckCircle2,
-        tag: 'Workflow status',
-    },
-    {
-        title: 'Rating Distribution',
-        routeName: 'performance.reports.rating_distribution',
-        description: 'Review rating spread, calibration patterns, and score distribution trends.',
-        icon: BarChart3,
-        tag: 'Ratings analysis',
-    },
-    {
-        title: 'Overdue Reviews',
-        routeName: 'performance.reports.overdue_reviews',
-        description: 'Identify missed deadlines, delayed reviewer actions, and outstanding appraisals.',
-        icon: Clock3,
-        tag: 'Escalation focus',
-    },
-];
+type Props = {
+    reviewCycleOptions: Option[];
+    filters: { review_cycle_id?: number | null };
+    reports: ReportsPayload;
+};
 
-type PendingAction =
-    | {
-          type: 'generate' | 'download';
-          report: ReportItem;
-      }
-    | null;
+const workflowConfig = {
+    total: { label: 'Reviews', theme: { light: 'var(--chart-1)', dark: 'var(--chart-1)' } },
+} satisfies ChartConfig;
 
-export default function ReportsIndex({ reviewCycleOptions }: { reviewCycleOptions: Option[] }) {
-    const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+const overdueConfig = {
+    total: { label: 'Overdue', theme: { light: 'var(--destructive)', dark: 'var(--destructive)' } },
+} satisfies ChartConfig;
 
-    const totalReports = reportLinks.length;
-    const totalFilters = reviewCycleOptions.length;
+const managerConfig = {
+    pending_manager_reviews: { label: 'Manager pending', theme: { light: 'var(--chart-2)', dark: 'var(--chart-2)' } },
+    overdue_reviews: { label: 'Overdue', theme: { light: 'var(--destructive)', dark: 'var(--destructive)' } },
+} satisfies ChartConfig;
 
-    const dialogTitle = useMemo(() => {
-        if (!pendingAction) return '';
+function formatDelta(value: number, suffix = '') {
+    if (value === 0) return `0${suffix}`;
+    return `${value > 0 ? '+' : ''}${value}${suffix}`;
+}
 
-        if (pendingAction.type === 'generate') {
-            return `Generate ${pendingAction.report.title}?`;
-        }
+function labelize(value: string) {
+    return value.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
-        return `Download ${pendingAction.report.title}?`;
-    }, [pendingAction]);
+function riskClass(risk: string) {
+    if (risk === 'High') return 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300';
+    if (risk === 'Medium') return 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300';
+    return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+}
 
-    const dialogDescription = useMemo(() => {
-        if (!pendingAction) return '';
+function EmptyState({ message }: { message: string }) {
+    return (
+        <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed bg-muted/10 px-6 text-center text-sm text-muted-foreground">
+            {message}
+        </div>
+    );
+}
 
-        if (pendingAction.type === 'generate') {
-            return `You are about to open ${pendingAction.report.title} and continue with report generation. This keeps your existing reporting flow unchanged.`;
-        }
+function ProgressLine({ value, tone = 'bg-primary' }: { value: number; tone?: string }) {
+    return (
+        <div className="h-2 overflow-hidden rounded-full bg-muted">
+            <div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+        </div>
+    );
+}
 
-        return `You are about to open ${pendingAction.report.title} and continue with download or export actions from the report page.`;
-    }, [pendingAction]);
+function MiniTable({ headers, rows }: { headers: string[]; rows: Array<Array<string | number | null>> }) {
+    return (
+        <div className="overflow-x-auto rounded-lg border">
+            <table className="min-w-full text-sm">
+                <thead className="bg-muted/30">
+                    <tr>
+                        {headers.map((header) => (
+                            <th key={header} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                {header}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((row, index) => (
+                        <tr key={index} className="border-t">
+                            {row.map((value, cellIndex) => (
+                                <td key={cellIndex} className={`px-4 py-3 ${cellIndex === 0 ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                                    {value ?? ''}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
 
-    const handleConfirm = () => {
-        if (!pendingAction) return;
+export default function ReportsIndex({ reviewCycleOptions, filters, reports }: Props) {
+    const selectedCycleLabel =
+        reviewCycleOptions.find((option) => String(option.value) === String(filters.review_cycle_id ?? ''))?.label ??
+        'All cycles';
 
-        router.get(route(pendingAction.report.routeName));
-        setPendingAction(null);
+    const applyFilter = (value: string) => {
+        router.get(
+            route('performance.reports.index'),
+            { review_cycle_id: value || undefined },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
     };
 
     return (
         <PerformancePage
-            title="Reports"
-            description="Open performance reports and export cycle data."
+            title="Comprehensive Reports"
+            description="Detailed appraisal reporting across completion, workflow bottlenecks, departments, managers, employees, ratings, and overdue risk."
             breadcrumbs={breadcrumbs}
         >
-            <div className="space-y-6">
-                <div className="rounded-2xl border bg-background p-6 shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                        <div className="space-y-3">
-                            <Badge variant="secondary" className="w-fit">
-                                Reporting workspace
-                            </Badge>
-
-                            <div>
-                                <h1 className="text-3xl font-bold tracking-tight text-foreground">Reports</h1>
-                                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                                    Open performance reports, review cycle summaries, and department-level analytics in
-                                    a clean reporting workspace.
-                                </p>
-                            </div>
+            <div className="space-y-8">
+                <section className="rounded-xl border bg-background p-6 shadow-sm">
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <h1 className="text-3xl font-bold tracking-tight text-foreground">Comprehensive Performance Reports</h1>
+                            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                                This page combines operational reporting, exceptions, accountability, rating quality, and cycle-over-cycle movement for the selected review cycle.
+                            </p>
                         </div>
-
-                        <div className="flex flex-wrap gap-2">
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Reports</div>
-                                <div className="mt-1 font-semibold text-foreground">{totalReports}</div>
+                        <div className="grid gap-2 sm:grid-cols-[260px_auto] sm:items-end">
+                            <div className="space-y-2">
+                                <label htmlFor="report-cycle" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                    Review Cycle
+                                </label>
+                                <select
+                                    id="report-cycle"
+                                    className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    value={filters.review_cycle_id ?? ''}
+                                    onChange={(event) => applyFilter(event.target.value)}
+                                >
+                                    <option value="">All cycles</option>
+                                    {reviewCycleOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Cycle filters</div>
-                                <div className="mt-1 font-semibold text-foreground">{totalFilters}</div>
-                            </div>
+                            <Button asChild variant="outline">
+                                <Link href={route('performance.reports.cycle_summary', { review_cycle_id: filters.review_cycle_id ?? undefined })}>
+                                    Export Views
+                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                </Link>
+                            </Button>
                         </div>
                     </div>
-                </div>
+                    <div className="mt-5 flex flex-wrap gap-2 text-sm">
+                        <Badge variant="secondary">{selectedCycleLabel}</Badge>
+                        <Badge variant="outline">{reports.executive_summary.total_appraisals} appraisal records</Badge>
+                        <Badge variant="outline">{reports.employee_exception_report.length} employee exceptions</Badge>
+                    </div>
+                </section>
 
-                <div className="grid gap-6 lg:grid-cols-3">
-                    <Card className="lg:col-span-2 shadow-sm">
-                        <CardHeader className="pb-4">
-                            <CardTitle className="text-xl">Available Reports</CardTitle>
-                            <CardDescription>
-                                Open a report directly, or confirm generation and download actions from here.
-                            </CardDescription>
+                <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
+                    {[
+                        ['Total Reviews', reports.executive_summary.total_appraisals, 'All appraisal records in scope', FileSpreadsheet],
+                        ['Completion Rate', `${reports.executive_summary.completion_rate}%`, `${reports.executive_summary.finalized_reviews} finalized`, CheckCircle2],
+                        ['Overdue Rate', `${reports.executive_summary.overdue_rate}%`, `${reports.executive_summary.overdue_reviews} overdue`, CircleAlert],
+                        ['Effective Average', reports.executive_summary.average_score, 'Finalized reviews only', TrendingUp],
+                        ['Sent Back', reports.executive_summary.sent_back_count, `${reports.executive_summary.sent_back_rate}% rework rate`, RotateCcw],
+                    ].map(([label, value, helper, Icon]) => {
+                        const StatIcon = Icon as typeof FileSpreadsheet;
+                        return (
+                            <Card key={String(label)} className="shadow-sm">
+                                <CardContent className="p-5">
+                                    <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/20">
+                                        <StatIcon className="h-5 w-5 text-muted-foreground" />
+                                    </div>
+                                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</div>
+                                    <div className="mt-2 text-3xl font-bold tracking-tight text-foreground">{value}</div>
+                                    <p className="mt-2 text-xs text-muted-foreground">{helper}</p>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
+                </section>
+
+                <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5 text-muted-foreground" />Workflow Pipeline Report</CardTitle>
+                            <CardDescription>Exact appraisal volume and percentage share by workflow stage.</CardDescription>
                         </CardHeader>
-
                         <CardContent>
-                            <div className="grid gap-4 md:grid-cols-2">
-                                {reportLinks.map((report) => {
-                                    const Icon = report.icon;
+                            {reports.workflow_pipeline.length > 0 ? (
+                                <ChartContainer config={workflowConfig} className="h-[320px] w-full">
+                                    <BarChart data={reports.workflow_pipeline} margin={{ left: 8, right: 8, top: 8 }}>
+                                        <CartesianGrid vertical={false} />
+                                        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={10} interval={0} tickFormatter={(value) => String(value).replace(' Assessment', '')} />
+                                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={36} />
+                                        <ChartTooltip cursor={false} content={(props) => <ChartTooltipContent {...props} formatter={(value) => `${value} reviews`} />} />
+                                        <Bar dataKey="total" fill="var(--color-total)" radius={[8, 8, 0, 0]} maxBarSize={46} />
+                                    </BarChart>
+                                </ChartContainer>
+                            ) : <EmptyState message="No workflow records are available for this filter." />}
+                        </CardContent>
+                    </Card>
 
-                                    return (
-                                        <Card
-                                            key={report.title}
-                                            className="group border-border/60 shadow-none transition-colors hover:bg-muted/20"
-                                        >
-                                            <CardHeader className="space-y-4">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/40">
-                                                        <Icon className="h-5 w-5 text-foreground" />
-                                                    </div>
-                                                    <Badge variant="outline">{report.tag}</Badge>
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Clock3 className="h-5 w-5 text-muted-foreground" />Overdue Analysis</CardTitle>
+                            <CardDescription>Severity, average age, and oldest missed-deadline item.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                                <div className="rounded-lg border bg-muted/10 p-4">
+                                    <div className="text-xs text-muted-foreground">Total overdue</div>
+                                    <div className="mt-1 text-2xl font-bold">{reports.overdue_analysis.total_overdue}</div>
+                                </div>
+                                <div className="rounded-lg border bg-muted/10 p-4">
+                                    <div className="text-xs text-muted-foreground">Average days overdue</div>
+                                    <div className="mt-1 text-2xl font-bold">{reports.overdue_analysis.average_days_overdue}</div>
+                                </div>
+                                <div className="rounded-lg border bg-muted/10 p-4">
+                                    <div className="text-xs text-muted-foreground">Oldest overdue</div>
+                                    <div className="mt-1 text-2xl font-bold">{reports.overdue_analysis.oldest_days_overdue} days</div>
+                                </div>
+                            </div>
+                            {reports.overdue_analysis.buckets.some((bucket) => bucket.total > 0) ? (
+                                <ChartContainer config={overdueConfig} className="h-[220px] w-full">
+                                    <BarChart data={reports.overdue_analysis.buckets} margin={{ left: 8, right: 8, top: 8 }}>
+                                        <CartesianGrid vertical={false} />
+                                        <XAxis dataKey="bucket" tickLine={false} axisLine={false} tickMargin={10} />
+                                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={36} />
+                                        <ChartTooltip cursor={false} content={(props) => <ChartTooltipContent {...props} formatter={(value) => `${value} overdue`} />} />
+                                        <Bar dataKey="total" fill="var(--color-total)" radius={[8, 8, 0, 0]} maxBarSize={46} />
+                                    </BarChart>
+                                </ChartContainer>
+                            ) : null}
+                        </CardContent>
+                    </Card>
+                </section>
+
+                <section className="grid gap-6 xl:grid-cols-2">
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5 text-muted-foreground" />Department Performance And Risk</CardTitle>
+                            <CardDescription>Completion, effective average score, overdue rate, and rework volume by department.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {reports.department_breakdown.length > 0 ? (
+                                <div className="space-y-4">
+                                    {reports.department_breakdown.map((department) => (
+                                        <div key={department.department} className="rounded-xl border bg-muted/10 p-4">
+                                            <div className="mb-4 flex items-start justify-between gap-4">
+                                                <div>
+                                                    <div className="font-semibold text-foreground">{department.department}</div>
+                                                    <div className="text-xs text-muted-foreground">{department.total} reviews | {department.finalized} finalized | {department.sent_back_count} sent back</div>
                                                 </div>
-
-                                                <div className="space-y-1">
-                                                    <CardTitle className="text-base">{report.title}</CardTitle>
-                                                    <CardDescription className="text-sm leading-6">
-                                                        {report.description}
-                                                    </CardDescription>
+                                                <Badge variant="outline" className={riskClass(department.risk_level)}>{department.risk_level} risk</Badge>
+                                            </div>
+                                            <div className="grid gap-3 md:grid-cols-3">
+                                                <div>
+                                                    <div className="mb-1 text-xs text-muted-foreground">Completion {department.completion_rate}%</div>
+                                                    <ProgressLine value={department.completion_rate} tone="bg-emerald-500" />
                                                 </div>
-                                            </CardHeader>
-
-                                            <CardContent className="space-y-4">
-                                                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2 text-sm">
-                                                    <span className="text-muted-foreground">Review cycle filters</span>
-                                                    <span className="font-medium text-foreground">
-                                                        {reviewCycleOptions.length}
-                                                    </span>
+                                                <div>
+                                                    <div className="mb-1 text-xs text-muted-foreground">Effective score {department.average_score}</div>
+                                                    <ProgressLine value={department.average_score} tone="bg-sky-500" />
                                                 </div>
-
-                                                <Separator />
-
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <Button asChild variant="default" size="sm">
-                                                        <Link href={route(report.routeName)}>
-                                                            Open report
-                                                            <ArrowRight className="ml-2 h-4 w-4" />
-                                                        </Link>
-                                                    </Button>
-
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            setPendingAction({
-                                                                type: 'generate',
-                                                                report,
-                                                            })
-                                                        }
-                                                    >
-                                                        <Sparkles className="mr-2 h-4 w-4" />
-                                                        Generate
-                                                    </Button>
-
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            setPendingAction({
-                                                                type: 'download',
-                                                                report,
-                                                            })
-                                                        }
-                                                    >
-                                                        <Download className="mr-2 h-4 w-4" />
-                                                        Download
-                                                    </Button>
+                                                <div>
+                                                    <div className="mb-1 text-xs text-muted-foreground">Overdue {department.overdue_rate}%</div>
+                                                    <ProgressLine value={department.overdue_rate} tone="bg-red-500" />
                                                 </div>
-                                            </CardContent>
-                                        </Card>
-                                    );
-                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <EmptyState message="No department data is available for this filter." />}
+                        </CardContent>
+                    </Card>
+
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-muted-foreground" />Manager Accountability</CardTitle>
+                            <CardDescription>Assigned work, manager-review backlog, overdue work, sent-back count, and turnaround.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {reports.manager_accountability.length > 0 ? (
+                                <div className="space-y-5">
+                                    <ChartContainer config={managerConfig} className="h-[260px] w-full">
+                                        <BarChart data={reports.manager_accountability} layout="vertical" margin={{ left: 28, right: 8, top: 8 }}>
+                                            <CartesianGrid horizontal={false} />
+                                            <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                                            <YAxis type="category" dataKey="manager" tickLine={false} axisLine={false} width={96} />
+                                            <ChartTooltip cursor={false} content={(props) => <ChartTooltipContent {...props} />} />
+                                            <Bar dataKey="pending_manager_reviews" fill="var(--color-pending_manager_reviews)" radius={[0, 8, 8, 0]} maxBarSize={28} />
+                                            <Bar dataKey="overdue_reviews" fill="var(--color-overdue_reviews)" radius={[0, 8, 8, 0]} maxBarSize={28} />
+                                        </BarChart>
+                                    </ChartContainer>
+                                    <MiniTable
+                                        headers={['Manager', 'Assigned', 'Pending', 'Overdue', 'Rework', 'Turnaround']}
+                                        rows={reports.manager_accountability.map((manager) => [
+                                            manager.manager,
+                                            manager.assigned_reviews,
+                                            manager.pending_manager_reviews,
+                                            manager.overdue_reviews,
+                                            manager.sent_back_count,
+                                            `${manager.average_turnaround_days} days`,
+                                        ])}
+                                    />
+                                </div>
+                            ) : <EmptyState message="No manager accountability data is available for this filter." />}
+                        </CardContent>
+                    </Card>
+                </section>
+
+                <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><GitCompareArrows className="h-5 w-5 text-muted-foreground" />Rating Quality And Cycle Movement</CardTitle>
+                            <CardDescription>Effective score quality, business-values gap, and comparison to the previous cycle.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                {[
+                                    ['Average', reports.rating_quality.average_score],
+                                    ['Median', reports.rating_quality.median_score],
+                                    ['Highest', reports.rating_quality.highest_score],
+                                    ['Lowest', reports.rating_quality.lowest_score],
+                                    ['Spread', reports.rating_quality.score_spread],
+                                    ['B/V Gap', reports.rating_quality.business_values_gap],
+                                ].map(([label, value]) => (
+                                    <div key={String(label)} className="rounded-lg border bg-muted/10 p-4">
+                                        <div className="text-xs text-muted-foreground">{label}</div>
+                                        <div className="mt-1 text-2xl font-bold">{value}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="rounded-lg border bg-muted/10 p-4">
+                                <div className="mb-2 flex items-center justify-between text-sm">
+                                    <span className="text-muted-foreground">Business average</span>
+                                    <span className="font-medium">{reports.rating_quality.business_average}</span>
+                                </div>
+                                <ProgressLine value={reports.rating_quality.business_average} tone="bg-sky-500" />
+                                <div className="mb-2 mt-4 flex items-center justify-between text-sm">
+                                    <span className="text-muted-foreground">Values average</span>
+                                    <span className="font-medium">{reports.rating_quality.values_average}</span>
+                                </div>
+                                <ProgressLine value={reports.rating_quality.values_average} tone="bg-violet-500" />
+                            </div>
+                            <div className="rounded-lg border bg-muted/10 p-4 text-sm">
+                                <div className="font-medium text-foreground">Cycle comparison</div>
+                                <div className="mt-2 text-muted-foreground">
+                                    {reports.cycle_comparison.current_cycle} vs {reports.cycle_comparison.previous_cycle ?? 'no previous cycle'}
+                                </div>
+                                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <Badge variant="outline">Effective score {formatDelta(reports.cycle_comparison.average_score_delta)}</Badge>
+                                    <Badge variant="outline">Completion {formatDelta(reports.cycle_comparison.completion_rate_delta, '%')}</Badge>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <div className="space-y-6">
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Report Center</CardTitle>
-                                <CardDescription>
-                                    A quick overview of your reporting workspace and cycle coverage.
-                                </CardDescription>
-                            </CardHeader>
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-muted-foreground" />Employee Exception Report</CardTitle>
+                            <CardDescription>Employees requiring intervention because of overdue work, rework, or finalized records missing scores.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {reports.employee_exception_report.length > 0 ? (
+                                <MiniTable
+                                    headers={['Employee', 'Department', 'Status', 'Manager', 'Exception', 'Days']}
+                                    rows={reports.employee_exception_report.slice(0, 12).map((employee) => [
+                                        `${employee.employee} (${employee.employee_number})`,
+                                        employee.department ?? 'Unassigned',
+                                        labelize(employee.status),
+                                        employee.manager,
+                                        employee.flags,
+                                        employee.days_overdue,
+                                    ])}
+                                />
+                            ) : <EmptyState message="No employee exceptions are present for this filter." />}
+                        </CardContent>
+                    </Card>
+                </section>
 
-                            <CardContent className="space-y-4">
-                                <div className="flex items-center gap-3 rounded-xl border bg-muted/20 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background">
-                                        <FileSpreadsheet className="h-5 w-5" />
+                <section className="grid gap-6 xl:grid-cols-3">
+                    {[
+                        ['Cycle Summary', 'performance.reports.cycle_summary', 'Cycle-level totals, completion, and effective score movement.', BarChart3],
+                        ['Department Summary', 'performance.reports.department_summary', 'Department-level completion and effective score detail.', Building2],
+                        ['Employee Summary', 'performance.reports.employee_summary', 'Per-employee appraisal outcomes and effective scores.', UserRound],
+                        ['Completion Status', 'performance.reports.completion_status', 'Workflow status counts and completion position.', CheckCircle2],
+                        ['Rating Distribution', 'performance.reports.rating_distribution', 'Effective rating mix and rating spread.', TrendingUp],
+                        ['Overdue Reviews', 'performance.reports.overdue_reviews', 'Deadline misses with manager and approver context.', Clock3],
+                    ].map(([title, routeName, description, Icon]) => {
+                        const ReportIcon = Icon as typeof BarChart3;
+                        return (
+                            <Card key={String(title)} className="shadow-sm">
+                                <CardContent className="flex items-start gap-4 p-5">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/20">
+                                        <ReportIcon className="h-5 w-5 text-muted-foreground" />
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-foreground">Structured report outputs</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Open summary, status, and distribution reports.
-                                        </p>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="font-semibold text-foreground">{title}</div>
+                                        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+                                        <Button asChild variant="link" className="mt-2 h-auto p-0">
+                                            <Link href={route(String(routeName), { review_cycle_id: filters.review_cycle_id ?? undefined })}>
+                                                Open detailed table
+                                                <ArrowRight className="ml-1 h-4 w-4" />
+                                            </Link>
+                                        </Button>
                                     </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 rounded-xl border bg-muted/20 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background">
-                                        <FolderKanban className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-foreground">Reusable cycle filters</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {reviewCycleOptions.length} filter options are available for report views.
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 rounded-xl border bg-muted/20 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-background">
-                                        <BarChart3 className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-foreground">Monitored outcomes</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Track completion, ratings, overdue items, and summary analytics.
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Quick Notes</CardTitle>
-                                <CardDescription>
-                                    Use the direct link to open a report immediately, or confirm generation and
-                                    download actions before continuing.
-                                </CardDescription>
-                            </CardHeader>
-
-                            <CardContent className="space-y-3 text-sm text-muted-foreground">
-                                <div className="rounded-lg border bg-muted/20 p-3">
-                                    Open report keeps your current route behavior intact.
-                                </div>
-                                <div className="rounded-lg border bg-muted/20 p-3">
-                                    Generate and Download both prompt with an alert dialog before proceeding.
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
-
-                <AlertDialog
-                    open={!!pendingAction}
-                    onOpenChange={(open) => {
-                        if (!open) setPendingAction(null);
-                    }}
-                >
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>{dialogTitle}</AlertDialogTitle>
-                            <AlertDialogDescription>{dialogDescription}</AlertDialogDescription>
-                        </AlertDialogHeader>
-
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleConfirm}>
-                                Continue
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
+                </section>
             </div>
         </PerformancePage>
     );

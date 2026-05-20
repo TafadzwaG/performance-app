@@ -67,7 +67,7 @@ export default function RatingScalesIndex({ ratingScales, filters, can }: Props)
     return (
         <PerformancePage
             title="Rating Scales"
-            description="Configure objective, competency, and overall rating scales used across scoring and approvals."
+            description="Configure objective, values, and overall rating scales used across scoring and approvals."
             breadcrumbs={breadcrumbs}
         >
             <div className="space-y-8">

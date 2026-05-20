@@ -3,9 +3,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
-import type { Department } from '@/types/performance';
+import type { Appraisal, Department, EmployeeProfile } from '@/types/performance';
 import { Link } from '@inertiajs/react';
-import { Activity, BarChart3, Building2, FileText, PencilLine, ShieldCheck, Sparkles, Users, Wrench } from 'lucide-react';
+import { Activity, BarChart3, Building2, Eye, FileText, PencilLine, ShieldCheck, Sparkles, Users, Wrench } from 'lucide-react';
 
 const breadcrumbs = (department: Department): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -24,8 +24,29 @@ function getUsageHealth(department: Department) {
     return 'Emerging';
 }
 
+function effectiveScore(appraisal?: Appraisal | null) {
+    return appraisal?.calibrated_overall_score ?? appraisal?.overall_score ?? null;
+}
+
+function effectiveRating(appraisal?: Appraisal | null) {
+    return appraisal?.calibrated_overall_rating_level?.label ?? appraisal?.overall_rating_level?.label ?? 'Unrated';
+}
+
+function formatScore(score: number | string | null) {
+    if (score === null) return 'No score';
+
+    return `${Number(score).toFixed(1)}%`;
+}
+
+function labelize(value?: string | null) {
+    if (!value) return 'Not set';
+
+    return value.replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function DepartmentShow({ department }: { department: Department }) {
     const employees = department.employee_profiles_count ?? 0;
+    const employeeProfiles = department.employee_profiles ?? [];
     const templates = department.appraisal_templates_count ?? 0;
     const goals = department.goal_library_items_count ?? 0;
     const usageHealth = getUsageHealth(department);
@@ -145,6 +166,54 @@ export default function DepartmentShow({ department }: { department: Department 
                     </div>
 
                     <div className="col-span-12">
+                        <Card className="shadow-sm">
+                            <CardHeader className="border-b bg-muted/20">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <Users className="h-5 w-5 text-muted-foreground" />
+                                            Department People
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Employees assigned to this department with latest appraisal outcome.
+                                        </CardDescription>
+                                    </div>
+
+                                    <Badge variant="outline">{employeeProfiles.length} profile(s)</Badge>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="p-0">
+                                {employeeProfiles.length > 0 ? (
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full text-sm">
+                                            <thead className="bg-muted/30 text-left">
+                                                <tr>
+                                                    {['Employee', 'Job Title', 'Status', 'Location', 'Review', 'Score', 'Rating', ''].map((header) => (
+                                                        <th key={header} className="px-4 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                            {header}
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+
+                                            <tbody>
+                                                {employeeProfiles.map((profile) => (
+                                                    <DepartmentEmployeeRow key={profile.id} profile={profile} />
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <div className="flex min-h-[220px] items-center justify-center border-t bg-muted/10 p-8 text-center text-sm text-muted-foreground">
+                                        No employee profiles are assigned to this department yet.
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="col-span-12">
                         <div className="grid gap-6 md:grid-cols-3">
                             <Card className="shadow-sm">
                                 <CardHeader className="pb-4">
@@ -208,6 +277,48 @@ export default function DepartmentShow({ department }: { department: Department 
                 </div>
             </div>
         </PerformancePage>
+    );
+}
+
+function DepartmentEmployeeRow({ profile }: { profile: EmployeeProfile }) {
+    const appraisal = profile.latest_appraisal;
+    const score = effectiveScore(appraisal);
+
+    return (
+        <tr className="border-t transition-colors hover:bg-muted/20 odd:bg-background even:bg-muted/[0.02]">
+            <td className="px-4 py-4">
+                <div className="font-semibold text-foreground">{profile.user?.name ?? 'Unassigned user'}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{profile.employee_number}</div>
+            </td>
+            <td className="px-4 py-4 text-muted-foreground">{profile.job_title?.name ?? 'No job title'}</td>
+            <td className="px-4 py-4">
+                <Badge variant={profile.is_active ? 'secondary' : 'outline'}>
+                    {labelize(profile.employment_status)}
+                </Badge>
+            </td>
+            <td className="px-4 py-4 text-muted-foreground">{profile.work_location ?? 'Not set'}</td>
+            <td className="px-4 py-4">
+                <div className="text-muted-foreground">{appraisal?.cycle_name_snapshot ?? 'No appraisal'}</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                    {profile.is_review_eligible ? 'Review eligible' : 'Not review eligible'}
+                </div>
+            </td>
+            <td className="px-4 py-4">
+                <div className="font-semibold text-foreground">{formatScore(score)}</div>
+                {appraisal?.calibrated_overall_score !== null && appraisal?.calibrated_overall_score !== undefined ? (
+                    <div className="mt-1 text-xs text-muted-foreground">Calibrated</div>
+                ) : null}
+            </td>
+            <td className="px-4 py-4 text-muted-foreground">{effectiveRating(appraisal)}</td>
+            <td className="px-4 py-4 text-right">
+                <Button asChild variant="outline" size="sm">
+                    <Link href={route('performance.employees.show', profile.id)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View
+                    </Link>
+                </Button>
+            </td>
+        </tr>
     );
 }
 

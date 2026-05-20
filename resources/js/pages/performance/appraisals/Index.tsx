@@ -22,7 +22,7 @@ import {
 
 interface Props {
     appraisals: Paginated<Appraisal>;
-    filters: { search: string; status: string };
+    filters: { search: string; status: string; needs_action?: boolean };
     can: { create: boolean };
 }
 
@@ -49,7 +49,7 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
 
         router.get(
             route('performance.appraisals.index'),
-            { search, status },
+            { search, status, needs_action: filters.needs_action ? 1 : undefined },
             { preserveState: true, replace: true },
         );
     };
@@ -87,16 +87,19 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
             }
         >
             <div className="space-y-6">
-                <div className="rounded-2xl border bg-background p-6 shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <header className="bg-card relative overflow-hidden rounded-2xl border p-6 shadow-sm lg:p-8">
+                    <div className="bg-brand-sand/12 absolute -top-16 -right-16 h-48 w-48 rounded-full blur-3xl" />
+                    <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-3">
-                            <Badge variant="secondary" className="w-fit">
-                                Review operations
-                            </Badge>
-
+                            <div className="font-mono-brand text-foreground/60 flex items-center gap-3 text-[11px] tracking-[0.22em] uppercase">
+                                <span className="bg-brand-sand inline-block h-px w-8" />
+                                <span>§ Review operations</span>
+                            </div>
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight text-foreground">Appraisals</h1>
-                                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                                <h1 className="font-display text-balance text-foreground text-4xl leading-[1] font-light tracking-tight lg:text-5xl">
+                                    Appraisals
+                                </h1>
+                                <p className="text-foreground/65 mt-3 max-w-2xl text-[14px] leading-relaxed">
                                     Track appraisal records across planning, review, approval, and completion with a
                                     clean operational overview.
                                 </p>
@@ -104,30 +107,36 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            <div className="rounded-xl border bg-muted/30 px-4 py-3">
+                                <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
                                     Total records
                                 </div>
-                                <div className="mt-1 font-semibold text-foreground">{totalCount}</div>
+                                <div className="font-display text-foreground mt-1 text-2xl leading-none font-light">
+                                    {totalCount}
+                                </div>
                             </div>
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Visible now</div>
-                                <div className="mt-1 font-semibold text-foreground">{totalVisible}</div>
+                            <div className="rounded-xl border bg-muted/30 px-4 py-3">
+                                <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                    Visible now
+                                </div>
+                                <div className="font-display text-foreground mt-1 text-2xl leading-none font-light">
+                                    {totalVisible}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </header>
 
                 <div className="grid gap-4 md:grid-cols-3">
                     <Card className="shadow-sm">
                         <CardHeader className="pb-2">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <ClipboardList className="h-4.5 w-4.5" />
-                                <CardTitle className="text-sm font-medium">Active Appraisals</CardTitle>
+                            <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                                <ClipboardList className="h-3.5 w-3.5" />
+                                Active Appraisals
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">{totalVisible}</div>
+                            <div className="font-display text-foreground text-4xl leading-none font-light tracking-tight">{totalVisible}</div>
                             <p className="mt-2 text-xs text-muted-foreground">
                                 Records currently shown in the filtered result set.
                             </p>
@@ -136,13 +145,13 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
 
                     <Card className="shadow-sm">
                         <CardHeader className="pb-2">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <CheckCircle2 className="h-4.5 w-4.5" />
-                                <CardTitle className="text-sm font-medium">Completed</CardTitle>
+                            <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Completed
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">{completedCount}</div>
+                            <div className="font-display text-foreground text-4xl leading-none font-light tracking-tight">{completedCount}</div>
                             <p className="mt-2 text-xs text-muted-foreground">
                                 Calibrating or finalized appraisals in the visible list.
                             </p>
@@ -151,13 +160,13 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
 
                     <Card className="shadow-sm">
                         <CardHeader className="pb-2">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Trophy className="h-4.5 w-4.5" />
-                                <CardTitle className="text-sm font-medium">Scored Records</CardTitle>
+                            <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                                <Trophy className="h-3.5 w-3.5" />
+                                Scored Records
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight">{scoredCount}</div>
+                            <div className="font-display text-foreground text-4xl leading-none font-light tracking-tight">{scoredCount}</div>
                             <p className="mt-2 text-xs text-muted-foreground">
                                 Appraisals with an available overall score.
                             </p>
@@ -185,7 +194,7 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
                     <CardContent className="p-6">
                         <form onSubmit={submit} className="flex flex-col gap-3 lg:flex-row lg:items-end">
                             <div className="w-full lg:max-w-sm">
-                                <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                <label className="font-mono-brand text-muted-foreground mb-2 block text-[10px] tracking-[0.22em] uppercase">
                                     Search
                                 </label>
                                 <div className="relative">
@@ -200,7 +209,7 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
                             </div>
 
                             <div className="w-full lg:max-w-xs">
-                                <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                <label className="font-mono-brand text-muted-foreground mb-2 block text-[10px] tracking-[0.22em] uppercase">
                                     Status
                                 </label>
                                 <select
@@ -252,8 +261,10 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
                                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-muted/30">
                                         <ClipboardList className="h-5 w-5 text-muted-foreground" />
                                     </div>
-                                    <h3 className="text-base font-semibold text-foreground">No appraisals found</h3>
-                                    <p className="text-sm text-muted-foreground">
+                                    <h3 className="font-display text-foreground text-xl font-light tracking-tight">
+                                        No appraisals found
+                                    </h3>
+                                    <p className="text-muted-foreground text-[13px]">
                                         Adjust your search or status filter to see matching appraisal records.
                                     </p>
                                 </div>
@@ -264,22 +275,22 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
                                     <table className="min-w-full text-sm">
                                         <thead className="bg-muted/30 text-left">
                                             <tr>
-                                                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="px-6 py-4 font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
                                                     Employee
                                                 </th>
-                                                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="px-6 py-4 font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
                                                     Cycle
                                                 </th>
-                                                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="px-6 py-4 font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
                                                     Template
                                                 </th>
-                                                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="px-6 py-4 font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
                                                     Status
                                                 </th>
-                                                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="px-6 py-4 font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
                                                     Overall
                                                 </th>
-                                                <th className="px-6 py-4 text-right text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="px-6 py-4 text-right font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
                                                     Actions
                                                 </th>
                                             </tr>

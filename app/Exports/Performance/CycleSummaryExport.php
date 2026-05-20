@@ -6,7 +6,7 @@ class CycleSummaryExport extends BasePerformanceExport
 {
     protected function headings(): array
     {
-        return ['Cycle', 'Total Appraisals', 'Average Score'];
+        return ['Cycle', 'Total Appraisals', 'Average Effective Score'];
     }
 
     protected function mapRow(mixed $row): array

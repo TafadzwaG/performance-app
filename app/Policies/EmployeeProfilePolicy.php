@@ -24,6 +24,10 @@ class EmployeeProfilePolicy
 
     public function update(User $user, EmployeeProfile $employeeProfile): bool
     {
+        if ($employeeProfile->user_id === $user->id) {
+            return true;
+        }
+
         return $user->can('performance.employees.update');
     }
 

@@ -34,22 +34,30 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-const breadcrumbs = (profile: EmployeeProfile): BreadcrumbItem[] => [
+const adminBreadcrumbs = (profile: EmployeeProfile): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
     { title: 'Employees', href: route('performance.employees.index') },
     { title: profile.user?.name ?? profile.employee_number, href: route('performance.employees.show', profile.id) },
+];
+
+const ownProfileBreadcrumbs = (profile: EmployeeProfile): BreadcrumbItem[] => [
+    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'Profile', href: route('performance.profile.show') },
+    { title: profile.user?.name ?? profile.employee_number, href: route('performance.profile.show') },
 ];
 
 export default function EmployeeShow({
     employeeProfile,
     managerOptions,
     fieldConfig,
+    isOwnProfile = false,
     can,
 }: {
     employeeProfile: EmployeeProfile;
     managerOptions: Option[];
     fieldConfig: EmployeeFieldConfigItem[];
-    can: { assignManagers: boolean };
+    isOwnProfile?: boolean;
+    can: { assignManagers: boolean; edit?: boolean };
 }) {
     const [lineManagerModalOpen, setLineManagerModalOpen] = useState(false);
     const managerForm = useForm({
@@ -73,38 +81,55 @@ export default function EmployeeShow({
         }))
         .filter((section) => section.fields.length > 0);
 
+    const breadcrumbs = isOwnProfile ? ownProfileBreadcrumbs(employeeProfile) : adminBreadcrumbs(employeeProfile);
+    const editHref = isOwnProfile
+        ? route('performance.profile.edit')
+        : route('performance.employees.edit', employeeProfile.id);
+
     return (
         <PerformancePage
             title={userName}
-            description="Employee profile, reporting lines, role assignments, and appraisal history."
-            breadcrumbs={breadcrumbs(employeeProfile)}
+            description={
+                isOwnProfile
+                    ? 'Your employee profile, reporting lines, and appraisal history.'
+                    : 'Employee profile, reporting lines, role assignments, and appraisal history.'
+            }
+            breadcrumbs={breadcrumbs}
             secondaryActions={
-                <Button asChild variant="outline">
-                    <Link href={route('performance.employees.edit', employeeProfile.id)}>
-                        <PencilLine className="mr-2 h-4 w-4" />
-                        Edit Profile
-                    </Link>
-                </Button>
+                can.edit ? (
+                    <Button asChild variant="outline">
+                        <Link href={editHref}>
+                            <PencilLine className="mr-2 h-4 w-4" />
+                            Edit Profile
+                        </Link>
+                    </Button>
+                ) : undefined
             }
         >
             <div className="space-y-6">
-                <div className="rounded-2xl border bg-background p-6 shadow-sm">
-                    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="flex items-start gap-4">
-                            <div className="flex h-20 w-20 items-center justify-center rounded-xl border bg-muted/30 text-xl font-semibold text-foreground">
+                {/* Editorial header — matches welcome / dashboard typography */}
+                <div className="bg-card relative overflow-hidden rounded-2xl border p-6 shadow-sm lg:p-8">
+                    <div className="bg-brand-sand/12 absolute -top-16 -right-16 h-48 w-48 rounded-full blur-3xl" />
+                    <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="flex items-start gap-5">
+                            <div className="bg-secondary/40 text-foreground font-display flex h-20 w-20 items-center justify-center rounded-xl border text-2xl font-light">
                                 {getInitials(userName)}
                             </div>
 
                             <div className="space-y-3">
                                 <div>
-                                    <div className="mb-1 flex flex-wrap items-center gap-2">
-                                        <h1 className="text-3xl font-bold tracking-tight text-foreground">{userName}</h1>
-                                        <Badge variant="secondary">{employeeProfile.employee_number}</Badge>
+                                    <div className="font-mono-brand text-foreground/60 flex items-center gap-3 text-[11px] tracking-[0.22em] uppercase">
+                                        <span className="bg-brand-sand inline-block h-px w-6" />
+                                        <span>{isOwnProfile ? '§ My profile' : '§ Employee profile'}</span>
                                     </div>
-
-                                    <p className="text-sm text-muted-foreground">
-                                        {employeeProfile.job_title?.name ?? 'No job title'} {' • '}
-                                        {employeeProfile.department?.name ?? 'No department'}
+                                    <h1 className="font-display text-balance text-foreground mt-3 text-4xl leading-[1] font-light tracking-tight lg:text-5xl">
+                                        {userName}
+                                    </h1>
+                                    <p className="text-foreground/70 mt-3 flex flex-wrap items-center gap-2 text-[13px]">
+                                        <Badge variant="secondary">{employeeProfile.employee_number}</Badge>
+                                        <span>{employeeProfile.job_title?.name ?? 'No job title'}</span>
+                                        <span className="text-foreground/30">·</span>
+                                        <span>{employeeProfile.department?.name ?? 'No department'}</span>
                                     </p>
                                 </div>
 
@@ -139,10 +164,13 @@ export default function EmployeeShow({
                     <div className="space-y-6 lg:col-span-4">
                         <Card className="shadow-sm">
                             <CardHeader className="pb-3">
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <ShieldCheck className="h-4.5 w-4.5" />
-                                    <CardTitle className="text-sm font-medium">Operational Status</CardTitle>
+                                <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                                    <ShieldCheck className="h-3.5 w-3.5" />
+                                    § Operational status
                                 </div>
+                                <CardTitle className="font-display mt-1 text-lg font-light tracking-tight">
+                                    At a glance
+                                </CardTitle>
                             </CardHeader>
 
                             <CardContent className="space-y-4">
@@ -157,10 +185,10 @@ export default function EmployeeShow({
                                     active={employeeProfile.is_review_eligible ?? true}
                                 />
                                 <div className="rounded-lg border bg-muted/20 p-4">
-                                    <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+                                    <div className="font-mono-brand text-muted-foreground mb-2 text-[10px] tracking-[0.22em] uppercase">
                                         Internal Notes
                                     </div>
-                                    <p className="text-sm leading-6 text-muted-foreground">
+                                    <p className="text-muted-foreground text-[13px] leading-6">
                                         {employeeProfile.notes ?? 'No employee notes recorded.'}
                                     </p>
                                 </div>
@@ -170,9 +198,14 @@ export default function EmployeeShow({
                         <Card className="shadow-sm">
                             <CardHeader className="pb-3">
                                 <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                        <UserCog className="h-4.5 w-4.5" />
-                                        <CardTitle className="text-sm font-medium">Reporting Line</CardTitle>
+                                    <div>
+                                        <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                                            <UserCog className="h-3.5 w-3.5" />
+                                            § Reporting line
+                                        </div>
+                                        <CardTitle className="font-display mt-1 text-lg font-light tracking-tight">
+                                            Managers
+                                        </CardTitle>
                                     </div>
 
                                     {can.assignManagers ? (
@@ -185,8 +218,13 @@ export default function EmployeeShow({
                                             </DialogTrigger>
                                             <DialogContent>
                                                 <DialogHeader>
-                                                    <DialogTitle>Assign Line Manager</DialogTitle>
-                                                    <DialogDescription>
+                                                    <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                                        § Reporting line
+                                                    </div>
+                                                    <DialogTitle className="font-display text-2xl font-light tracking-tight">
+                                                        Assign Line Manager
+                                                    </DialogTitle>
+                                                    <DialogDescription className="text-[13px]">
                                                         Select a line manager for {userName}. This updates reporting and appraisal routing.
                                                     </DialogDescription>
                                                 </DialogHeader>
@@ -259,11 +297,14 @@ export default function EmployeeShow({
                         {showAppraisalHistory ? (
                             <Card className="shadow-sm">
                                 <CardHeader>
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                        <History className="h-4.5 w-4.5" />
-                                        <CardTitle className="text-base">Appraisal History</CardTitle>
+                                    <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                                        <History className="h-3.5 w-3.5" />
+                                        § Appraisal history
                                     </div>
-                                    <CardDescription>
+                                    <CardTitle className="font-display mt-1 text-2xl font-light tracking-tight">
+                                        Cycles & performance
+                                    </CardTitle>
+                                    <CardDescription className="text-[13px]">
                                         Cycle history and current performance workflow state.
                                     </CardDescription>
                                 </CardHeader>
@@ -281,24 +322,24 @@ export default function EmployeeShow({
                                                     </div>
 
                                                     <div>
-                                                        <div className="font-medium text-foreground">
+                                                        <div className="font-display text-foreground text-lg font-light">
                                                             {appraisal.cycle_name_snapshot}
                                                         </div>
-                                                        <div className="mt-1 text-xs text-muted-foreground">
-                                                            Status: {formatValue(appraisal.status)}
+                                                        <div className="font-mono-brand text-muted-foreground mt-1 text-[10px] tracking-[0.22em] uppercase">
+                                                            Status · {formatValue(appraisal.status)}
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <div className="flex items-center gap-3">
                                                     <div className="text-right">
-                                                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                                                            Performance Score
+                                                        <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                                            Performance score
                                                         </div>
-                                                        <div className="mt-1 text-sm font-semibold text-foreground">
+                                                        <div className="font-display text-foreground mt-1 text-lg leading-none font-light">
                                                             {appraisal.overall_score !== undefined && appraisal.overall_score !== null
                                                                 ? `${Number(appraisal.overall_score).toFixed(1)}%`
-                                                                : '-'}
+                                                                : '—'}
                                                         </div>
                                                     </div>
                                                     <ScoreDonut score={appraisal.overall_score} />
@@ -316,15 +357,20 @@ export default function EmployeeShow({
                             {detailSections.map(({ section, fields }) => (
                                 <Card key={section} className="shadow-sm">
                                     <CardHeader>
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            {section === 'identity' ? <User2 className="h-4.5 w-4.5" /> : null}
-                                            {section === 'contact' ? <Contact className="h-4.5 w-4.5" /> : null}
-                                            {section === 'employment' ? <Briefcase className="h-4.5 w-4.5" /> : null}
-                                            {section === 'performance' ? <ShieldCheck className="h-4.5 w-4.5" /> : null}
-                                            {section === 'notes' ? <Eye className="h-4.5 w-4.5" /> : null}
-                                            <CardTitle className="text-base">{formatValue(section)}</CardTitle>
+                                        <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                                            {section === 'identity' ? <User2 className="h-3.5 w-3.5" /> : null}
+                                            {section === 'contact' ? <Contact className="h-3.5 w-3.5" /> : null}
+                                            {section === 'employment' ? <Briefcase className="h-3.5 w-3.5" /> : null}
+                                            {section === 'performance' ? <ShieldCheck className="h-3.5 w-3.5" /> : null}
+                                            {section === 'notes' ? <Eye className="h-3.5 w-3.5" /> : null}
+                                            § {formatValue(section)}
                                         </div>
-                                        <CardDescription>Configured employee fields for this section.</CardDescription>
+                                        <CardTitle className="font-display mt-1 text-xl font-light tracking-tight">
+                                            {formatValue(section)} details
+                                        </CardTitle>
+                                        <CardDescription className="text-[12px]">
+                                            Configured employee fields for this section.
+                                        </CardDescription>
                                     </CardHeader>
                                     <CardContent className="grid gap-4">
                                         {fields.map((field) => (
@@ -343,11 +389,14 @@ export default function EmployeeShow({
                             <div className="grid gap-6 md:grid-cols-2">
                                 <Card className="shadow-sm">
                                     <CardHeader>
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <Users className="h-4.5 w-4.5" />
-                                            <CardTitle className="text-base">Role Assignments</CardTitle>
+                                        <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                                            <Users className="h-3.5 w-3.5" />
+                                            § Access
                                         </div>
-                                        <CardDescription>
+                                        <CardTitle className="font-display mt-1 text-xl font-light tracking-tight">
+                                            Role assignments
+                                        </CardTitle>
+                                        <CardDescription className="text-[12px]">
                                             Current application roles from the linked user account.
                                         </CardDescription>
                                     </CardHeader>
@@ -369,24 +418,33 @@ export default function EmployeeShow({
 
                                 <Card className="shadow-sm">
                                     <CardHeader>
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <Mail className="h-4.5 w-4.5" />
-                                            <CardTitle className="text-base">Linked Account</CardTitle>
+                                        <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                                            <Mail className="h-3.5 w-3.5" />
+                                            § Account
                                         </div>
-                                        <CardDescription>Connected user identity and access reference.</CardDescription>
+                                        <CardTitle className="font-display mt-1 text-xl font-light tracking-tight">
+                                            Linked account
+                                        </CardTitle>
+                                        <CardDescription className="text-[12px]">
+                                            Connected user identity and access reference.
+                                        </CardDescription>
                                     </CardHeader>
 
                                     <CardContent className="space-y-3">
                                         <div className="rounded-lg border bg-muted/20 p-4">
-                                            <div className="text-xs uppercase tracking-wide text-muted-foreground">User Email</div>
-                                            <div className="mt-2 text-sm font-medium text-foreground">
-                                                {employeeProfile.user?.email ?? '-'}
+                                            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                                User email
+                                            </div>
+                                            <div className="text-foreground mt-2 text-[13px] font-medium">
+                                                {employeeProfile.user?.email ?? '—'}
                                             </div>
                                         </div>
 
                                         <div className="rounded-lg border bg-muted/20 p-4">
-                                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Employee Record</div>
-                                            <div className="mt-2 text-sm font-medium text-foreground">
+                                            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                                Employee record
+                                            </div>
+                                            <div className="text-foreground mt-2 text-[13px] font-medium">
                                                 {employeeProfile.employee_number}
                                             </div>
                                         </div>
@@ -469,9 +527,9 @@ function formatShowField(profile: EmployeeProfile, field: EmployeeFieldConfigIte
 
 function StatusPill({ label, value }: { label: string; value: string }) {
     return (
-        <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-            <div className="mt-1 font-semibold text-foreground">{value}</div>
+        <div className="rounded-xl border bg-muted/30 px-4 py-3">
+            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">{label}</div>
+            <div className="font-display text-foreground mt-1 text-lg font-light tracking-tight">{value}</div>
         </div>
     );
 }
@@ -479,7 +537,7 @@ function StatusPill({ label, value }: { label: string; value: string }) {
 function KeyValueBadge({ label, value, active }: { label: string; value: string; active: boolean }) {
     return (
         <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3">
-            <span className="text-sm text-muted-foreground">{label}</span>
+            <span className="text-foreground/70 text-[13px]">{label}</span>
             <Badge variant={active ? 'secondary' : 'outline'}>{value}</Badge>
         </div>
     );
@@ -488,12 +546,14 @@ function KeyValueBadge({ label, value, active }: { label: string; value: string;
 function MiniPersonCard({ label, name }: { label: string; name: string }) {
     return (
         <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border bg-background text-xs font-semibold text-foreground">
+            <div className="bg-background text-foreground font-display flex h-9 w-9 items-center justify-center rounded-full border text-xs font-medium">
                 {getInitials(name)}
             </div>
             <div>
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-                <div className="text-sm font-medium text-foreground">{name}</div>
+                <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                    {label}
+                </div>
+                <div className="font-display text-foreground text-[15px] leading-tight font-light">{name}</div>
             </div>
         </div>
     );
@@ -502,8 +562,8 @@ function MiniPersonCard({ label, name }: { label: string; name: string }) {
 function Info({ label, value }: { label: string; value: string | number }) {
     return (
         <div className="rounded-lg border bg-muted/10 p-4">
-            <div className="text-sm text-muted-foreground">{label}</div>
-            <div className="mt-2 text-base font-semibold text-foreground">{value}</div>
+            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">{label}</div>
+            <div className="font-display text-foreground mt-2 text-base font-light tracking-tight">{value}</div>
         </div>
     );
 }

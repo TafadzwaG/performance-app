@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\EmployeeProfile;
+use App\Models\SystemSetting;
+use App\Services\Performance\PendingAppraisalNavService;
 use App\Support\Branding;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -48,6 +50,8 @@ class HandleInertiaRequests extends Middleware
         $canViewEmployees = $user?->can('performance.employees.view')
             || $user?->can('performance.employees.create')
             || $user?->can('performance.employees.update');
+        $pendingAppraisalNav = app(PendingAppraisalNavService::class);
+        $systemSettings = SystemSetting::query()->first();
 
         return array_merge(parent::share($request), [
             ...parent::share($request),
@@ -82,9 +86,18 @@ class HandleInertiaRequests extends Middleware
             ],
             'nav' => [
                 'employeesCount' => $canViewEmployees ? EmployeeProfile::query()->count() : null,
+                'pendingAppraisalsCount' => $user && $pendingAppraisalNav->shouldShowFor($user)
+                    ? $pendingAppraisalNav->countFor($user)
+                    : null,
+                'profileUrl' => $user
+                    ? ($user->employeeProfile()->exists()
+                        ? route('performance.profile.show')
+                        : route('employee-profile.complete'))
+                    : null,
             ],
             'branding' => [
                 'logoUrl' => Branding::logoUrl(),
+                'companyName' => $systemSettings?->company_name,
             ],
         ]);
     }

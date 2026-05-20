@@ -1,5 +1,6 @@
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
+import { NavProfile } from '@/components/nav-profile';
 import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
@@ -10,6 +11,7 @@ import {
     SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
+    SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
@@ -22,12 +24,16 @@ import {
     Building2,
     CircleHelp,
     ClipboardList,
+    Clock3,
+    FilePlus2,
     FileText,
     Gauge,
+    HardDrive,
     History,
     LayoutGrid,
     LogOut,
     RefreshCw,
+    Settings2,
     Shield,
     SlidersHorizontal,
     Target,
@@ -41,6 +47,9 @@ export function AppSidebar() {
     const can = (...required: string[]) => required.some((permission) => permissions.includes(permission));
     const impersonation = auth.impersonation;
     const employeesCount = typeof nav?.employeesCount === 'number' ? nav.employeesCount : null;
+    const pendingAppraisalsCount =
+        typeof nav?.pendingAppraisalsCount === 'number' ? nav.pendingAppraisalsCount : null;
+    const showPendingAppraisalsNav = pendingAppraisalsCount !== null;
     const setupItems: NavItem[] = [
         ...(can('performance.setup.departments.view')
             ? [
@@ -72,7 +81,7 @@ export function AppSidebar() {
         ...(can('performance.setup.competencies.view')
             ? [
                   {
-                      title: 'Competencies',
+                      title: 'Values',
                       url: '/performance/setup/competencies',
                       icon: Gauge,
                   } satisfies NavItem,
@@ -138,6 +147,24 @@ export function AppSidebar() {
                       title: 'Audit Trail',
                       url: route('access.audit-trails.index'),
                       icon: History,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('access.storage.manage', 'system.settings.manage')
+            ? [
+                  {
+                      title: 'Storage Management',
+                      url: route('access.storage.index'),
+                      icon: HardDrive,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('system.settings.manage')
+            ? [
+                  {
+                      title: 'Settings',
+                      url: route('settings.index'),
+                      icon: Settings2,
                   } satisfies NavItem,
               ]
             : []),
@@ -268,11 +295,64 @@ export function AppSidebar() {
                     </SidebarGroup>
                 )}
 
+                {showPendingAppraisalsNav ? (
+                    <SidebarGroup className="px-2 pt-2 pb-1">
+                        <SidebarMenu>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    size="lg"
+                                    tooltip="Pending appraisals"
+                                    className="border border-sidebar-border/80 bg-sidebar-accent/50 font-medium shadow-sm transition-all hover:bg-sidebar-accent hover:shadow-md"
+                                >
+                                    <Link
+                                        href={route('performance.appraisals.index', { needs_action: 1 })}
+                                        prefetch
+                                    >
+                                        <Clock3 className="!size-4 shrink-0" />
+                                        <span className="font-display tracking-tight text-[15px] group-data-[collapsible=icon]:hidden">
+                                            Pending appraisals
+                                        </span>
+                                    </Link>
+                                </SidebarMenuButton>
+                                {pendingAppraisalsCount > 0 ? (
+                                    <SidebarMenuBadge className="h-5 min-w-5 rounded-full bg-destructive px-1.5 text-[0.6875rem] font-semibold text-destructive-foreground">
+                                        {pendingAppraisalsCount > 99 ? '99+' : pendingAppraisalsCount}
+                                    </SidebarMenuBadge>
+                                ) : null}
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroup>
+                ) : null}
+
+                {can('performance.review_cycles.assign_employees', 'performance.appraisals.view_all') ? (
+                    <SidebarGroup className="px-2 pt-2 pb-1">
+                        <SidebarMenu>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    size="lg"
+                                    tooltip="Create an appraisal"
+                                    className="bg-brand-sand text-brand-ink hover:bg-brand-sand/90 hover:text-brand-ink dark:bg-brand-sand dark:text-brand-ink dark:hover:bg-brand-sand/90 group-data-[collapsible=icon]:p-2! border border-brand-sand/40 font-medium shadow-sm transition-all hover:-translate-y-px hover:shadow-md focus-visible:ring-brand-sand"
+                                >
+                                    <Link href="/performance/appraisals/create" prefetch>
+                                        <FilePlus2 className="!size-4 shrink-0" />
+                                        <span className="font-display tracking-tight text-[15px] group-data-[collapsible=icon]:hidden">
+                                            Create an appraisal
+                                        </span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroup>
+                ) : null}
+
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 
             <SidebarFooter>
                 <NavFooter items={footerNavItems} className="mt-auto" />
+                <NavProfile />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

@@ -1,5 +1,15 @@
 import PaginationLinks from '@/components/performance/PaginationLinks';
 import PerformancePage from '@/components/performance/PerformancePage';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,10 +19,21 @@ import { Link } from '@inertiajs/react';
 import {
     BarChart3,
     ClipboardList,
+    FileSpreadsheet,
+    FileText,
     Layers3,
     PencilRuler,
     Plus,
 } from 'lucide-react';
+import { useState } from 'react';
+
+type TemplateExportFormat = 'pdf' | 'excel';
+
+type PendingTemplateExport = {
+    templateId: number;
+    templateName: string;
+    format: TemplateExportFormat;
+};
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -50,6 +71,9 @@ function getTemplateSubtitle(template: Template) {
 }
 
 export default function TemplatesIndex({ templates }: { templates: Paginated<Template> }) {
+    const [exportDialogOpen, setExportDialogOpen] = useState(false);
+    const [pendingExport, setPendingExport] = useState<PendingTemplateExport | null>(null);
+
     const totalTemplates = templates.total ?? templates.data.length;
     const from = templates.from ?? 0;
     const to = templates.to ?? templates.data.length;
@@ -58,6 +82,39 @@ export default function TemplatesIndex({ templates }: { templates: Paginated<Tem
         templates.data.reduce((max, template) => Math.max(max, template.business_weight_percent ?? 0), 0) || 0;
 
     const averageVersion = formatAverageVersion(templates.data);
+
+    const openExportDialog = (template: Template, format: TemplateExportFormat) => {
+        setPendingExport({
+            templateId: template.id,
+            templateName: template.name,
+            format,
+        });
+        setExportDialogOpen(true);
+    };
+
+    const handleExportDialogOpenChange = (open: boolean) => {
+        setExportDialogOpen(open);
+
+        if (!open) {
+            setPendingExport(null);
+        }
+    };
+
+    const handleExportConfirm = () => {
+        if (!pendingExport) {
+            return;
+        }
+
+        const href =
+            pendingExport.format === 'pdf'
+                ? route('performance.templates.export.pdf', pendingExport.templateId)
+                : route('performance.templates.export.excel', pendingExport.templateId);
+
+        window.open(href, '_blank', 'noopener,noreferrer');
+        handleExportDialogOpenChange(false);
+    };
+
+    const exportFormatLabel = pendingExport?.format === 'pdf' ? 'PDF' : 'Excel';
 
     return (
         <PerformancePage
@@ -239,7 +296,7 @@ export default function TemplatesIndex({ templates }: { templates: Paginated<Tem
                                                         </td>
 
                                                         <td className="px-6 py-5">
-                                                            <div className="flex justify-end gap-2">
+                                                            <div className="flex flex-wrap justify-end gap-2">
                                                                 <Button asChild variant="ghost" size="sm">
                                                                     <Link href={route('performance.templates.show', template.id)}>
                                                                         View
@@ -250,6 +307,28 @@ export default function TemplatesIndex({ templates }: { templates: Paginated<Tem
                                                                     <Link href={route('performance.templates.builder', template.id)}>
                                                                         Builder
                                                                     </Link>
+                                                                </Button>
+
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="accent"
+                                                                    size="sm"
+                                                                    title="Download PDF"
+                                                                    onClick={() => openExportDialog(template, 'pdf')}
+                                                                >
+                                                                    <FileText className="h-3.5 w-3.5" />
+                                                                    PDF
+                                                                </Button>
+
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    title="Download Excel"
+                                                                    onClick={() => openExportDialog(template, 'excel')}
+                                                                >
+                                                                    <FileSpreadsheet className="h-3.5 w-3.5" />
+                                                                    Excel
                                                                 </Button>
                                                             </div>
                                                         </td>
@@ -272,6 +351,23 @@ export default function TemplatesIndex({ templates }: { templates: Paginated<Tem
                     </CardContent>
                 </Card>
             </div>
+
+            <AlertDialog open={exportDialogOpen} onOpenChange={handleExportDialogOpenChange}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Download template as {exportFormatLabel}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {pendingExport
+                                ? `This will download "${pendingExport.templateName}" as a ${exportFormatLabel} file.`
+                                : 'This will download the selected template.'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleExportConfirm}>Continue</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PerformancePage>
     );
 }

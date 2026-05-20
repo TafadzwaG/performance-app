@@ -12,7 +12,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function DepartmentSummary({ rows, reviewCycleOptions, filters }: { rows: Array<Record<string, unknown>>; reviewCycleOptions: Option[]; filters: { review_cycle_id?: number | null } }) {
     return (
-        <PerformancePage title="Department Summary" description="Appraisal completion and score averages by department." breadcrumbs={breadcrumbs}>
+        <PerformancePage title="Department Summary" description="Appraisal completion and effective score averages by department." breadcrumbs={breadcrumbs}>
             <CycleFilters reviewCycleOptions={reviewCycleOptions} reviewCycleId={filters.review_cycle_id ?? null} reportRoute="performance.reports.department_summary" exportKey="department-summary" />
             <ReportTable rows={rows} />
         </PerformancePage>

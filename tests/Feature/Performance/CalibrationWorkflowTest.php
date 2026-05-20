@@ -3,6 +3,7 @@
 use App\Enums\AppraisalStatus;
 use App\Enums\RatingScaleType;
 use App\Models\Appraisal;
+use App\Models\AppraisalCalibration;
 use App\Models\AppraisalCompetencyRating;
 use App\Models\AppraisalObjective;
 use App\Models\AppraisalTemplate;
@@ -15,6 +16,8 @@ use App\Models\RatingScaleLevel;
 use App\Models\ReviewCycle;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -82,6 +85,69 @@ test('calibration confirm makes appraisal ready for finalization', function () {
     $this->actingAs($finalizer)
         ->get(route('performance.appraisals.finalize', $appraisal))
         ->assertOk();
+});
+
+test('calibration adjustment resolves final rating from score using the overall scale', function () {
+    [$baseAppraisal, $overallScale] = createAppraisalForCalibrationFlow();
+    $baseAppraisal->update([
+        'status' => AppraisalStatus::CalibrationPending,
+        'approved_at' => now(),
+        'overall_score' => 96,
+        'overall_rating_scale_level_id' => $overallScale['high']->id,
+    ]);
+    $appraisal = $baseAppraisal->fresh();
+
+    $calibrator = User::factory()->create(['is_approved' => true]);
+    grantCalibrationPermissions($calibrator, ['performance.appraisals.calibrate']);
+
+    $this->actingAs($calibrator)
+        ->post(route('performance.appraisals.calibration.store', $appraisal), [
+            'decision' => 'adjusted',
+            'comment' => 'Committee reduced the final outcome after moderation.',
+            'evidence_summary' => 'Cross-team moderation notes.',
+            'calibrated_overall_score' => 72,
+            'calibrated_overall_rating_scale_level_id' => $overallScale['high']->id,
+        ])
+        ->assertRedirect();
+
+    $appraisal->refresh();
+
+    expect($appraisal->calibrated_overall_rating_scale_level_id)->toBe($overallScale['medium']->id);
+});
+
+test('calibration adjustment can attach evidence files', function () {
+    Storage::fake('public');
+
+    [$baseAppraisal, $overallScale] = createAppraisalForCalibrationFlow();
+    $baseAppraisal->update([
+        'status' => AppraisalStatus::CalibrationPending,
+        'approved_at' => now(),
+        'overall_score' => 96,
+        'overall_rating_scale_level_id' => $overallScale['high']->id,
+    ]);
+    $appraisal = $baseAppraisal->fresh();
+
+    $calibrator = User::factory()->create(['is_approved' => true]);
+    grantCalibrationPermissions($calibrator, ['performance.appraisals.calibrate']);
+
+    $this->actingAs($calibrator)
+        ->post(route('performance.appraisals.calibration.store', $appraisal), [
+            'decision' => 'adjusted',
+            'comment' => 'Committee reduced the final outcome after moderation.',
+            'evidence_summary' => '',
+            'calibrated_overall_score' => 72,
+            'calibrated_overall_rating_scale_level_id' => $overallScale['medium']->id,
+            'evidence_files' => [
+                UploadedFile::fake()->create('moderation-notes.pdf', 120, 'application/pdf'),
+            ],
+        ])
+        ->assertRedirect();
+
+    $calibration = AppraisalCalibration::query()->where('appraisal_id', $appraisal->id)->first();
+
+    expect($calibration)->not->toBeNull()
+        ->and($calibration->evidences)->toHaveCount(1)
+        ->and($calibration->evidences->first()->original_name)->toBe('moderation-notes.pdf');
 });
 
 test('calibration adjustment stores override without mutating manager ratings', function () {

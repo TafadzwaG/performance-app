@@ -29,7 +29,7 @@ interface Props {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Performance', href: '/performance/dashboard' },
-    { title: 'Competencies', href: route('performance.setup.competencies.index') },
+    { title: 'Values', href: route('performance.setup.competencies.index') },
 ];
 
 function normalizeCategory(category?: string | null) {
@@ -66,17 +66,17 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
 
     return (
         <PerformancePage
-            title="Competencies"
-            description="Maintain competency, value, and behaviour definitions used across templates and manager reviews."
+            title="Values"
+            description="Maintain organisational value definitions used across templates and manager reviews."
             breadcrumbs={breadcrumbs}
         >
             <div className="space-y-8">
                 <div className="flex flex-col gap-6">
                     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight text-foreground">Competencies Index</h1>
+                            <h1 className="text-3xl font-bold tracking-tight text-foreground">Values Index</h1>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Manage behavioural and values-based catalogue entries used in appraisal scoring.
+                                Manage core values and behaviour definitions used in appraisal scoring.
                             </p>
                         </div>
 
@@ -84,7 +84,7 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
                             <Button asChild>
                                 <Link href={route('performance.setup.competencies.create')}>
                                     <Plus className="mr-2 h-4 w-4" />
-                                    New Competency
+                                    New Value
                                 </Link>
                             </Button>
                         ) : null}
@@ -94,7 +94,7 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
                         <Card className="shadow-sm">
                             <CardContent className="flex h-32 flex-col justify-between p-6">
                                 <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                    Competencies On This Page
+                                    Values On This Page
                                 </span>
 
                                 <div className="flex items-end justify-between">
@@ -171,7 +171,7 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
                             <thead>
                                 <tr className="bg-muted/30">
                                     <th className="px-6 py-4 text-left text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                        Competency
+                                        Value
                                     </th>
                                     <th className="px-6 py-4 text-left text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                                         Category
@@ -243,7 +243,7 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
                                 ) : (
                                     <tr>
                                         <td colSpan={5} className="p-10 text-center text-sm text-muted-foreground">
-                                            No competencies found.
+                                            No values found.
                                         </td>
                                     </tr>
                                 )}
@@ -253,7 +253,7 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
 
                     <div className="flex flex-col gap-4 border-t bg-muted/10 px-6 py-4 md:flex-row md:items-center md:justify-between">
                         <div className="text-xs font-medium text-muted-foreground">
-                            Showing {from} to {to} of {totalResults} competencies
+                            Showing {from} to {to} of {totalResults} values
                         </div>
 
                         <PaginationLinks paginated={competencies} />
@@ -266,11 +266,11 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
                             <div className="absolute -right-4 -top-4 h-32 w-32 rounded-full bg-muted/40 blur-3xl" />
 
                             <div className="relative z-10">
-                                <h3 className="text-xl font-bold tracking-tight text-foreground">Behaviour Coverage</h3>
+                                <h3 className="text-xl font-bold tracking-tight text-foreground">Value Coverage</h3>
                                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                                    Use scoped competency entries where a value only applies to a specific department or
-                                    role. Keep broadly applicable behavioural definitions generic to avoid duplicate
-                                    catalogue maintenance.
+                                    Use scoped value entries where a behaviour only applies to a specific department or
+                                    role. Keep broadly applicable definitions generic to avoid duplicate catalogue
+                                    maintenance.
                                 </p>
 
                                 <Button variant="outline" className="mt-6">
@@ -285,7 +285,7 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
                         <CardHeader>
                             <CardTitle className="text-xl tracking-tight">Category Distribution</CardTitle>
                             <CardDescription>
-                                Top visible competency groups by category on this page.
+                                Top visible value groups by category on this page.
                             </CardDescription>
                         </CardHeader>
 
@@ -322,7 +322,7 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
                                     <BarChart3 className="h-5 w-5 text-muted-foreground" />
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                    Category distribution is calculated from the competencies currently visible in the table.
+                                    Category distribution is calculated from the values currently visible in the table.
                                 </div>
                             </div>
 

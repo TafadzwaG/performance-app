@@ -2,18 +2,23 @@
 
 use App\Http\Controllers\Performance\AppraisalApprovalController;
 use App\Http\Controllers\Performance\AppraisalCalibrationController;
+use App\Http\Controllers\Performance\AppraisalCalibrationEvidenceController;
 use App\Http\Controllers\Performance\AppraisalController;
 use App\Http\Controllers\Performance\AppraisalEvidenceController;
+use App\Http\Controllers\Performance\AppraisalExportController;
 use App\Http\Controllers\Performance\AppraisalFinalizeController;
+use App\Http\Controllers\Performance\AppraisalLookupController;
 use App\Http\Controllers\Performance\AppraisalManagerReviewController;
 use App\Http\Controllers\Performance\AppraisalPlanController;
 use App\Http\Controllers\Performance\AppraisalPrintController;
 use App\Http\Controllers\Performance\AppraisalSelfAssessmentController;
+use App\Http\Controllers\Performance\AppraisalTemplateExportController;
 use App\Http\Controllers\Performance\CycleAssignmentController;
 use App\Http\Controllers\Performance\DashboardController;
 use App\Http\Controllers\Performance\DevelopmentPlanController;
-use App\Http\Controllers\Performance\EmployeeProfileController;
 use App\Http\Controllers\Performance\EmployeeFieldSettingsController;
+use App\Http\Controllers\Performance\EmployeeProfileController;
+use App\Http\Controllers\Performance\MyEmployeeProfileController;
 use App\Http\Controllers\Performance\ReportController;
 use App\Http\Controllers\Performance\ReportExportController;
 use App\Http\Controllers\Performance\ReviewCycleController;
@@ -30,6 +35,12 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
     Route::get('dashboard', DashboardController::class)
         ->middleware('employee.profile.complete')
         ->name('dashboard');
+
+    Route::middleware('employee.profile.complete')->group(function () {
+        Route::get('profile', [MyEmployeeProfileController::class, 'show'])->name('profile.show');
+        Route::get('profile/edit', [MyEmployeeProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('profile', [MyEmployeeProfileController::class, 'update'])->name('profile.update');
+    });
 
     Route::resource('setup/departments', DepartmentController::class)
         ->parameters(['departments' => 'department'])
@@ -63,6 +74,10 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
     Route::post('review-cycles/{review_cycle}/assign-employees', [CycleAssignmentController::class, 'store'])->name('review_cycles.assign.store');
     Route::delete('review-cycles/{review_cycle}/assign-employees/{appraisal}', [CycleAssignmentController::class, 'destroy'])->name('review_cycles.assign.destroy');
 
+    // Branded PDF / XLSX exports for an appraisal template.
+    Route::get('templates/{template}/export/pdf', [AppraisalTemplateExportController::class, 'pdf'])->name('templates.export.pdf');
+    Route::get('templates/{template}/export/excel', [AppraisalTemplateExportController::class, 'excel'])->name('templates.export.excel');
+
     Route::resource('templates', AppraisalTemplateController::class)
         ->parameters(['templates' => 'template'])
         ->names('templates');
@@ -72,6 +87,11 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
         ->parameters(['goal-library' => 'goal_library_item'])
         ->names('goal_library');
 
+    Route::get('employees/export', [EmployeeProfileController::class, 'export'])->name('employees.export');
+    Route::get('employees/upload', [EmployeeProfileController::class, 'uploadCreate'])->name('employees.upload');
+    Route::post('employees/upload/preview', [EmployeeProfileController::class, 'uploadPreview'])->name('employees.upload.preview');
+    Route::post('employees/upload', [EmployeeProfileController::class, 'uploadStore'])->name('employees.upload.store');
+    Route::get('employees/upload/template', [EmployeeProfileController::class, 'downloadUploadTemplate'])->name('employees.upload.template');
     Route::resource('employees', EmployeeProfileController::class)
         ->parameters(['employees' => 'employee_profile'])
         ->only(['index', 'create', 'store', 'show', 'edit', 'update'])
@@ -80,6 +100,15 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
         ->name('employees.line_manager.update');
     Route::get('setup/employee-fields', [EmployeeFieldSettingsController::class, 'edit'])->name('setup.employee_fields.edit');
     Route::put('setup/employee-fields', [EmployeeFieldSettingsController::class, 'update'])->name('setup.employee_fields.update');
+
+    // Async lookup endpoints for the create / bulk-assign screens.
+    Route::get('appraisals/lookup/employees', [AppraisalLookupController::class, 'employees'])->name('appraisals.lookup.employees');
+    Route::get('appraisals/lookup/cycles', [AppraisalLookupController::class, 'cycles'])->name('appraisals.lookup.cycles');
+    Route::get('appraisals/lookup/templates', [AppraisalLookupController::class, 'templates'])->name('appraisals.lookup.templates');
+    Route::get('appraisals/lookup/employees/{employee_profile}', [AppraisalLookupController::class, 'employeeDetail'])->name('appraisals.lookup.employee_detail');
+
+    // Bulk-assign one cycle + template to many employees.
+    Route::post('appraisals/bulk', [AppraisalController::class, 'bulkStore'])->name('appraisals.bulk_store');
 
     Route::resource('appraisals', AppraisalController::class)
         ->parameters(['appraisals' => 'appraisal'])
@@ -100,12 +129,19 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
     Route::post('appraisals/{appraisal}/approval', [AppraisalApprovalController::class, 'store'])->name('appraisals.approval.store');
     Route::get('appraisals/{appraisal}/calibration', [AppraisalCalibrationController::class, 'edit'])->name('appraisals.calibration');
     Route::post('appraisals/{appraisal}/calibration', [AppraisalCalibrationController::class, 'store'])->name('appraisals.calibration.store');
+    Route::get('appraisals/{appraisal}/calibrations/{calibration}/evidence/{evidence}/download', [AppraisalCalibrationEvidenceController::class, 'download'])
+        ->name('appraisals.calibration.evidence.download');
     Route::get('appraisals/{appraisal}/finalize', [AppraisalFinalizeController::class, 'edit'])->name('appraisals.finalize');
     Route::post('appraisals/{appraisal}/finalize', [AppraisalFinalizeController::class, 'store'])->name('appraisals.finalize.store');
     Route::post('appraisals/{appraisal}/objectives/{objective}/evidence', [AppraisalEvidenceController::class, 'store'])->name('appraisals.evidence.store');
     Route::get('appraisals/{appraisal}/objectives/{objective}/evidence/{evidence}/download', [AppraisalEvidenceController::class, 'download'])->name('appraisals.evidence.download');
     Route::get('appraisals/{appraisal}/print', [AppraisalPrintController::class, 'show'])->name('appraisals.print');
     Route::get('appraisals/{appraisal}/print/pdf', [AppraisalPrintController::class, 'pdf'])->name('appraisals.print.pdf');
+    Route::get('appraisals/{appraisal}/print/pdf/inline', [AppraisalPrintController::class, 'inline'])->name('appraisals.print.pdf.inline');
+
+    // Stage-agnostic export endpoints — branded PDF & XLSX.
+    Route::get('appraisals/{appraisal}/export/pdf', [AppraisalExportController::class, 'pdf'])->name('appraisals.export.pdf');
+    Route::get('appraisals/{appraisal}/export/excel', [AppraisalExportController::class, 'excel'])->name('appraisals.export.excel');
 
     Route::get('development-plans', [DevelopmentPlanController::class, 'index'])->name('development_plans.index');
     Route::get('development-plans/{appraisal}', [DevelopmentPlanController::class, 'show'])->name('development_plans.show');

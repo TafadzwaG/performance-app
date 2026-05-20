@@ -6,6 +6,7 @@ use App\Enums\CalibrationDecision;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AppraisalCalibration extends Model
 {
@@ -50,5 +51,10 @@ class AppraisalCalibration extends Model
     public function calibratedOverallRatingLevel(): BelongsTo
     {
         return $this->belongsTo(RatingScaleLevel::class, 'calibrated_overall_rating_scale_level_id');
+    }
+
+    public function evidences(): HasMany
+    {
+        return $this->hasMany(AppraisalCalibrationEvidence::class, 'appraisal_calibration_id');
     }
 }

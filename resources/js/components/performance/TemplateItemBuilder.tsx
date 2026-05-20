@@ -28,7 +28,7 @@ function getItemIcon(itemType: string) {
 }
 
 function getItemLabel(itemType: string) {
-    return itemType === 'objective' ? 'Objective' : 'Competency';
+    return itemType === 'objective' ? 'Objective' : 'Value';
 }
 
 export default function TemplateItemBuilder({
@@ -75,7 +75,7 @@ export default function TemplateItemBuilder({
                         </span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        Add objective and competency items, then define weights, descriptions, and requirement rules.
+                        Add objective and value items, then define weights, descriptions, and requirement rules.
                     </p>
                 </div>
 
@@ -86,7 +86,7 @@ export default function TemplateItemBuilder({
                     </Button>
                     <Button type="button" variant="outline" onClick={() => addItem('competency')}>
                         <Brain className="mr-2 h-4 w-4" />
-                        Add Competency
+                        Add Value
                     </Button>
                 </div>
             </div>
@@ -101,7 +101,7 @@ export default function TemplateItemBuilder({
                             <div>
                                 <h3 className="text-sm font-semibold text-foreground">No template items yet</h3>
                                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                                    Start by adding an objective or competency item to define what this template will
+                                    Start by adding an objective or value item to define what this template will
                                     evaluate.
                                 </p>
                             </div>
@@ -112,7 +112,7 @@ export default function TemplateItemBuilder({
                                 </Button>
                                 <Button type="button" variant="outline" onClick={() => addItem('competency')}>
                                     <Plus className="mr-2 h-4 w-4" />
-                                    Competency
+                                    Value
                                 </Button>
                             </div>
                         </div>
@@ -171,13 +171,13 @@ export default function TemplateItemBuilder({
                                                 onChange={(event) => updateItem(index, 'item_type', event.target.value)}
                                             >
                                                 <option value="objective">Objective</option>
-                                                <option value="competency">Competency</option>
+                                                <option value="competency">Value</option>
                                             </select>
                                         </div>
 
                                         <div className="space-y-2">
                                             <Label htmlFor={`item-link-${index}`}>
-                                                {item.item_type === 'objective' ? 'Perspective' : 'Competency'}
+                                                {item.item_type === 'objective' ? 'Perspective' : 'Value'}
                                             </Label>
 
                                             {item.item_type === 'objective' ? (
@@ -213,7 +213,7 @@ export default function TemplateItemBuilder({
                                                         )
                                                     }
                                                 >
-                                                    <option value="">Competency</option>
+                                                    <option value="">Value</option>
                                                     {competencyOptions.map((option) => (
                                                         <option key={option.value} value={option.value}>
                                                             {option.label}

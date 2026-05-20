@@ -1,17 +1,18 @@
-import AppraisalHeader from '@/components/performance/AppraisalHeader';
-import AppraisalWorkflowStepper from '@/components/performance/AppraisalWorkflowStepper';
-import ApprovalTimeline from '@/components/performance/ApprovalTimeline';
-import CommentPanel from '@/components/performance/CommentPanel';
-import CompetencyRatingTable from '@/components/performance/CompetencyRatingTable';
-import ObjectiveTable from '@/components/performance/ObjectiveTable';
 import PerformancePage from '@/components/performance/PerformancePage';
-import ScoreSummaryCard from '@/components/performance/ScoreSummaryCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
-import type { Appraisal, Option } from '@/types/performance';
-import { Download, Printer, Trophy, Workflow } from 'lucide-react';
+import type { Appraisal } from '@/types/performance';
+import { Download, Printer } from 'lucide-react';
+import * as React from 'react';
+
+interface Props {
+    appraisal: Appraisal;
+    abilities: Record<string, boolean>;
+    pdfUrl: string;
+    pdfDownloadUrl: string;
+}
 
 const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -20,28 +21,39 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
     { title: 'Print', href: route('performance.appraisals.print', appraisal.id) },
 ];
 
-export default function AppraisalPrint({ appraisal, abilities }: { appraisal: Appraisal; abilities: Record<string, boolean> }) {
-    const effectiveOverallScore = appraisal.calibrated_overall_score ?? appraisal.overall_score;
-    const effectiveOverallRating = appraisal.calibrated_overall_rating_level?.label ?? appraisal.overall_rating_level?.label ?? null;
+export default function AppraisalPrint({ appraisal, pdfUrl, pdfDownloadUrl }: Props) {
+    const frameRef = React.useRef<HTMLIFrameElement | null>(null);
 
-    const perspectiveOptions: Option[] = (appraisal.objectives ?? []).map((objective) => ({
-        value: objective.perspective_id,
-        label: objective.perspective?.name ?? `Perspective ${objective.perspective_id}`,
-    }));
+    /**
+     * Print the iframe contents directly so the output is the actual PDF
+     * layout, not the surrounding app chrome.
+     */
+    const handlePrint = () => {
+        const frame = frameRef.current;
+        if (!frame) return;
+        try {
+            frame.contentWindow?.focus();
+            frame.contentWindow?.print();
+        } catch {
+            // Fallback: open the PDF in a new tab so the user can print it from
+            // the browser's native PDF viewer.
+            window.open(pdfUrl, '_blank');
+        }
+    };
 
     return (
         <PerformancePage
-            title="Print Appraisal"
-            description="Print-friendly appraisal summary and export actions."
+            title="Print preview"
+            description="Live preview of the PDF layout you'll print or download."
             breadcrumbs={breadcrumbs(appraisal)}
             secondaryActions={
                 <>
-                    <Button type="button" variant="outline" onClick={() => window.print()}>
+                    <Button type="button" onClick={handlePrint}>
                         <Printer className="mr-2 h-4 w-4" />
                         Print
                     </Button>
                     <Button asChild variant="outline">
-                        <a href={route('performance.appraisals.print.pdf', appraisal.id)}>
+                        <a href={pdfDownloadUrl}>
                             <Download className="mr-2 h-4 w-4" />
                             Download PDF
                         </a>
@@ -49,71 +61,35 @@ export default function AppraisalPrint({ appraisal, abilities }: { appraisal: Ap
                 </>
             }
         >
-            <Card className="border shadow-sm">
-                <CardContent className="space-y-4 p-5">
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm text-muted-foreground">Printable Appraisal Pack</div>
-                        <Badge variant="secondary">Appraisal #{appraisal.id}</Badge>
-                    </div>
-                    <AppraisalHeader appraisal={appraisal} />
-                </CardContent>
-            </Card>
+            <div className="space-y-4">
+                <Card className="border shadow-sm">
+                    <CardContent className="flex flex-col items-start justify-between gap-3 p-4 sm:flex-row sm:items-center">
+                        <div className="space-y-1">
+                            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                § Print preview
+                            </div>
+                            <div className="font-display text-foreground text-lg leading-tight font-light tracking-tight">
+                                {appraisal.employee_name_snapshot}
+                            </div>
+                            <div className="text-muted-foreground text-[12px]">
+                                {appraisal.cycle_name_snapshot} · {appraisal.template_name_snapshot}
+                            </div>
+                        </div>
+                        <Badge variant="secondary" className="font-mono-brand text-[10px] tracking-[0.18em]">
+                            Appraisal #{appraisal.id}
+                        </Badge>
+                    </CardContent>
+                </Card>
 
-            <Card className="border shadow-sm">
-                <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <Workflow className="h-4.5 w-4.5" />
-                        Workflow Stage
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <AppraisalWorkflowStepper
-                        status={appraisal.status}
-                        appraisalId={appraisal.id}
-                        reopenedStage={appraisal.reopened_stage}
-                        stageAccess={{
-                            goal_setting: abilities.plan,
-                            self_assessment_pending: abilities.selfAssess,
-                            manager_review_pending: abilities.managerReview,
-                            approval_pending: abilities.approve,
-                            calibration_pending: abilities.calibrate,
-                            finalized: abilities.finalize,
-                        }}
+                <Card className="overflow-hidden border shadow-sm">
+                    <iframe
+                        ref={frameRef}
+                        title={`Appraisal ${appraisal.id} PDF preview`}
+                        src={pdfUrl}
+                        className="block h-[min(1100px,calc(100vh-220px))] w-full border-0 bg-muted/20"
                     />
-                </CardContent>
-            </Card>
-
-            <Card className="border shadow-sm">
-                <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <Trophy className="h-4.5 w-4.5" />
-                        Score Overview
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ScoreSummaryCard
-                        businessScore={appraisal.business_score}
-                        valuesScore={appraisal.values_score}
-                        overallScore={effectiveOverallScore}
-                        overallRating={effectiveOverallRating}
-                    />
-                </CardContent>
-            </Card>
-
-            <ObjectiveTable
-                appraisalId={appraisal.id}
-                objectives={appraisal.objectives ?? []}
-                mode="show"
-                perspectiveOptions={perspectiveOptions}
-                ratingLevels={appraisal.template?.objective_rating_scale?.levels ?? []}
-            />
-            <CompetencyRatingTable
-                ratings={appraisal.competency_ratings ?? []}
-                mode="show"
-                ratingLevels={appraisal.template?.competency_rating_scale?.levels ?? []}
-            />
-            <CommentPanel comments={appraisal.comments ?? []} />
-            <ApprovalTimeline approvals={appraisal.approvals ?? []} histories={appraisal.status_histories ?? []} />
+                </Card>
+            </div>
         </PerformancePage>
     );
 }

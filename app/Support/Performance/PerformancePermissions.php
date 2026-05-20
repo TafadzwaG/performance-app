@@ -10,6 +10,9 @@ class PerformancePermissions
             'Dashboard' => [
                 'performance.dashboard.view',
             ],
+            'System Settings' => [
+                'system.settings.manage',
+            ],
             'Departments' => [
                 'performance.setup.departments.view',
                 'performance.setup.departments.create',
@@ -106,9 +109,13 @@ class PerformancePermissions
                 'access.users.import',
                 'access.users.impersonate',
                 'access.users.approve',
+                'access.users.delete',
             ],
             'Audit Trail' => [
                 'access.audit_trails.view',
+            ],
+            'Storage Management' => [
+                'access.storage.manage',
             ],
         ];
     }
