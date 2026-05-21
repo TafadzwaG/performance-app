@@ -24,6 +24,7 @@ class UpdateRatingScaleRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
             'levels' => ['required', 'array', 'min:1'],
             'levels.*.label' => ['required', 'string', 'max:255'],
+            'levels.*.description' => ['nullable', 'string'],
             'levels.*.short_label' => ['nullable', 'string', 'max:100'],
             'levels.*.value' => ['required', 'numeric', 'min:0'],
             'levels.*.min_percent' => ['nullable', 'numeric', 'between:0,100'],

@@ -29,6 +29,7 @@ class AppraisalTemplatePolicy
 
     public function delete(User $user, AppraisalTemplate $template): bool
     {
-        return $user->can('performance.templates.archive');
+        return ! $template->is_protected
+            && $user->can('performance.templates.archive');
     }
 }

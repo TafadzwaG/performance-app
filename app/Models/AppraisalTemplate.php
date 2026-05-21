@@ -27,6 +27,8 @@ class AppraisalTemplate extends Model
         'min_objectives',
         'max_objectives',
         'allow_competencies',
+        'is_default',
+        'is_protected',
         'is_active',
     ];
 
@@ -34,6 +36,8 @@ class AppraisalTemplate extends Model
     {
         return [
             'allow_competencies' => 'boolean',
+            'is_default' => 'boolean',
+            'is_protected' => 'boolean',
             'is_active' => 'boolean',
         ];
     }

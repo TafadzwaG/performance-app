@@ -27,7 +27,7 @@ class AppraisalCalibrationController extends Controller
 
     public function edit(Appraisal $appraisal): Response
     {
-        $this->authorize('calibrate', $appraisal);
+        $this->authorize('viewCalibrate', $appraisal);
 
         return Inertia::render('performance/appraisals/Calibration', [
             'appraisal' => $this->loadAppraisal($appraisal),

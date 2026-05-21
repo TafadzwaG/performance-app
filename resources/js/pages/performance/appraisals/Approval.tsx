@@ -1,8 +1,6 @@
+import AppraisalSteps, { AppraisalStepSubmitActions } from '@/components/performance/AppraisalSteps';
 import ApprovalTimeline from '@/components/performance/ApprovalTimeline';
-import AppraisalWorkflowJourneyCard from '@/components/performance/AppraisalWorkflowJourneyCard';
-import AppraisalWorkspaceChrome from '@/components/performance/AppraisalWorkspaceChrome';
 import PerformancePage from '@/components/performance/PerformancePage';
-import ScoreSummaryCard from '@/components/performance/ScoreSummaryCard';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -17,9 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { BreadcrumbItem } from '@/types';
+import type { BreadcrumbItem, SharedData } from '@/types';
 import type { Appraisal } from '@/types/performance';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     BadgeCheck,
@@ -30,8 +28,8 @@ import {
     MessageSquare,
     Send,
     ShieldX,
+    History,
     Sparkles,
-    Trophy,
     Undo2,
     Workflow,
 } from 'lucide-react';
@@ -66,9 +64,14 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
 ];
 
 export default function Approval({ appraisal, abilities }: Props) {
+    const { auth } = usePage<SharedData>().props;
     const [draftSaved, setDraftSaved] = useState(false);
     const [submitAlertOpen, setSubmitAlertOpen] = useState(false);
+    const [actionModalOpen, setActionModalOpen] = useState(false);
     const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
+    const hasGoals = (appraisal.objectives ?? []).length > 0;
+    const canOpenDevelopmentPlan =
+        auth.permissions.includes('performance.development_plans.view') || auth.permissions.includes('performance.development_plans.update');
 
     const { data, setData, post, processing } = useForm<ApprovalForm>({
         decision: 'approve',
@@ -167,6 +170,8 @@ export default function Approval({ appraisal, abilities }: Props) {
             return;
         }
 
+        setActionModalOpen(true);
+
         post(route('performance.appraisals.approval.store', appraisal.id), {
             onSuccess: () => {
                 if (typeof window !== 'undefined') {
@@ -174,8 +179,12 @@ export default function Approval({ appraisal, abilities }: Props) {
                 }
                 setDraftSaved(false);
             },
+            onFinish: () => setActionModalOpen(false),
+            onError: () => setActionModalOpen(false),
         });
     };
+
+    const actionModal = getActionModalContent(data.decision, data.reopened_stage);
 
     const decisionMeta = getDecisionMeta(data.decision);
 
@@ -185,20 +194,19 @@ export default function Approval({ appraisal, abilities }: Props) {
             description="Approve, reject, or return the appraisal to an earlier stage."
             breadcrumbs={breadcrumbs(appraisal)}
         >
-            <AppraisalWorkspaceChrome
+            <AppraisalSteps
                 appraisal={appraisal}
-                title="Approval"
-                description="Use this workspace to make the approval decision, return the appraisal for corrections, or complete the approval handoff."
-                badgeLabel="Approval Workspace"
-                badgeIcon={BadgeCheck}
-                canEditGoals={abilities.plan}
-                draftTag={draftSaved ? 'Saved as draft' : null}
+                abilities={abilities}
+                hasGoals={hasGoals}
+                canOpenDevelopmentPlan={canOpenDevelopmentPlan}
+                currentStepKey="approval"
+                showStartButton={false}
             />
 
             <div className="grid gap-6 xl:grid-cols-12">
-                <div className="space-y-6 xl:col-span-8">
+                <div className="space-y-6 xl:col-span-12">
                     <Card className="overflow-hidden border-0 shadow-md">
-                        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-background">
+                        <div className="from-primary/10 via-primary/5 to-background bg-gradient-to-r">
                             <CardHeader className="gap-4 border-b bg-transparent">
                                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                     <div className="space-y-3">
@@ -212,8 +220,8 @@ export default function Approval({ appraisal, abilities }: Props) {
                                                 Approval Decision
                                             </CardTitle>
                                             <CardDescription className="max-w-2xl text-sm leading-6">
-                                                Choose the final decision, add a clear approver note, and submit the
-                                                appraisal to complete this stage and send it to calibration.
+                                                Choose the final decision, add a clear approver note, and submit the appraisal to complete this stage
+                                                and send it to calibration.
                                             </CardDescription>
                                         </div>
                                     </div>
@@ -258,24 +266,19 @@ export default function Approval({ appraisal, abilities }: Props) {
                     </Card>
 
                     <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20">
+                        <CardHeader className="bg-muted/20 border-b">
                             <CardTitle className="flex items-center gap-2 text-base">
                                 <ClipboardCheck className="h-4.5 w-4.5" />
                                 Decision Details
                             </CardTitle>
-                            <CardDescription>
-                                Add the approval note and, when returning or rejecting, choose the stage to reopen.
-                            </CardDescription>
+                            <CardDescription>Add the approval note and, when returning or rejecting, choose the stage to reopen.</CardDescription>
                         </CardHeader>
 
                         <CardContent className="space-y-5 p-5">
                             {data.decision !== 'approve' ? (
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Return to stage</label>
-                                    <Select
-                                        value={data.reopened_stage}
-                                        onValueChange={(value: ReopenedStage) => setData('reopened_stage', value)}
-                                    >
+                                    <Select value={data.reopened_stage} onValueChange={(value: ReopenedStage) => setData('reopened_stage', value)}>
                                         <SelectTrigger className="w-full md:w-80">
                                             <SelectValue placeholder="Select stage" />
                                         </SelectTrigger>
@@ -285,90 +288,107 @@ export default function Approval({ appraisal, abilities }: Props) {
                                             <SelectItem value="goal_setting">Goal setting</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <p className="text-xs text-muted-foreground">
-                                        Current selection: {formatStageLabel(data.reopened_stage)}
-                                    </p>
+                                    <p className="text-muted-foreground text-xs">Current selection: {formatStageLabel(data.reopened_stage)}</p>
                                 </div>
                             ) : null}
 
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Approver comment</label>
                                 <textarea
-                                    className="min-h-32 w-full rounded-md border bg-background px-3 py-2"
+                                    className="bg-background min-h-32 w-full rounded-md border px-3 py-2"
                                     placeholder={`Enter your ${formatDecisionLabel(data.decision).toLowerCase()} note here...`}
                                     value={data.comment}
                                     onChange={(event) => setData('comment', event.target.value)}
                                 />
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-muted-foreground text-xs">
                                     This note explains the decision and becomes part of the appraisal record.
                                 </p>
                             </div>
 
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    type="button"
-                                    onClick={handleSubmitDecision}
-                                    disabled={processing}
-                                    aria-busy={processing}
-                                >
-                                    {processing ? (
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Send className="mr-2 h-4 w-4" />
-                                    )}
-                                    {processing ? 'Submitting…' : 'Submit Decision'}
-                                </Button>
+                            <AppraisalStepSubmitActions
+                                stepKey="approval"
+                                appraisal={appraisal}
+                                abilities={abilities}
+                                hasGoals={hasGoals}
+                                canOpenDevelopmentPlan={canOpenDevelopmentPlan}
+                            >
+                                <div className="flex flex-wrap gap-2">
+                                    <Button type="button" onClick={handleSubmitDecision} disabled={processing} aria-busy={processing}>
+                                        {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                        {processing ? 'Submitting…' : 'Submit Decision'}
+                                    </Button>
+                                </div>
+                            </AppraisalStepSubmitActions>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-0 shadow-md">
+                        <CardHeader className="bg-muted/20 border-b">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="space-y-2">
+                                    <CardTitle className="flex items-center gap-2 text-base">
+                                        <Workflow className="h-4.5 w-4.5" />
+                                        Approval & Audit Trail
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Review prior approval actions and status transitions before you submit your decision.
+                                    </CardDescription>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Badge variant="outline" className="gap-1.5 px-3 py-1">
+                                        <BadgeCheck className="h-3.5 w-3.5" />
+                                        {(appraisal.approvals ?? []).length} approval{(appraisal.approvals ?? []).length === 1 ? '' : 's'}
+                                    </Badge>
+                                    <Badge variant="outline" className="gap-1.5 px-3 py-1">
+                                        <History className="h-3.5 w-3.5" />
+                                        {(appraisal.status_histories ?? []).length} status change
+                                        {(appraisal.status_histories ?? []).length === 1 ? '' : 's'}
+                                    </Badge>
+                                    <Badge variant="outline" className="gap-1.5 px-3 py-1">
+                                        <ClipboardCheck className="h-3.5 w-3.5" />
+                                        Audit record
+                                    </Badge>
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20">
-                            <CardTitle className="flex items-center gap-2">
-                                <Workflow className="h-4.5 w-4.5" />
-                                Approval & Audit Trail
-                            </CardTitle>
                         </CardHeader>
                         <CardContent className="p-5">
-                            <ApprovalTimeline approvals={appraisal.approvals ?? []} histories={appraisal.status_histories ?? []} />
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <div className="space-y-6 xl:col-span-4">
-                    <AppraisalWorkflowJourneyCard
-                        appraisalId={appraisal.id}
-                        status={appraisal.status}
-                        reopenedStage={appraisal.reopened_stage}
-                        stageAccess={{
-                            goal_setting: abilities.plan,
-                            self_assessment_pending: abilities.selfAssess,
-                            manager_review_pending: abilities.managerReview,
-                            approval_pending: abilities.approve,
-                            calibration_pending: abilities.calibrate,
-                            finalized: abilities.finalize,
-                        }}
-                    />
-
-                    <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20 pb-3">
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <Trophy className="h-4.5 w-4.5" />
-                                Score Overview
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-5">
-                            <ScoreSummaryCard
-                                businessScore={appraisal.business_score}
-                                valuesScore={appraisal.values_score}
-                                overallScore={appraisal.calibrated_overall_score ?? appraisal.overall_score}
-                                overallRating={appraisal.calibrated_overall_rating_level?.label ?? appraisal.overall_rating_level?.label ?? null}
-                                layout="row"
+                            <ApprovalTimeline
+                                embedded
+                                approvals={appraisal.approvals ?? []}
+                                histories={appraisal.status_histories ?? []}
                             />
                         </CardContent>
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog
+                open={actionModalOpen}
+                onOpenChange={(open) => {
+                    if (!processing) {
+                        setActionModalOpen(open);
+                    }
+                }}
+            >
+                <AlertDialogContent className="max-w-lg">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            {processing ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : <actionModal.icon className="h-5 w-5 text-primary" />}
+                            {actionModal.title}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-3 text-left text-sm leading-6 text-muted-foreground">
+                                <p className="text-foreground">{actionModal.lead}</p>
+                                <ul className="list-disc space-y-1.5 pl-5">
+                                    {actionModal.steps.map((step) => (
+                                        <li key={step}>{step}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <AlertDialog open={submitAlertOpen} onOpenChange={setSubmitAlertOpen}>
                 <AlertDialogContent className="max-w-3xl">
@@ -423,9 +443,7 @@ export default function Approval({ appraisal, abilities }: Props) {
 
                     <AlertDialogFooter>
                         <AlertDialogCancel>Back to approval</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => setSubmitAlertOpen(false)}>
-                            Continue editing
-                        </AlertDialogAction>
+                        <AlertDialogAction onClick={() => setSubmitAlertOpen(false)}>Continue editing</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -451,9 +469,7 @@ function DecisionOptionCard({
             type="button"
             onClick={onClick}
             className={`rounded-2xl border p-4 text-left transition-all ${
-                active
-                    ? 'border-primary bg-background shadow-sm ring-1 ring-primary/20'
-                    : 'bg-background/80 hover:bg-background'
+                active ? 'border-primary bg-background ring-primary/20 shadow-sm ring-1' : 'bg-background/80 hover:bg-background'
             }`}
         >
             <div className="flex items-start gap-3">
@@ -462,10 +478,10 @@ function DecisionOptionCard({
                 </div>
                 <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground">{title}</p>
+                        <p className="text-foreground font-medium">{title}</p>
                         {active ? <Badge className="px-2 py-0.5">Selected</Badge> : null}
                     </div>
-                    <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+                    <p className="text-muted-foreground text-sm leading-6">{description}</p>
                 </div>
             </div>
         </button>
@@ -474,21 +490,21 @@ function DecisionOptionCard({
 
 function ValidationIssueCard({ issue }: { issue: ValidationIssue }) {
     return (
-        <div className="rounded-2xl border bg-background p-4 shadow-sm">
+        <div className="bg-background rounded-2xl border p-4 shadow-sm">
             <div className="flex items-start gap-3">
                 <div className="rounded-xl bg-amber-100 p-2 text-amber-700">
                     <AlertTriangle className="h-4.5 w-4.5" />
                 </div>
                 <div className="min-w-0 flex-1 space-y-2">
-                    <p className="font-medium text-foreground">{issue.title}</p>
-                    <p className="text-sm leading-6 text-muted-foreground">{issue.description}</p>
+                    <p className="text-foreground font-medium">{issue.title}</p>
+                    <p className="text-muted-foreground text-sm leading-6">{issue.description}</p>
                     {issue.currentValue ? (
-                        <div className="rounded-xl border bg-muted/20 px-3 py-2">
-                            <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <div className="bg-muted/20 rounded-xl border px-3 py-2">
+                            <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
                                 <MessageSquare className="h-3.5 w-3.5" />
                                 Current value
                             </div>
-                            <p className="text-sm text-foreground">{issue.currentValue}</p>
+                            <p className="text-foreground text-sm">{issue.currentValue}</p>
                         </div>
                     ) : null}
                 </div>
@@ -542,4 +558,47 @@ function getDecisionMeta(decision: ApprovalDecision) {
                 icon: BadgeCheck,
             };
     }
+}
+
+function getActionModalContent(decision: ApprovalDecision, reopenedStage: ReopenedStage) {
+    const stageLabel = formatStageLabel(reopenedStage);
+
+    if (decision === 'approve') {
+        return {
+            icon: CheckCircle2,
+            title: 'Approving appraisal',
+            lead: 'Your approval is being saved and the appraisal will move forward to calibration.',
+            steps: [
+                'Scores and ratings are confirmed on the record.',
+                'The workflow status updates to calibration pending.',
+                'You will be taken to the next step automatically.',
+            ],
+        };
+    }
+
+    if (decision === 'reject') {
+        return {
+            icon: ShieldX,
+            title: 'Rejecting and returning appraisal',
+            lead: `The appraisal is being rejected and reopened at ${stageLabel}.`,
+            steps: [
+                'Your rejection note is stored in the audit trail.',
+                `The record is marked sent back to ${stageLabel}.`,
+                'The responsible parties can update and resubmit from that step.',
+                'You will be redirected to the reopened step shortly.',
+            ],
+        };
+    }
+
+    return {
+        icon: CornerUpLeft,
+        title: 'Sending appraisal back',
+        lead: `The appraisal is being returned to ${stageLabel} for updates.`,
+        steps: [
+            'Your send-back comment is saved in the audit trail.',
+            `Workflow reopens at ${stageLabel} so the right people can edit.`,
+            'Earlier completed steps stay on record until resubmitted.',
+            'You will be redirected to the reopened step shortly.',
+        ],
+    };
 }

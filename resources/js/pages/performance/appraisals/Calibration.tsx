@@ -1,21 +1,20 @@
-import AppraisalWorkflowJourneyCard from '@/components/performance/AppraisalWorkflowJourneyCard';
-import AppraisalWorkspaceChrome from '@/components/performance/AppraisalWorkspaceChrome';
+import AppraisalSteps, { AppraisalStepSubmitActions } from '@/components/performance/AppraisalSteps';
 import ApprovalTimeline from '@/components/performance/ApprovalTimeline';
 import CalibrationEvidenceDropzone from '@/components/performance/CalibrationEvidenceDropzone';
 import PerformancePage from '@/components/performance/PerformancePage';
-import ScoreSummaryCard from '@/components/performance/ScoreSummaryCard';
-import { resolveOverallRatingLevelId, type OverallRatingOption } from '@/lib/performance/rating-scale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { BreadcrumbItem } from '@/types';
+import { resolveOverallRatingLevelId, type OverallRatingOption } from '@/lib/performance/rating-scale';
+import type { BreadcrumbItem, SharedData } from '@/types';
 import type { Appraisal } from '@/types/performance';
-import { router, useForm } from '@inertiajs/react';
+import { router, useForm, usePage } from '@inertiajs/react';
 import {
     ArrowLeftRight,
     BadgeCheck,
+    CircleGauge,
     ClipboardPen,
     CornerUpLeft,
     FileSearch,
@@ -23,6 +22,7 @@ import {
     Send,
     ShieldCheck,
     Sparkles,
+    Target,
     Trophy,
     Workflow,
 } from 'lucide-react';
@@ -52,11 +52,18 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
 ];
 
 export default function Calibration({ appraisal, abilities, overallRatingOptions }: Props) {
+    const { auth } = usePage<SharedData>().props;
     const [draftSaved, setDraftSaved] = useState(false);
     const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
     const [submitting, setSubmitting] = useState(false);
-    const originalOverallScore = appraisal.overall_score ?? null;
-    const originalOverallRating = appraisal.overall_rating_level?.label ?? 'Unrated';
+    const systemOverallScore = appraisal.overall_score ?? null;
+    const systemBusinessScore = appraisal.business_score ?? null;
+    const systemOverallRating = appraisal.overall_rating_level?.label ?? 'Unrated';
+    const originalOverallScore = systemOverallScore;
+    const originalOverallRating = systemOverallRating;
+    const hasGoals = (appraisal.objectives ?? []).length > 0;
+    const canOpenDevelopmentPlan =
+        auth.permissions.includes('performance.development_plans.view') || auth.permissions.includes('performance.development_plans.update');
 
     const { data, setData, processing } = useForm<CalibrationForm>({
         decision: 'confirmed',
@@ -82,11 +89,7 @@ export default function Calibration({ appraisal, abilities, overallRatingOptions
 
     const selectAdjustedDecision = () => {
         const scoreValue =
-            data.calibrated_overall_score !== ''
-                ? data.calibrated_overall_score
-                : originalOverallScore != null
-                  ? String(originalOverallScore)
-                  : '';
+            data.calibrated_overall_score !== '' ? data.calibrated_overall_score : originalOverallScore != null ? String(originalOverallScore) : '';
 
         setData((current) => ({
             ...current,
@@ -94,7 +97,7 @@ export default function Calibration({ appraisal, abilities, overallRatingOptions
             calibrated_overall_score: scoreValue,
             calibrated_overall_rating_scale_level_id:
                 scoreValue !== ''
-                    ? resolveOverallRatingLevelId(overallRatingOptions, Number(scoreValue)) ?? current.calibrated_overall_rating_scale_level_id
+                    ? (resolveOverallRatingLevelId(overallRatingOptions, Number(scoreValue)) ?? current.calibrated_overall_rating_scale_level_id)
                     : current.calibrated_overall_rating_scale_level_id,
         }));
     };
@@ -112,7 +115,12 @@ export default function Calibration({ appraisal, abilities, overallRatingOptions
                 comment: appraisal.calibration_comment ?? '',
                 evidence_summary: appraisal.latest_calibration?.evidence_summary ?? '',
             }),
-        [appraisal.calibrated_overall_rating_level?.id, appraisal.calibrated_overall_score, appraisal.calibration_comment, appraisal.latest_calibration?.evidence_summary],
+        [
+            appraisal.calibrated_overall_rating_level?.id,
+            appraisal.calibrated_overall_score,
+            appraisal.calibration_comment,
+            appraisal.latest_calibration?.evidence_summary,
+        ],
     );
 
     useEffect(() => {
@@ -186,32 +194,25 @@ export default function Calibration({ appraisal, abilities, overallRatingOptions
 
     const showAdjustedFields = data.decision === 'adjusted';
     const isSubmitting = processing || submitting;
-    const effectiveScore = showAdjustedFields && data.calibrated_overall_score ? Number(data.calibrated_overall_score) : originalOverallScore;
-    const effectiveRating =
-        showAdjustedFields && data.calibrated_overall_rating_scale_level_id
-            ? overallRatingOptions.find((option) => String(option.value) === data.calibrated_overall_rating_scale_level_id)?.label ?? null
-            : originalOverallRating;
-
     return (
         <PerformancePage
             title="Calibration"
             description="Confirm or adjust the final outcome before HR/Admin finalization."
             breadcrumbs={breadcrumbs(appraisal)}
         >
-            <AppraisalWorkspaceChrome
+            <AppraisalSteps
                 appraisal={appraisal}
-                title="Calibration"
-                description="Use this workspace to validate the approved outcome, document any committee override, and send the appraisal forward to finalization."
-                badgeLabel="Calibration Committee Workspace"
-                badgeIcon={ShieldCheck}
-                canEditGoals={abilities.plan}
-                draftTag={draftSaved ? 'Saved as draft' : null}
+                abilities={abilities}
+                hasGoals={hasGoals}
+                canOpenDevelopmentPlan={canOpenDevelopmentPlan}
+                currentStepKey="calibration"
+                showStartButton={false}
             />
 
             <div className="grid gap-6 xl:grid-cols-12">
-                <div className="space-y-6 xl:col-span-8">
+                <div className="space-y-6 xl:col-span-12">
                     <Card className="overflow-hidden border-0 shadow-md">
-                        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-background">
+                        <div className="from-primary/10 via-primary/5 to-background bg-gradient-to-r">
                             <CardHeader className="border-b bg-transparent">
                                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                     <div className="space-y-3">
@@ -225,16 +226,13 @@ export default function Calibration({ appraisal, abilities, overallRatingOptions
                                                 Calibration Decision
                                             </CardTitle>
                                             <CardDescription className="max-w-2xl text-sm leading-6">
-                                                Confirm the approved rating, adjust the final outcome with evidence, or send the appraisal back to approval.
+                                                Confirm the approved rating, adjust the final outcome with evidence, or send the appraisal back to
+                                                approval.
                                             </CardDescription>
                                         </div>
                                     </div>
 
                                     <div className="flex flex-wrap gap-2">
-                                        <Badge variant="outline" className="gap-1.5 px-3 py-1">
-                                            <Trophy className="h-3.5 w-3.5" />
-                                            Approved rating: {originalOverallRating}
-                                        </Badge>
                                         <Badge variant="outline" className="gap-1.5 px-3 py-1">
                                             <Workflow className="h-3.5 w-3.5" />
                                             {formatDecisionLabel(data.decision)}
@@ -242,6 +240,34 @@ export default function Calibration({ appraisal, abilities, overallRatingOptions
                                     </div>
                                 </div>
                             </CardHeader>
+
+                            <div className="border-t border-primary/10 px-5 pt-4 pb-1">
+                                <div className="bg-background/80 rounded-2xl border p-4">
+                                    <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
+                                        <CircleGauge className="h-3.5 w-3.5" />
+                                        System-generated score
+                                        <span className="font-normal normal-case tracking-normal">(preview only)</span>
+                                    </div>
+                                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                                        <SystemScorePreviewMetric
+                                            label="Business score"
+                                            value={formatScorePercent(systemBusinessScore)}
+                                            icon={Target}
+                                        />
+                                        <SystemScorePreviewMetric
+                                            label="Overall score"
+                                            value={formatScorePercent(systemOverallScore)}
+                                            icon={CircleGauge}
+                                            emphasize
+                                        />
+                                        <SystemScorePreviewMetric
+                                            label="Overall rating"
+                                            value={systemOverallRating}
+                                            icon={Trophy}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
 
                             <CardContent className="grid gap-4 p-5 md:grid-cols-3">
                                 <DecisionCard
@@ -270,7 +296,7 @@ export default function Calibration({ appraisal, abilities, overallRatingOptions
                     </Card>
 
                     <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20">
+                        <CardHeader className="bg-muted/20 border-b">
                             <CardTitle className="flex items-center gap-2 text-base">
                                 <ClipboardPen className="h-4.5 w-4.5" />
                                 Calibration Input
@@ -319,7 +345,7 @@ export default function Calibration({ appraisal, abilities, overallRatingOptions
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-muted-foreground text-xs">
                                             Selected automatically from the overall rating scale based on the adjusted score.
                                         </p>
                                     </div>
@@ -329,7 +355,7 @@ export default function Calibration({ appraisal, abilities, overallRatingOptions
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Committee comment</label>
                                 <textarea
-                                    className="min-h-32 w-full rounded-md border bg-background px-3 py-2"
+                                    className="bg-background min-h-32 w-full rounded-md border px-3 py-2"
                                     placeholder="Explain the calibration decision clearly."
                                     value={data.comment}
                                     onChange={(event) => setData('comment', event.target.value)}
@@ -339,75 +365,49 @@ export default function Calibration({ appraisal, abilities, overallRatingOptions
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Evidence / reference summary</label>
                                 <textarea
-                                    className="min-h-24 w-full rounded-md border bg-background px-3 py-2"
+                                    className="bg-background min-h-24 w-full rounded-md border px-3 py-2"
                                     placeholder="Reference committee notes, benchmark data, moderation evidence, or supporting material."
                                     value={data.evidence_summary}
                                     onChange={(event) => setData('evidence_summary', event.target.value)}
                                 />
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-muted-foreground text-xs">
                                     Required when adjusting the outcome unless you upload supporting files.
                                 </p>
                             </div>
 
                             {showAdjustedFields ? (
-                                <CalibrationEvidenceDropzone
-                                    files={evidenceFiles}
-                                    onChange={setEvidenceFiles}
-                                    disabled={isSubmitting}
-                                />
+                                <CalibrationEvidenceDropzone files={evidenceFiles} onChange={setEvidenceFiles} disabled={isSubmitting} />
                             ) : null}
 
-                            <div className="flex flex-wrap gap-2">
-                                <Button type="button" onClick={submitCalibration} disabled={isSubmitting} aria-busy={isSubmitting}>
-                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                                    {isSubmitting ? 'Submitting…' : 'Submit Calibration'}
-                                </Button>
-                            </div>
+                            <AppraisalStepSubmitActions
+                                stepKey="calibration"
+                                appraisal={appraisal}
+                                abilities={abilities}
+                                hasGoals={hasGoals}
+                                canOpenDevelopmentPlan={canOpenDevelopmentPlan}
+                            >
+                                <div className="flex flex-wrap gap-2">
+                                    <Button type="button" onClick={submitCalibration} disabled={isSubmitting} aria-busy={isSubmitting}>
+                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                        {isSubmitting ? 'Submitting…' : 'Submit Calibration'}
+                                    </Button>
+                                </div>
+                            </AppraisalStepSubmitActions>
                         </CardContent>
                     </Card>
 
                     <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20">
+                        <CardHeader className="bg-muted/20 border-b">
                             <CardTitle className="flex items-center gap-2 text-base">
                                 <Workflow className="h-4.5 w-4.5" />
                                 Approval & Audit Trail
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-5">
-                            <ApprovalTimeline approvals={appraisal.approvals ?? []} histories={appraisal.status_histories ?? []} />
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <div className="space-y-6 xl:col-span-4">
-                    <AppraisalWorkflowJourneyCard
-                        appraisalId={appraisal.id}
-                        status={appraisal.status}
-                        reopenedStage={appraisal.reopened_stage}
-                        stageAccess={{
-                            goal_setting: abilities.plan,
-                            self_assessment_pending: abilities.selfAssess,
-                            manager_review_pending: abilities.managerReview,
-                            approval_pending: abilities.approve,
-                            calibration_pending: abilities.calibrate,
-                            finalized: abilities.finalize,
-                        }}
-                    />
-
-                    <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20 pb-3">
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <Trophy className="h-4.5 w-4.5" />
-                                Score Overview
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-5">
-                            <ScoreSummaryCard
-                                businessScore={appraisal.business_score}
-                                valuesScore={appraisal.values_score}
-                                overallScore={effectiveScore}
-                                overallRating={effectiveRating}
-                                layout="row"
+                            <ApprovalTimeline
+                                embedded
+                                approvals={appraisal.approvals ?? []}
+                                histories={appraisal.status_histories ?? []}
                             />
                         </CardContent>
                     </Card>
@@ -435,7 +435,7 @@ function DecisionCard({
             type="button"
             onClick={onClick}
             className={`cursor-pointer rounded-2xl border p-4 text-left transition-all ${
-                active ? 'border-primary bg-background shadow-sm ring-1 ring-primary/20' : 'bg-background/80 hover:bg-background'
+                active ? 'border-primary bg-background ring-primary/20 shadow-sm ring-1' : 'bg-background/80 hover:bg-background'
             }`}
         >
             <div className="flex items-start gap-3">
@@ -444,14 +444,49 @@ function DecisionCard({
                 </div>
                 <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground">{title}</p>
+                        <p className="text-foreground font-medium">{title}</p>
                         {active ? <Badge className="px-2 py-0.5">Selected</Badge> : null}
                     </div>
-                    <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+                    <p className="text-muted-foreground text-sm leading-6">{description}</p>
                 </div>
             </div>
         </button>
     );
+}
+
+function SystemScorePreviewMetric({
+    label,
+    value,
+    icon: Icon,
+    emphasize = false,
+}: {
+    label: string;
+    value: string;
+    icon: typeof CircleGauge;
+    emphasize?: boolean;
+}) {
+    return (
+        <div className={`rounded-xl border p-3 ${emphasize ? 'border-primary/25 bg-primary/5' : 'bg-muted/20'}`}>
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+            </div>
+            <p className={`text-foreground mt-1.5 ${emphasize ? 'text-xl font-semibold' : 'text-base font-medium'}`}>{value}</p>
+        </div>
+    );
+}
+
+function formatScorePercent(value?: number | string | null): string {
+    if (value === null || value === undefined || value === '') {
+        return 'N/A';
+    }
+
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+        return 'N/A';
+    }
+
+    return `${numeric}%`;
 }
 
 function formatDecisionLabel(decision: CalibrationDecision) {

@@ -54,7 +54,7 @@ class PerformanceTestingSeeder extends Seeder
                     'overallRatingScale.levels',
                     'items',
                 ])
-                ->where('code', 'mvp-default')
+                ->where('code', 'monomotapa-performance-appraisal')
                 ->where('version', 1)
                 ->firstOrFail();
 

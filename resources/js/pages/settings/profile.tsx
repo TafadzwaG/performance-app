@@ -4,6 +4,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 import DeleteUser from '@/components/delete-user';
+import EmailMfaSettings from '@/components/settings/email-mfa-settings';
 import HeadingSmall from '@/components/heading-small';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,17 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: boolean; status?: string }) {
+export default function Profile({
+    mustVerifyEmail,
+    status,
+    emailMfaEnabled,
+    emailMfaEnabledAt,
+}: {
+    mustVerifyEmail: boolean;
+    status?: string;
+    emailMfaEnabled: boolean;
+    emailMfaEnabledAt?: string | null;
+}) {
     const { auth } = usePage<SharedData>().props;
 
     const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
@@ -112,6 +123,8 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                         </div>
                     </form>
                 </div>
+
+                <EmailMfaSettings enabled={emailMfaEnabled} enabledAt={emailMfaEnabledAt} />
 
                 <DeleteUser />
             </SettingsLayout>

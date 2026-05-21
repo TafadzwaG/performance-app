@@ -112,6 +112,8 @@ export default function TemplateShow({ template }: { template: Template }) {
 
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
                                     <Badge variant="outline">{template.code}</Badge>
+                                    {template.is_default && <Badge variant="secondary">Default</Badge>}
+                                    {template.is_protected && <Badge variant="outline">Protected</Badge>}
                                     <span className="text-xs uppercase tracking-wide text-muted-foreground">
                                         Version {template.version}
                                     </span>
@@ -258,6 +260,13 @@ export default function TemplateShow({ template }: { template: Template }) {
                             <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3">
                                 <span className="text-muted-foreground">Rating Levels</span>
                                 <span className="font-medium text-foreground">{ratingLevels.length}</span>
+                            </div>
+
+                            <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3">
+                                <span className="text-muted-foreground">Protection</span>
+                                <span className="font-medium text-foreground">
+                                    {template.is_protected ? 'Protected default' : 'Editable template'}
+                                </span>
                             </div>
                         </CardContent>
                     </Card>

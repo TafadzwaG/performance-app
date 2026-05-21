@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\Auth\EmailOtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,20 +28,28 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request, EmailOtpService $emailOtp): RedirectResponse
     {
-        $request->authenticate();
+        $user = $request->validateCredentials();
 
-        if (! $request->user()?->is_approved) {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
+        if (! $user->is_approved) {
             return redirect()
                 ->route('pending-approval')
                 ->with('error', 'Your account is pending admin approval.');
         }
 
+        if ($user->hasEmailMfaEnabled()) {
+            $request->session()->put([
+                'login.id' => $user->id,
+                'login.remember' => $request->boolean('remember'),
+            ]);
+
+            $emailOtp->sendLoginOtp($user);
+
+            return redirect()->route('two-factor.login');
+        }
+
+        Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
         if ($request->user()?->force_password_change) {

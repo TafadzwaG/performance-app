@@ -29,6 +29,7 @@ import type { FormEvent } from 'react';
 
 interface ScaleLevelForm {
     label: string;
+    description: string;
     short_label: string;
     value: number;
     min_percent: number | null;
@@ -64,6 +65,7 @@ const typeOptions = [
 function buildLevel(index: number): ScaleLevelForm {
     return {
         label: `Level ${index + 1}`,
+        description: '',
         short_label: `${index + 1}`,
         value: index + 1,
         min_percent: null,
@@ -295,6 +297,18 @@ export default function RatingScaleCreate() {
                                                     placeholder="e.g. Exceeds Expectations"
                                                 />
                                                 <InputError message={errors[`levels.${index}.label`]} />
+                                            </div>
+
+                                            <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                                                <Label htmlFor={`levels.${index}.description`}>PDF Description</Label>
+                                                <textarea
+                                                    id={`levels.${index}.description`}
+                                                    value={level.description}
+                                                    onChange={(event) => updateLevel(index, 'description', event.target.value)}
+                                                    className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                                                    placeholder="Description from the assessment-form rating scale"
+                                                />
+                                                <InputError message={errors[`levels.${index}.description`]} />
                                             </div>
 
                                             <div className="space-y-2">

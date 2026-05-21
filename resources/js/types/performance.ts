@@ -25,6 +25,7 @@ export interface Paginated<T> {
 export interface RatingScaleLevel {
     id: number;
     label: string;
+    description?: string | null;
     short_label?: string | null;
     value: number;
     min_percent?: number | null;
@@ -122,6 +123,8 @@ export interface Template {
     min_objectives: number;
     max_objectives: number;
     allow_competencies: boolean;
+    is_default: boolean;
+    is_protected: boolean;
     is_active: boolean;
     department?: Department | null;
     job_title?: JobTitle | null;
@@ -147,6 +150,102 @@ export interface GoalLibraryItem {
     department?: Department | null;
     job_title?: JobTitle | null;
     perspective?: Perspective | null;
+}
+
+/** Async goal-library lookup row (plan / goal setting). */
+export interface GoalLibrarySearchOption {
+    value: number;
+    label: string;
+    perspective_id: number;
+    perspective_name?: string | null;
+    job_title_name?: string | null;
+    title: string;
+    description?: string | null;
+    kpi_measure?: string | null;
+    target_definition?: string | null;
+    default_weight?: number | null;
+    evidence_source?: string | null;
+}
+
+export interface GoalImportMappingItem {
+    source: string;
+    row_count: number;
+    matched_id: number | null;
+    matched_label: string | null;
+}
+
+export interface GoalImportPreview {
+    row_count: number;
+    perspectives: GoalImportMappingItem[];
+    departments: GoalImportMappingItem[];
+    job_titles: GoalImportMappingItem[];
+    row_errors: string[];
+    sample_rows: Array<{
+        line: number;
+        perspective: string;
+        objective: string;
+        kpi_measure: string;
+        target_definition: string;
+        weight: string;
+        evidence_source: string;
+        department_name: string;
+        job_title_name: string;
+    }>;
+}
+
+export interface CurrentGoalView {
+    appraisal_id: number;
+    status: string;
+    employee: {
+        name: string;
+        email?: string | null;
+        employee_number?: string | null;
+        department?: string | null;
+        job_title?: string | null;
+    };
+    review_cycle: {
+        id?: number | null;
+        name?: string | null;
+        code?: string | null;
+        start_date?: string | null;
+        end_date?: string | null;
+    };
+    review_period?: string | null;
+    objectives: Array<{
+        id: number;
+        perspective?: string | null;
+        title: string;
+        kpi_measure?: string | null;
+        target_definition?: string | null;
+        weight?: number | null;
+        evidence_source?: string | null;
+        performance_achieved?: string | null;
+        self_rating?: string | number | null;
+        manager_rating?: string | number | null;
+    }>;
+    comments: Array<{
+        id: number;
+        type: string;
+        body: string;
+        author?: string | null;
+    }>;
+    rating_scales: {
+        business?: RatingScaleReference | null;
+        values?: RatingScaleReference | null;
+    };
+}
+
+export interface RatingScaleReference {
+    name: string;
+    levels: Array<{
+        id: number;
+        label: string;
+        description?: string | null;
+        short_label?: string | null;
+        value?: number | null;
+        min_percent?: number | null;
+        max_percent?: number | null;
+    }>;
 }
 
 export interface BasicUser {

@@ -21,6 +21,8 @@ class ProfileController extends Controller
         return Inertia::render('settings/profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            'emailMfaEnabled' => (bool) $request->user()?->email_mfa_enabled,
+            'emailMfaEnabledAt' => $request->user()?->email_mfa_enabled_at,
         ]);
     }
 

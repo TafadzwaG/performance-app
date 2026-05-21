@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -13,8 +14,8 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, HasRoles, Notifiable, Impersonate;
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, HasRoles, Impersonate, Notifiable;
 
     protected string $guard_name = 'web';
 
@@ -32,6 +33,8 @@ class User extends Authenticatable
         'password_changed_at',
         'welcome_notification_sent_at',
         'email_verified_at',
+        'email_mfa_enabled',
+        'email_mfa_enabled_at',
     ];
 
     /**
@@ -58,7 +61,14 @@ class User extends Authenticatable
             'force_password_change' => 'boolean',
             'password_changed_at' => 'datetime',
             'welcome_notification_sent_at' => 'datetime',
+            'email_mfa_enabled' => 'boolean',
+            'email_mfa_enabled_at' => 'datetime',
         ];
+    }
+
+    public function hasEmailMfaEnabled(): bool
+    {
+        return (bool) $this->email_mfa_enabled;
     }
 
     public function employeeProfile(): HasOne

@@ -9,8 +9,9 @@ use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Performance\SubmitManagerReviewRequest;
 use App\Models\Appraisal;
 use App\Models\RatingScaleLevel;
-use App\Services\Performance\AppraisalWorkflowService;
+use App\Services\Performance\AppraisalNavigationService;
 use App\Services\Performance\AppraisalScoringService;
+use App\Services\Performance\AppraisalWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,12 +25,12 @@ class AppraisalManagerReviewController extends Controller
     public function __construct(
         private readonly AppraisalWorkflowService $workflowService,
         private readonly AppraisalScoringService $scoringService,
-    ) {
-    }
+        private readonly AppraisalNavigationService $appraisalNavigation,
+    ) {}
 
     public function edit(Appraisal $appraisal): Response
     {
-        $this->authorize('managerReview', $appraisal);
+        $this->authorize('viewManagerReview', $appraisal);
 
         return Inertia::render('performance/appraisals/ManagerReview', [
             'appraisal' => $this->loadAppraisal($appraisal),
@@ -89,15 +90,18 @@ class AppraisalManagerReviewController extends Controller
             'reopened_stage' => ['nullable', 'in:goal_setting,self_assessment'],
         ]);
 
+        $reopenedStage = WorkflowStage::from($validated['reopened_stage'] ?? WorkflowStage::SelfAssessment->value);
+
         $this->workflowService->sendBack(
             $appraisal,
             $request->user(),
-            WorkflowStage::from($validated['reopened_stage'] ?? WorkflowStage::SelfAssessment->value),
+            $reopenedStage,
             $validated['reason'],
             ApprovalStage::ManagerReview,
         );
 
-        return to_route('performance.appraisals.show', $appraisal);
+        return redirect($this->appraisalNavigation->afterSendBackRoute($appraisal, $request->user(), $reopenedStage))
+            ->with('success', 'Appraisal sent back for updates.');
     }
 
     public function recalculateScore(Appraisal $appraisal): RedirectResponse

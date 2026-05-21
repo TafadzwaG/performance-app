@@ -7,8 +7,11 @@ use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
@@ -22,8 +25,19 @@ Route::middleware('guest')->group(function () {
     Route::post('login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('throttle:5,1');
 
-    Route::get('pending-approval', function (\Illuminate\Http\Request $request) {
-        return \Inertia\Inertia::render('auth/pending-approval', [
+    Route::get('two-factor-challenge', [TwoFactorChallengeController::class, 'create'])
+        ->name('two-factor.login');
+
+    Route::post('two-factor-challenge', [TwoFactorChallengeController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('two-factor.verify');
+
+    Route::post('two-factor-challenge/resend', [TwoFactorChallengeController::class, 'resend'])
+        ->middleware('throttle:3,1')
+        ->name('two-factor.resend');
+
+    Route::get('pending-approval', function (Request $request) {
+        return Inertia::render('auth/pending-approval', [
             'status' => $request->session()->get('status'),
             'error' => $request->session()->get('error'),
         ]);

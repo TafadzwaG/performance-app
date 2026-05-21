@@ -14,6 +14,7 @@ class RatingScaleLevel extends Model
     protected $fillable = [
         'rating_scale_id',
         'label',
+        'description',
         'short_label',
         'value',
         'min_percent',

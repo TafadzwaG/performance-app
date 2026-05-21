@@ -34,14 +34,14 @@ export default function ScoreSummaryCard({
                 {layout === 'row' ? (
                     <>
                         <ScoreDonutRow label="Business" value={businessScore} />
-                        <ScoreDonutRow label="Values" value={valuesScore} />
+                        {valuesScore !== undefined ? <ScoreDonutRow label="Values" value={valuesScore} /> : null}
                         <ScoreDonutRow label="Overall" value={overallScore} emphasize />
                         <FinalRatingRow ratingLabel={ratingLabel} commentary={commentary} score={overallScore} />
                     </>
                 ) : (
                     <>
                         <ScoreDonut label="Business" value={businessScore} />
-                        <ScoreDonut label="Values" value={valuesScore} />
+                        {valuesScore !== undefined ? <ScoreDonut label="Values" value={valuesScore} /> : null}
                         <ScoreDonut label="Overall" value={overallScore} emphasize />
                         <FinalRatingCard ratingLabel={ratingLabel} commentary={commentary} score={overallScore} />
                     </>

@@ -125,6 +125,8 @@ class AppraisalTemplateController extends Controller
 
     public function destroy(AppraisalTemplate $template): RedirectResponse
     {
+        abort_if($template->is_protected, 403);
+
         $template->delete();
 
         return to_route('performance.templates.index');

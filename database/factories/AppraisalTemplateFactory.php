@@ -26,6 +26,8 @@ class AppraisalTemplateFactory extends Factory
             'min_objectives' => 4,
             'max_objectives' => 6,
             'allow_competencies' => true,
+            'is_default' => false,
+            'is_protected' => false,
             'is_active' => true,
         ];
     }

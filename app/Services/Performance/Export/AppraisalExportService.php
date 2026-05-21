@@ -2,6 +2,7 @@
 
 namespace App\Services\Performance\Export;
 
+use App\Enums\CommentType;
 use App\Models\Appraisal;
 use App\Models\SystemSetting;
 use App\Models\User;
@@ -40,8 +41,8 @@ class AppraisalExportService
         $tempPath = storage_path('app/exports/'.$fileName);
         $this->ensureDirectory(dirname($tempPath));
 
-        Pdf::loadView('pdf.performance.appraisal-export', $context)
-            ->setPaper('a4', 'landscape')
+        Pdf::loadView('pdf.performance.appraisal-assessment-form', $context)
+            ->setPaper('a4', 'portrait')
             ->setOptions([
                 'isHtml5ParserEnabled' => true,
                 'isRemoteEnabled' => true,
@@ -66,32 +67,29 @@ class AppraisalExportService
         $this->ensureDirectory(dirname($filePath));
 
         $options = new Options;
-        $options->setColumnWidth(28, 1);
-        $options->setColumnWidth(40, 2);
-        $options->setColumnWidth(20, 3);
-        $options->setColumnWidth(20, 4);
-        $options->setColumnWidth(20, 5);
-        $options->setColumnWidth(20, 6);
-        $options->setColumnWidth(20, 7);
-        $options->setColumnWidth(20, 8);
+        $options->setColumnWidth(20, 1);
+        $options->setColumnWidth(30, 2);
+        $options->setColumnWidth(28, 3);
+        $options->setColumnWidth(28, 4);
+        $options->setColumnWidth(12, 5);
+        $options->setColumnWidth(24, 6);
+        $options->setColumnWidth(24, 7);
+        $options->setColumnWidth(22, 8);
+        $options->setColumnWidth(22, 9);
         $options->DEFAULT_ROW_HEIGHT = 18;
 
-        // Landscape page setup makes printing & PDF-from-Excel nice.
         $options->setPageSetup(new PageSetup(PageOrientation::LANDSCAPE, PaperSize::A4));
 
         $writer = new Writer($options);
         $writer->openToFile($filePath);
         $writer->getCurrentSheet()->setName('Appraisal');
 
-        $this->writeExcelHeader($writer, $context);
-        $this->writeExcelEmployee($writer, $context);
-        $this->writeExcelScores($writer, $context);
-        $this->writeExcelObjectives($writer, $context);
-        $this->writeExcelValues($writer, $context);
-        $this->writeExcelComments($writer, $context);
-        $this->writeExcelApprovals($writer, $context);
-        $this->writeExcelHistory($writer, $context);
-        $this->writeExcelDevelopmentPlan($writer, $context);
+        $this->writeAssessmentExcelHeader($writer, $context);
+        $this->writeAssessmentExcelEmployee($writer, $context);
+        $this->writeAssessmentExcelObjectives($writer, $context);
+        $this->writeAssessmentExcelComments($writer, $context);
+        $this->writeAssessmentExcelSignOff($writer);
+        $this->writeAssessmentExcelRatingScales($writer, $context);
         $this->writeExcelFooter($writer, $context);
 
         $writer->close();
@@ -187,6 +185,164 @@ class AppraisalExportService
     }
 
     /* =================================================== Excel sections */
+
+    private function writeAssessmentExcelHeader(Writer $writer, array $context): void
+    {
+        $titleStyle = (new Style)
+            ->setFontSize(16)
+            ->setFontBold()
+            ->setFontColor('111827');
+
+        $subtitleStyle = (new Style)
+            ->setFontSize(10)
+            ->setFontColor('4B5563');
+
+        $writer->addRow(Row::fromValues(['INDIVIDUAL PERFORMANCE ASSESSMENT FORM'], $titleStyle));
+        $writer->addRow(Row::fromValues([$context['companyName']], $subtitleStyle));
+        $writer->addRow(Row::fromValues(['']));
+    }
+
+    private function writeAssessmentExcelEmployee(Writer $writer, array $context): void
+    {
+        $appraisal = $context['appraisal'];
+        $reviewPeriod = trim(
+            (optional($appraisal->reviewCycle?->start_date)->format('d M Y') ?: '').
+            ' - '.
+            (optional($appraisal->reviewCycle?->end_date)->format('d M Y') ?: '')
+        );
+        $reviewPeriod = $reviewPeriod !== '-' ? $reviewPeriod : ($appraisal->cycle_name_snapshot ?? 'Not specified');
+
+        $this->writeTableRow($writer, [
+            'Employee Name',
+            $appraisal->employee_name_snapshot,
+            'Job Title',
+            $appraisal->job_title_name_snapshot ?: ($appraisal->employeeProfile?->jobTitle?->name ?? 'Not specified'),
+        ]);
+        $this->writeTableRow($writer, [
+            'Department',
+            $appraisal->department_name_snapshot ?: ($appraisal->employeeProfile?->department?->name ?? 'Not specified'),
+            'Review Period',
+            $reviewPeriod,
+        ]);
+        $this->writeTableRow($writer, [
+            'Line Manager',
+            $appraisal->lineManager?->name ?? 'Not specified',
+            'Approving Manager',
+            $appraisal->approvingManager?->name ?? 'Not specified',
+        ]);
+        $writer->addRow(Row::fromValues(['']));
+    }
+
+    private function writeAssessmentExcelObjectives(Writer $writer, array $context): void
+    {
+        $this->writeSectionHeading($writer, 'Business Objectives');
+        $this->writeTableHeader($writer, [
+            'Perspective',
+            'Objective (The Goal)',
+            'KPI / Measure (How Measured)',
+            'Target (Success Definition)',
+            'Weight',
+            'Evidence Source',
+            'Performance Achieved',
+            'Self Rating',
+            'Manager’s Rating',
+        ]);
+
+        $objectives = $context['appraisal']->objectives;
+        if ($objectives->isEmpty()) {
+            $this->writeTableRow($writer, ['No objectives captured.', '', '', '', '', '', '', '', '']);
+        } else {
+            foreach ($objectives as $objective) {
+                $this->writeTableRow($writer, [
+                    $objective->perspective?->name ?? 'Not specified',
+                    $objective->title ?? 'Not specified',
+                    $objective->kpi_measure ?? 'Not specified',
+                    $objective->target_definition ?? 'Not specified',
+                    $objective->weight !== null ? $objective->weight.'%' : 'Not specified',
+                    $objective->evidence_source ?? 'Not specified',
+                    $objective->performance_achieved ?? 'Not captured',
+                    $objective->selfRatingLevel?->label ?? $objective->self_rating_score ?? 'Not rated',
+                    $objective->managerRatingLevel?->label ?? $objective->manager_rating_score ?? 'Not rated',
+                ]);
+            }
+        }
+        $writer->addRow(Row::fromValues(['']));
+    }
+
+    private function writeAssessmentExcelComments(Writer $writer, array $context): void
+    {
+        $appraisal = $context['appraisal'];
+
+        $this->writeSectionHeading($writer, 'Other substantial achievements');
+        $this->writeTableRow($writer, [
+            $appraisal->comments
+                ->where('comment_type', CommentType::AchievementNote)
+                ->pluck('body')
+                ->implode("\n") ?: 'No achievement comments captured.',
+        ]);
+
+        $this->writeSectionHeading($writer, 'Significant issues');
+        $this->writeTableRow($writer, [
+            $appraisal->comments
+                ->where('comment_type', CommentType::SignificantIssue)
+                ->pluck('body')
+                ->implode("\n") ?: 'No significant issues captured.',
+        ]);
+
+        $this->writeSectionHeading($writer, 'Comments');
+        $this->writeTableHeader($writer, ['Individual Comments', 'Manager Comments', 'Approving Manager Comments']);
+        $this->writeTableRow($writer, [
+            $appraisal->comments
+                ->where('comment_type', CommentType::General)
+                ->pluck('body')
+                ->implode("\n"),
+            $appraisal->objectives
+                ->pluck('manager_comment')
+                ->filter()
+                ->implode("\n"),
+            '',
+        ]);
+        $writer->addRow(Row::fromValues(['']));
+    }
+
+    private function writeAssessmentExcelSignOff(Writer $writer): void
+    {
+        $this->writeSectionHeading($writer, 'Sign-off');
+        $this->writeTableHeader($writer, ['Role', 'Name / Signature', 'Date']);
+        $this->writeTableRow($writer, ['Employee', '', '']);
+        $this->writeTableRow($writer, ['Manager', '', '']);
+        $this->writeTableRow($writer, ['Approving Manager', '', '']);
+        $writer->addRow(Row::fromValues(['']));
+    }
+
+    private function writeAssessmentExcelRatingScales(Writer $writer, array $context): void
+    {
+        $this->writeSectionHeading($writer, 'BUSINESS OBJECTIVES RATING SCALE');
+        $this->writeTableHeader($writer, ['Rating', 'Description', 'Range']);
+        foreach (($context['appraisal']->template?->objectiveRatingScale?->levels ?? collect()) as $level) {
+            $range = match (true) {
+                $level->min_percent !== null && $level->max_percent === null => $level->min_percent.'+%',
+                $level->min_percent !== null || $level->max_percent !== null => ($level->min_percent ?? '0').'% - '.$level->max_percent.'%',
+                default => 'Score '.$level->value,
+            };
+            $this->writeTableRow($writer, [
+                $level->short_label.'. '.$level->label,
+                $level->description,
+                $range,
+            ]);
+        }
+        $writer->addRow(Row::fromValues(['']));
+
+        $this->writeSectionHeading($writer, 'VALUES OBJECTIVES RATING SCALE');
+        $this->writeTableHeader($writer, ['Rating', 'Description']);
+        foreach (($context['appraisal']->template?->competencyRatingScale?->levels ?? collect()) as $level) {
+            $this->writeTableRow($writer, [
+                $level->short_label.'. '.$level->label,
+                $level->description,
+            ]);
+        }
+        $writer->addRow(Row::fromValues(['']));
+    }
 
     private function writeExcelHeader(Writer $writer, array $context): void
     {

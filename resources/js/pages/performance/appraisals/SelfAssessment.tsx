@@ -1,15 +1,14 @@
 import AppraisalWorkspaceChrome from '@/components/performance/AppraisalWorkspaceChrome';
 import AppraisalWorkflowJourneyCard from '@/components/performance/AppraisalWorkflowJourneyCard';
 import CommentPanel from '@/components/performance/CommentPanel';
-import CompetencyRatingTable from '@/components/performance/CompetencyRatingTable';
 import ObjectiveTable from '@/components/performance/ObjectiveTable';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
-import type { Appraisal, CompetencyRating, Objective, Option } from '@/types/performance';
+import type { Appraisal, Objective, Option } from '@/types/performance';
 import { useForm } from '@inertiajs/react';
-import { ClipboardCheck, MessageSquareMore, Save, Send, ShieldCheck, Target } from 'lucide-react';
+import { ClipboardCheck, MessageSquareMore, Save, Send, Target } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
@@ -29,7 +28,6 @@ export default function SelfAssessment({ appraisal, abilities }: Props) {
     const achievementNote = appraisal.comments?.find((comment) => comment.comment_type === 'achievement_note')?.body ?? '';
     const significantIssue = appraisal.comments?.find((comment) => comment.comment_type === 'significant_issue')?.body ?? '';
     const objectiveLevels = appraisal.template?.objective_rating_scale?.levels ?? [];
-    const competencyLevels = appraisal.template?.competency_rating_scale?.levels ?? [];
     const perspectiveOptions: Option[] = (appraisal.objectives ?? []).map((objective) => ({
         value: objective.perspective_id,
         label: objective.perspective?.name ?? `Perspective ${objective.perspective_id}`,
@@ -42,12 +40,6 @@ export default function SelfAssessment({ appraisal, abilities }: Props) {
                 performance_achieved: objective.performance_achieved ?? '',
                 self_rating_scale_level_id: objective.self_rating_scale_level_id ?? '',
                 employee_comment: objective.employee_comment ?? '',
-            })) ?? [],
-        competency_ratings:
-            appraisal.competency_ratings?.map((rating) => ({
-                id: rating.id,
-                self_rating_scale_level_id: rating.self_rating_scale_level_id ?? '',
-                employee_comment: rating.employee_comment ?? '',
             })) ?? [],
         achievement_note: achievementNote,
         significant_issue: significantIssue,
@@ -64,16 +56,10 @@ export default function SelfAssessment({ appraisal, abilities }: Props) {
                         self_rating_scale_level_id: objective.self_rating_scale_level_id ?? '',
                         employee_comment: objective.employee_comment ?? '',
                     })) ?? [],
-                competency_ratings:
-                    appraisal.competency_ratings?.map((rating) => ({
-                        id: rating.id,
-                        self_rating_scale_level_id: rating.self_rating_scale_level_id ?? '',
-                        employee_comment: rating.employee_comment ?? '',
-                    })) ?? [],
                 achievement_note: achievementNote,
                 significant_issue: significantIssue,
             }),
-        [achievementNote, appraisal.competency_ratings, appraisal.objectives, significantIssue],
+        [achievementNote, appraisal.objectives, significantIssue],
     );
 
     useEffect(() => {
@@ -115,12 +101,6 @@ export default function SelfAssessment({ appraisal, abilities }: Props) {
         setData('objectives', next);
     };
 
-    const updateRating = (index: number, field: string, value: string | number | null) => {
-        const next = [...data.competency_ratings];
-        next[index] = { ...next[index], [field]: value };
-        setData('competency_ratings', next);
-    };
-
     return (
         <PerformancePage title="Self Assessment" description="Record achievements, evidence, self-ratings, and commentary." breadcrumbs={breadcrumbs(appraisal)}>
             <AppraisalWorkspaceChrome
@@ -158,28 +138,6 @@ export default function SelfAssessment({ appraisal, abilities }: Props) {
                                 perspectiveOptions={perspectiveOptions}
                                 ratingLevels={objectiveLevels}
                                 onChange={updateObjective}
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20">
-                            <CardTitle className="flex items-center gap-2">
-                                <ShieldCheck className="h-4.5 w-4.5" />
-                                Values
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <CompetencyRatingTable
-                                ratings={(appraisal.competency_ratings ?? []).map((rating, index) => ({
-                                    ...rating,
-                                    self_rating_scale_level_id:
-                                        Number(data.competency_ratings[index]?.self_rating_scale_level_id ?? rating.self_rating_scale_level_id ?? 0) || null,
-                                    employee_comment: data.competency_ratings[index]?.employee_comment ?? '',
-                                })) as CompetencyRating[]}
-                                mode="self"
-                                ratingLevels={competencyLevels}
-                                onChange={updateRating}
                             />
                         </CardContent>
                     </Card>

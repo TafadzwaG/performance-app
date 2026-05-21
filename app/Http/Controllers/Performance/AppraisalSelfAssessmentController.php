@@ -20,14 +20,13 @@ class AppraisalSelfAssessmentController extends Controller
 
     public function __construct(
         private readonly AppraisalWorkflowService $workflowService,
-    ) {
-    }
+    ) {}
 
     public function edit(Appraisal $appraisal): Response
     {
-        $this->authorize('selfAssess', $appraisal);
+        $this->authorize('viewSelfAssessment', $appraisal);
 
-        return Inertia::render('performance/appraisals/SelfAssessment', [
+        return Inertia::render('performance/appraisals/SelfAssess', [
             'appraisal' => $this->loadAppraisal($appraisal),
             'abilities' => $this->appraisalAbilities($appraisal, request()->user()),
         ]);

@@ -264,6 +264,18 @@ export default function TemplatesIndex({ templates }: { templates: Paginated<Tem
                                                                 <span className="font-semibold text-foreground">
                                                                     {template.name}
                                                                 </span>
+                                                                <div className="mt-2 flex flex-wrap gap-1">
+                                                                    {template.is_default && (
+                                                                        <Badge variant="secondary" className="w-fit font-normal">
+                                                                            Default
+                                                                        </Badge>
+                                                                    )}
+                                                                    {template.is_protected && (
+                                                                        <Badge variant="outline" className="w-fit font-normal">
+                                                                            Protected
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
                                                                 <span className="text-xs text-muted-foreground">
                                                                     {getTemplateSubtitle(template)}
                                                                 </span>

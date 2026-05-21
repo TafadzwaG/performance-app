@@ -8,7 +8,10 @@ use App\Http\Requests\Performance\UpdateGoalPlanRequest;
 use App\Models\Appraisal;
 use App\Models\AppraisalObjective;
 use App\Services\Performance\AppraisalWorkflowService;
+use App\Services\Performance\GoalLibraryLookupService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,22 +22,30 @@ class AppraisalPlanController extends Controller
 
     public function __construct(
         private readonly AppraisalWorkflowService $workflowService,
-    ) {
-    }
+        private readonly GoalLibraryLookupService $goalLibraryLookupService,
+    ) {}
 
     public function edit(Appraisal $appraisal): Response
     {
-        $this->authorize('plan', $appraisal);
+        $this->authorize('viewPlan', $appraisal);
 
-        return Inertia::render('performance/appraisals/Plan', [
+        return Inertia::render('performance/appraisals/GoalSetting', [
             'appraisal' => $this->loadAppraisal($appraisal),
             'abilities' => $this->appraisalAbilities($appraisal, request()->user()),
             'perspectiveOptions' => $this->perspectiveOptions(),
-            'goalLibraryItems' => $appraisal->employeeProfile
-                ?->department
-                ?->goalLibraryItems()
-                ->with('perspective')
-                ->get() ?? [],
+            'goalLibrarySearchEndpoint' => route('performance.appraisals.plan.goal_library', $appraisal),
+        ]);
+    }
+
+    public function goalLibrary(Request $request, Appraisal $appraisal): JsonResponse
+    {
+        $this->authorize('viewPlan', $appraisal);
+
+        return response()->json([
+            'results' => $this->goalLibraryLookupService->searchForAppraisal(
+                $appraisal,
+                (string) $request->string('q'),
+            ),
         ]);
     }
 

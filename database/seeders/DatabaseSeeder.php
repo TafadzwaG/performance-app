@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             PerformanceSetupSeeder::class,
             HotelOrgStructureSeeder::class,
+            JobTitleGoalLibrarySeeder::class,
             EmployeeFieldSettingsSeeder::class,
             PerformanceTestingSeeder::class,
         ]);

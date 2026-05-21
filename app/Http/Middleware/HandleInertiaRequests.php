@@ -63,6 +63,7 @@ class HandleInertiaRequests extends Middleware
                 'warning' => $request->session()->get('warning'),
                 'error' => $request->session()->get('error'),
                 'generatedCredentials' => $request->session()->get('generated_credentials'),
+                'showFinalizeNextSteps' => (bool) $request->session()->pull('show_finalize_next_steps'),
             ],
             'auth' => [
                 'user' => $request->user(),
@@ -73,6 +74,7 @@ class HandleInertiaRequests extends Middleware
                 'requiresEmployeeProfileCompletion' => $request->user()
                     ? ! $request->user()->employeeProfile()->exists()
                     : false,
+                'emailMfaEnabled' => (bool) $request->user()?->email_mfa_enabled,
                 'impersonation' => [
                     'isImpersonating' => $impersonationManager->isImpersonating(),
                     'impersonator' => $impersonator

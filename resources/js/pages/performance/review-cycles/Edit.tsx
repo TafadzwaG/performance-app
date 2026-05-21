@@ -1,3 +1,4 @@
+import InputError from '@/components/input-error';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,8 +13,8 @@ import type { BreadcrumbItem } from '@/types';
 import type { ReviewCycle } from '@/types/performance';
 import { cn } from '@/lib/utils';
 import { useForm } from '@inertiajs/react';
-import { differenceInCalendarDays, format } from 'date-fns';
-import type { FormEvent } from 'react';
+import { addMonths, differenceInCalendarDays, format, isAfter, isBefore, startOfDay, subMonths } from 'date-fns';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
     CalendarDays,
     CalendarRange,
@@ -43,18 +44,49 @@ function formatDateValue(date?: Date): string {
     return `${year}-${month}-${day}`;
 }
 
+const calendarStartMonth = new Date(new Date().getFullYear() - 10, 0, 1);
+const calendarEndMonth = new Date(new Date().getFullYear() + 10, 11, 1);
+
+function clampCalendarMonth(date: Date): Date {
+    const month = new Date(date.getFullYear(), date.getMonth(), 1);
+
+    if (isBefore(month, calendarStartMonth)) return calendarStartMonth;
+    if (isAfter(month, calendarEndMonth)) return calendarEndMonth;
+
+    return month;
+}
+
 function DatePickerField({
     label,
     value,
     onChange,
     placeholder = 'Pick a date',
+    error,
+    minDate,
+    maxDate,
 }: {
     label: string;
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
+    error?: string;
+    minDate?: Date;
+    maxDate?: Date;
 }) {
     const selectedDate = parseDateValue(value);
+    const min = minDate ? startOfDay(minDate) : undefined;
+    const max = maxDate ? startOfDay(maxDate) : undefined;
+    const [visibleMonth, setVisibleMonth] = useState(() => clampCalendarMonth(selectedDate ?? min ?? new Date()));
+
+    useEffect(() => {
+        if (selectedDate) {
+            setVisibleMonth(clampCalendarMonth(selectedDate));
+        }
+    }, [value]);
+
+    const changeVisibleMonth = (date: Date) => {
+        setVisibleMonth(clampCalendarMonth(date));
+    };
 
     return (
         <div className="space-y-2">
@@ -80,28 +112,30 @@ function DatePickerField({
                 <PopoverContent align="start" className="w-[420px] p-4">
                     <Calendar
                         mode="single"
+                        captionLayout="dropdown"
+                        month={visibleMonth}
+                        onMonthChange={changeVisibleMonth}
+                        startMonth={calendarStartMonth}
+                        endMonth={calendarEndMonth}
                         selected={selectedDate}
                         onSelect={(date) => onChange(formatDateValue(date))}
+                        onWheel={(event) => {
+                            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
+                            event.preventDefault();
+                            changeVisibleMonth(event.deltaY > 0 ? addMonths(visibleMonth, 1) : subMonths(visibleMonth, 1));
+                        }}
+                        disabled={(date) => {
+                            const current = startOfDay(date);
+
+                            return Boolean((min && isBefore(current, min)) || (max && isAfter(current, max)));
+                        }}
                         initialFocus
                         className="w-full rounded-md border p-3"
-                        classNames={{
-                            months: 'w-full',
-                            month: 'w-full space-y-4',
-                            caption: 'flex justify-center pt-1 relative items-center',
-                            caption_label: 'text-base font-semibold',
-                            nav: 'space-x-1 flex items-center',
-                            nav_button: 'h-9 w-9',
-                            table: 'w-full border-collapse space-y-1',
-                            head_row: 'flex w-full',
-                            head_cell:
-                                'text-muted-foreground rounded-md w-12 font-normal text-[0.85rem]',
-                            row: 'flex w-full mt-2',
-                            cell: 'relative h-12 w-12 p-0 text-center text-sm',
-                            day: 'h-12 w-12 p-0 font-normal',
-                        }}
                     />
                 </PopoverContent>
             </Popover>
+            <InputError message={error} />
         </div>
     );
 }
@@ -114,7 +148,7 @@ export default function ReviewCycleEdit({ reviewCycle }: { reviewCycle: ReviewCy
         { title: 'Edit', href: route('performance.review_cycles.edit', reviewCycle.id) },
     ];
 
-    const { data, setData, put, processing } = useForm({
+    const { data, setData, put, processing, errors } = useForm({
         name: reviewCycle.name,
         code: reviewCycle.code,
         description: reviewCycle.description ?? '',
@@ -264,12 +298,15 @@ export default function ReviewCycleEdit({ reviewCycle }: { reviewCycle: ReviewCy
                                         label="Start Date"
                                         value={data.start_date}
                                         onChange={(value) => setData('start_date', value)}
+                                        error={errors.start_date}
                                     />
 
                                     <DatePickerField
                                         label="End Date"
                                         value={data.end_date}
                                         onChange={(value) => setData('end_date', value)}
+                                        minDate={startDate}
+                                        error={errors.end_date}
                                     />
                                 </CardContent>
                             </Card>
@@ -292,24 +329,36 @@ export default function ReviewCycleEdit({ reviewCycle }: { reviewCycle: ReviewCy
                                         label="Goal Setting Deadline"
                                         value={data.goal_setting_deadline}
                                         onChange={(value) => setData('goal_setting_deadline', value)}
+                                        minDate={startDate}
+                                        maxDate={endDate}
+                                        error={errors.goal_setting_deadline}
                                     />
 
                                     <DatePickerField
                                         label="Self-Assessment Deadline"
                                         value={data.self_assessment_deadline}
                                         onChange={(value) => setData('self_assessment_deadline', value)}
+                                        minDate={parseDateValue(data.goal_setting_deadline) ?? startDate}
+                                        maxDate={endDate}
+                                        error={errors.self_assessment_deadline}
                                     />
 
                                     <DatePickerField
                                         label="Manager Review Deadline"
                                         value={data.manager_review_deadline}
                                         onChange={(value) => setData('manager_review_deadline', value)}
+                                        minDate={parseDateValue(data.self_assessment_deadline) ?? parseDateValue(data.goal_setting_deadline) ?? startDate}
+                                        maxDate={endDate}
+                                        error={errors.manager_review_deadline}
                                     />
 
                                     <DatePickerField
                                         label="Approval Deadline"
                                         value={data.approval_deadline}
                                         onChange={(value) => setData('approval_deadline', value)}
+                                        minDate={parseDateValue(data.manager_review_deadline) ?? parseDateValue(data.self_assessment_deadline) ?? parseDateValue(data.goal_setting_deadline) ?? startDate}
+                                        maxDate={endDate}
+                                        error={errors.approval_deadline}
                                     />
                                 </CardContent>
                             </Card>

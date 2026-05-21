@@ -78,10 +78,8 @@ class AppraisalScoringService
         $levels = $appraisal->template->overallRatingScale->levels->sortBy('sort_order');
 
         return $levels->first(
-            fn (RatingScaleLevel $level) => $level->min_percent !== null
-                && $level->max_percent !== null
-                && $overallScore >= (float) $level->min_percent
-                && $overallScore <= (float) $level->max_percent
+            fn (RatingScaleLevel $level) => ($level->min_percent === null || $overallScore >= (float) $level->min_percent)
+                && ($level->max_percent === null || $overallScore <= (float) $level->max_percent)
         ) ?? $levels->last();
     }
 }

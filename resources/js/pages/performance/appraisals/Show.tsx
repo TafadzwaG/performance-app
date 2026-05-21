@@ -1,39 +1,35 @@
+import AppraisalSteps, { getAppraisalContinueAction } from '@/components/performance/AppraisalSteps';
 import ApprovalTimeline from '@/components/performance/ApprovalTimeline';
-import AppraisalWorkflowJourneyCard from '@/components/performance/AppraisalWorkflowJourneyCard';
 import CommentPanel from '@/components/performance/CommentPanel';
-import CompetencyRatingTable from '@/components/performance/CompetencyRatingTable';
-import ObjectiveTable from '@/components/performance/ObjectiveTable';
 import PerformancePage from '@/components/performance/PerformancePage';
 import ScoreSummaryCard from '@/components/performance/ScoreSummaryCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatDate } from '@/lib/date-utils';
 import type { BreadcrumbItem, SharedData } from '@/types';
-import type { Appraisal, Option } from '@/types/performance';
+import type { Appraisal, RatingScaleLevel } from '@/types/performance';
 import { Link, usePage } from '@inertiajs/react';
+import type { LucideIcon } from 'lucide-react';
 import {
+    ArrowRight,
     BadgeCheck,
     CheckCircle2,
     ClipboardCheck,
     ClipboardList,
-    Eye,
     FileCheck2,
-    FilePenLine,
     FileSpreadsheet,
     FileText,
     FolderClock,
     LayoutDashboard,
+    ListChecks,
     Medal,
     MessageSquareMore,
     NotebookPen,
-    Paperclip,
-    PieChart,
     Printer,
     ShieldCheck,
     Sparkles,
     Target,
-    Trophy,
-    ArrowRight,
     UserCheck,
     Workflow,
 } from 'lucide-react';
@@ -53,34 +49,14 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
     const { auth } = usePage<SharedData>().props;
     const isFinalized = appraisal.status === 'finalized';
     const hasGoals = (appraisal.objectives ?? []).some((objective) => isMeaningfulGoal(appraisal, objective));
-    const canEditGoals = abilities.plan;
-    const canOpenSelfAssessment = hasGoals && abilities.selfAssess;
-    const canOpenManagerReview = abilities.managerReview;
-    const canOpenCalibration = abilities.calibrate;
     const canOpenDevelopmentPlan =
-        auth.permissions.includes('performance.development_plans.view') ||
-        auth.permissions.includes('performance.development_plans.update');
+        auth.permissions.includes('performance.development_plans.view') || auth.permissions.includes('performance.development_plans.update');
+    const continueAction = getAppraisalContinueAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
 
-    const perspectiveOptions: Option[] = (appraisal.template?.items ?? [])
-        .filter((item) => item.perspective)
-        .map((item) => ({
-            value: item.perspective?.id ?? 0,
-            label: item.perspective?.name ?? '',
-        }));
-
-    const objectiveLevels = appraisal.template?.objective_rating_scale?.levels ?? [];
-    const competencyLevels = appraisal.template?.competency_rating_scale?.levels ?? [];
-    const objectiveCount = appraisal.objectives?.length ?? 0;
-    const totalObjectiveWeight = (appraisal.objectives ?? []).reduce((sum, objective) => sum + Number(objective.weight ?? 0), 0);
-    const commentCount = appraisal.comments?.length ?? 0;
-    const evidenceCount = (appraisal.objectives ?? []).reduce((sum, objective) => sum + (objective.evidences?.length ?? 0), 0);
-    const approvalCount = appraisal.approvals?.length ?? 0;
-    const historyCount = appraisal.status_histories?.length ?? 0;
     const effectiveOverallScore = appraisal.calibrated_overall_score ?? appraisal.overall_score;
     const overallRating = appraisal.calibrated_overall_rating_level?.label ?? appraisal.overall_rating_level?.label ?? 'Not rated yet';
     const statusLabel = formatStatus(appraisal.status);
     const reopenedStageLabel = appraisal.reopened_stage ? formatStatus(appraisal.reopened_stage) : null;
-    const workflowProgress = getWorkflowProgress(appraisal.status, appraisal.reopened_stage);
 
     return (
         <PerformancePage
@@ -89,59 +65,11 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
             breadcrumbs={breadcrumbs(appraisal)}
             secondaryActions={
                 <>
-                    {canEditGoals ? (
-                        <Button asChild className="bg-emerald-700 text-white hover:bg-emerald-800">
-                            <Link href={route('performance.appraisals.plan', appraisal.id)}>
-                                <FilePenLine className="mr-2 h-4 w-4" />
-                                {hasGoals ? 'Edit Goals' : 'Set Goals'}
-                            </Link>
-                        </Button>
-                    ) : null}
-                    {canOpenSelfAssessment ? (
-                        <Button asChild className="bg-sky-700 text-white hover:bg-sky-800">
-                            <Link href={route('performance.appraisals.self_assessment', appraisal.id)}>
-                                <ClipboardCheck className="mr-2 h-4 w-4" />
-                                Self Assess
-                            </Link>
-                        </Button>
-                    ) : null}
-                    {canOpenManagerReview ? (
-                        <Button asChild variant="outline">
-                            <Link href={route('performance.appraisals.manager_review', appraisal.id)}>
-                                <UserCheck className="mr-2 h-4 w-4" />
-                                Manager Review
-                            </Link>
-                        </Button>
-                    ) : null}
-                    {abilities.approve ? (
-                        <Button asChild variant="outline">
-                            <Link href={route('performance.appraisals.approval', appraisal.id)}>
-                                <BadgeCheck className="mr-2 h-4 w-4" />
-                                Approve
-                            </Link>
-                        </Button>
-                    ) : null}
-                    {canOpenCalibration ? (
-                        <Button asChild variant="outline">
-                            <Link href={route('performance.appraisals.calibration', appraisal.id)}>
-                                <Sparkles className="mr-2 h-4 w-4" />
-                                Calibration
-                            </Link>
-                        </Button>
-                    ) : null}
-                    {abilities.finalize && appraisal.calibrated_at && !isFinalized ? (
-                        <Button asChild variant="outline">
-                            <Link href={route('performance.appraisals.finalize', appraisal.id)}>
-                                <ShieldCheck className="mr-2 h-4 w-4" />
-                                Finalize
-                            </Link>
-                        </Button>
-                    ) : null}
-                    {isFinalized && canOpenDevelopmentPlan ? (
-                        <Button asChild variant="outline">
-                            <Link href={route('performance.development_plans.edit', appraisal.id)}>
-                                <NotebookPen className="mr-2 h-4 w-4" />
-                                {appraisal.development_plan ? 'Update Development Plan' : 'Create Development Plan'}
+                    {continueAction ? (
+                        <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                            <Link href={continueAction.href}>
+                                <ArrowRight className="mr-2 h-4 w-4" />
+                                {continueAction.label}
                             </Link>
                         </Button>
                     ) : null}
@@ -154,21 +82,13 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
                                 </Link>
                             </Button>
                             <Button asChild variant="accent">
-                                <a
-                                    href={route('performance.appraisals.export.pdf', appraisal.id)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
+                                <a href={route('performance.appraisals.export.pdf', appraisal.id)} target="_blank" rel="noopener noreferrer">
                                     <FileText className="mr-2 h-4 w-4" />
                                     Export PDF
                                 </a>
                             </Button>
                             <Button asChild variant="secondary">
-                                <a
-                                    href={route('performance.appraisals.export.excel', appraisal.id)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
+                                <a href={route('performance.appraisals.export.excel', appraisal.id)} target="_blank" rel="noopener noreferrer">
                                     <FileSpreadsheet className="mr-2 h-4 w-4" />
                                     Export Excel
                                 </a>
@@ -179,156 +99,56 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
             }
         >
             <div className="space-y-6">
-                <Card className="overflow-hidden border-0 shadow-lg">
-                    <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-background">
-                        <CardContent className="space-y-6 p-6 lg:p-8">
-                            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                                <div className="space-y-4">
-                                    <Badge variant="secondary" className="w-fit gap-1.5 px-3 py-1">
-                                        <Eye className="h-3.5 w-3.5" />
-                                        Read-only appraisal report
-                                    </Badge>
+                <AppraisalSteps
+                    appraisal={appraisal}
+                    abilities={abilities}
+                    hasGoals={hasGoals}
+                    canOpenDevelopmentPlan={canOpenDevelopmentPlan}
+                    showStartButton={false}
+                />
 
-                                    <div className="space-y-3">
-                                        <div className="font-mono-brand text-muted-foreground flex items-center gap-3 text-[11px] tracking-[0.22em] uppercase">
-                                            <span className="bg-brand-sand inline-block h-px w-6" />
-                                            <span>§ Performance appraisal</span>
-                                        </div>
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <h1 className="font-display text-balance text-foreground text-3xl leading-[1] font-light tracking-tight lg:text-4xl">
-                                                {appraisal.employee_name_snapshot}
-                                            </h1>
-                                            <Badge className="gap-1.5 px-3 py-1">
-                                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                                {statusLabel}
-                                            </Badge>
-                                            <Badge variant="outline" className="px-3 py-1">
-                                                ID #{appraisal.id}
-                                            </Badge>
-                                        </div>
-
-                                        <p className="text-muted-foreground max-w-3xl text-[13px] leading-relaxed">
-                                            A read-only summary of progress, scores, comments, and approvals. Use the
-                                            workflow actions above to advance the cycle.
-                                        </p>
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-2">
-                                        <InfoBadge icon={Trophy} label={`Overall rating: ${overallRating}`} />
-                                        <InfoBadge icon={Target} label={`${objectiveCount} objectives tracked`} />
-                                        <InfoBadge icon={MessageSquareMore} label={`${commentCount} comments logged`} />
-                                        {reopenedStageLabel ? <InfoBadge icon={FolderClock} label={`Reopened at ${reopenedStageLabel}`} /> : null}
-                                    </div>
-
-                                    <div className="rounded-2xl border bg-background/85 p-4 shadow-sm backdrop-blur">
-                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                            <div>
-                                                <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
-                                                    § Appraisal Progress
-                                                </div>
-                                                <div className="font-display text-foreground mt-1 text-base leading-tight font-light tracking-tight">
-                                                    {workflowProgress.label}
-                                                </div>
-                                            </div>
-                                            <Badge variant="outline" className="w-fit">
-                                                {workflowProgress.percent}% complete
-                                            </Badge>
-                                        </div>
-                                        <div className="mt-3 h-3 overflow-hidden rounded-full bg-muted">
-                                            <div
-                                                className="h-full rounded-full bg-primary transition-all"
-                                                style={{ width: `${workflowProgress.percent}%` }}
-                                            />
-                                        </div>
-                                        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                            <span>{workflowProgress.description}</span>
-                                            {canEditGoals ? (
-                                                <>
-                                                    <span>•</span>
-                                                    <Link
-                                                        href={route('performance.appraisals.plan', appraisal.id)}
-                                                        className="inline-flex items-center gap-1 font-medium text-primary"
-                                                    >
-                                                        {hasGoals ? 'Edit Goals' : 'Set Goals'}
-                                                        <ArrowRight className="h-3.5 w-3.5" />
-                                                    </Link>
-                                                </>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid min-w-full gap-3 sm:grid-cols-2 xl:min-w-[340px] xl:max-w-[360px]">
-                                    <HighlightCard
-                                        icon={Medal}
-                                        label="Overall Rating"
-                                        value={overallRating}
-                                        hint="Current performance outcome"
-                                    />
-                                    <HighlightCard
-                                        icon={Workflow}
-                                        label="Workflow Status"
-                                        value={statusLabel}
-                                        hint="Current stage in the cycle"
-                                    />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </div>
-                </Card>
-
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <MetricCard icon={Target} label="Objectives" value={String(objectiveCount)} hint="Goals included" />
-                    <MetricCard icon={PieChart} label="Weight Total" value={`${totalObjectiveWeight}%`} hint="Combined weighting" />
-                    <MetricCard icon={Paperclip} label="Evidence" value={String(evidenceCount)} hint="Uploaded proof items" />
-                    <MetricCard icon={MessageSquareMore} label="Comments" value={String(commentCount)} hint="Discussion entries" />
-                    <MetricCard icon={ShieldCheck} label="Approvals" value={String(approvalCount)} hint={`${historyCount} workflow updates`} />
-                </div>
+                <AssessmentFormView appraisal={appraisal} />
 
                 <div className="grid gap-6 xl:grid-cols-12">
                     <div className="space-y-6 xl:col-span-8">
                         <Card className="border-0 shadow-md">
-                            <CardHeader className="border-b bg-muted/20">
+                            <CardHeader className="bg-muted/20 border-b">
                                 <CardTitle className="flex items-center gap-2 text-base">
                                     <LayoutDashboard className="h-4.5 w-4.5" />
                                     Executive Summary
                                 </CardTitle>
-                                <CardDescription>
-                                    High-level appraisal results and weighted score performance.
-                                </CardDescription>
+                                <CardDescription>High-level appraisal results and weighted score performance.</CardDescription>
                             </CardHeader>
                             <CardContent className="p-5">
                                 <ScoreSummaryCard
                                     businessScore={appraisal.business_score}
-                                    valuesScore={appraisal.values_score}
                                     overallScore={effectiveOverallScore}
                                     overallRating={overallRating}
+                                    layout="grid"
                                 />
                             </CardContent>
                         </Card>
 
                         {appraisal.latest_calibration ? (
                             <Card className="border-0 shadow-md">
-                                <CardHeader className="border-b bg-muted/20">
+                                <CardHeader className="bg-muted/20 border-b">
                                     <CardTitle className="flex items-center gap-2 text-base">
                                         <Sparkles className="h-4.5 w-4.5" />
                                         Calibration Summary
                                     </CardTitle>
-                                    <CardDescription>
-                                        Committee review of the approved outcome before finalization.
-                                    </CardDescription>
+                                    <CardDescription>Committee review of the approved outcome before finalization.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4 p-5">
                                     <div className="grid gap-4 md:grid-cols-2">
-                                        <div className="rounded-2xl border bg-background p-4">
-                                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Original approved result</div>
-                                            <div className="mt-2 text-sm font-medium text-foreground">
+                                        <div className="bg-background rounded-2xl border p-4">
+                                            <div className="text-muted-foreground text-xs tracking-wide uppercase">Original approved result</div>
+                                            <div className="text-foreground mt-2 text-sm font-medium">
                                                 {appraisal.overall_score ?? 'N/A'}% · {appraisal.overall_rating_level?.label ?? 'Unrated'}
                                             </div>
                                         </div>
-                                        <div className="rounded-2xl border bg-background p-4">
-                                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Calibrated result</div>
-                                            <div className="mt-2 flex items-center gap-2 text-sm font-medium text-foreground">
+                                        <div className="bg-background rounded-2xl border p-4">
+                                            <div className="text-muted-foreground text-xs tracking-wide uppercase">Calibrated result</div>
+                                            <div className="text-foreground mt-2 flex items-center gap-2 text-sm font-medium">
                                                 {effectiveOverallScore ?? 'N/A'}% · {overallRating}
                                                 {appraisal.calibrated_overall_score != null ? (
                                                     <Badge className="gap-1.5">
@@ -340,13 +160,15 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
                                         </div>
                                     </div>
 
-                                    <div className="rounded-2xl border bg-muted/20 p-4">
-                                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Committee comments</div>
-                                        <div className="mt-2 text-sm leading-6 text-foreground">
+                                    <div className="bg-muted/20 rounded-2xl border p-4">
+                                        <div className="text-muted-foreground text-xs tracking-wide uppercase">Committee comments</div>
+                                        <div className="text-foreground mt-2 text-sm leading-6">
                                             {appraisal.calibration_comment ?? appraisal.latest_calibration.comments}
                                         </div>
-                                        <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                                            <span>Reviewed by: {appraisal.calibrated_by?.name ?? appraisal.latest_calibration.actor?.name ?? 'N/A'}</span>
+                                        <div className="text-muted-foreground mt-3 flex flex-wrap gap-4 text-xs">
+                                            <span>
+                                                Reviewed by: {appraisal.calibrated_by?.name ?? appraisal.latest_calibration.actor?.name ?? 'N/A'}
+                                            </span>
                                             {appraisal.latest_calibration.evidence_summary ? (
                                                 <span>Evidence: {appraisal.latest_calibration.evidence_summary}</span>
                                             ) : null}
@@ -357,54 +179,12 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
                         ) : null}
 
                         <Card className="border-0 shadow-md">
-                            <CardHeader className="border-b bg-muted/20">
-                                <CardTitle className="flex items-center gap-2 text-base">
-                                    <Target className="h-4.5 w-4.5" />
-                                    Objectives & Results
-                                </CardTitle>
-                                <CardDescription>
-                                    Review objectives, progress evidence, weights, and ratings in a structured report view.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="p-5">
-                                <ObjectiveTable
-                                    appraisalId={appraisal.id}
-                                    objectives={appraisal.objectives ?? []}
-                                    mode="show"
-                                    perspectiveOptions={perspectiveOptions}
-                                    ratingLevels={objectiveLevels}
-                                />
-                            </CardContent>
-                        </Card>
-
-                        <Card className="border-0 shadow-md">
-                            <CardHeader className="border-b bg-muted/20">
-                                <CardTitle className="flex items-center gap-2 text-base">
-                                    <ShieldCheck className="h-4.5 w-4.5" />
-                                    Values
-                                </CardTitle>
-                                <CardDescription>
-                                    A read-only view of behavior, values, and competency ratings captured during the cycle.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="p-5">
-                                <CompetencyRatingTable
-                                    ratings={appraisal.competency_ratings ?? []}
-                                    mode="show"
-                                    ratingLevels={competencyLevels}
-                                />
-                            </CardContent>
-                        </Card>
-
-                        <Card className="border-0 shadow-md">
-                            <CardHeader className="border-b bg-muted/20">
+                            <CardHeader className="bg-muted/20 border-b">
                                 <CardTitle className="flex items-center gap-2 text-base">
                                     <MessageSquareMore className="h-4.5 w-4.5" />
                                     Review Notes & Discussion
                                 </CardTitle>
-                                <CardDescription>
-                                    Feedback, clarifications, and recorded comments from the appraisal process.
-                                </CardDescription>
+                                <CardDescription>Feedback, clarifications, and recorded comments from the appraisal process.</CardDescription>
                             </CardHeader>
                             <CardContent className="p-5">
                                 <CommentPanel comments={appraisal.comments ?? []} />
@@ -413,57 +193,34 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
                     </div>
 
                     <div className="space-y-6 xl:col-span-4">
-                        <AppraisalWorkflowJourneyCard
-                            appraisalId={appraisal.id}
-                            status={appraisal.status}
-                            reopenedStage={appraisal.reopened_stage}
-                        stageAccess={{
-                            goal_setting: canEditGoals,
-                            self_assessment_pending: canOpenSelfAssessment,
-                            manager_review_pending: canOpenManagerReview,
-                            approval_pending: abilities.approve,
-                            calibration_pending: canOpenCalibration,
-                            finalized: abilities.finalize,
-                        }}
-                    />
-
                         <Card className="border-0 shadow-md">
-                            <CardHeader className="border-b bg-muted/20">
+                            <CardHeader className="bg-muted/20 border-b">
                                 <CardTitle className="flex items-center gap-2 text-base">
                                     <FileCheck2 className="h-4.5 w-4.5" />
                                     Appraisal Facts
                                 </CardTitle>
-                                <CardDescription>
-                                    Quick reference details for this appraisal record.
-                                </CardDescription>
+                                <CardDescription>Quick reference details for this appraisal record.</CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-3 p-5">
                                 <FactRow icon={ClipboardList} label="Record ID" value={`#${appraisal.id}`} />
                                 <FactRow icon={CheckCircle2} label="Status" value={statusLabel} />
                                 <FactRow icon={Medal} label="Overall rating" value={overallRating} />
-                                <FactRow
-                                    icon={NotebookPen}
-                                    label="Development plan"
-                                    value={appraisal.development_plan ? 'Created' : 'Not created'}
-                                />
-                                {reopenedStageLabel ? (
-                                    <FactRow icon={FolderClock} label="Reopened stage" value={reopenedStageLabel} />
-                                ) : null}
+                                <FactRow icon={NotebookPen} label="Development plan" value={appraisal.development_plan ? 'Created' : 'Not created'} />
+                                {reopenedStageLabel ? <FactRow icon={FolderClock} label="Reopened stage" value={reopenedStageLabel} /> : null}
                             </CardContent>
                         </Card>
 
                         <Card className="border-0 shadow-md">
-                            <CardHeader className="border-b bg-muted/20">
+                            <CardHeader className="bg-muted/20 border-b">
                                 <CardTitle className="flex items-center gap-2 text-base">
                                     <Workflow className="h-4.5 w-4.5" />
                                     Approval & Audit Trail
                                 </CardTitle>
-                                <CardDescription>
-                                    A chronological history of approvals and status changes.
-                                </CardDescription>
+                                <CardDescription>A chronological history of approvals and status changes.</CardDescription>
                             </CardHeader>
                             <CardContent className="p-5">
                                 <ApprovalTimeline
+                                    embedded
                                     approvals={appraisal.approvals ?? []}
                                     histories={appraisal.status_histories ?? []}
                                 />
@@ -476,74 +233,432 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
     );
 }
 
-type MetricCardProps = {
-    icon: typeof Target;
+type StartAction = {
+    href: string;
     label: string;
-    value: string;
-    hint: string;
+    description: string;
 };
 
-function MetricCard({ icon: Icon, label, value, hint }: MetricCardProps) {
+function SimpleAppraisalSteps({
+    appraisal,
+    abilities,
+    hasGoals,
+    canOpenDevelopmentPlan,
+    startAction,
+}: {
+    appraisal: Appraisal;
+    abilities: Record<string, boolean>;
+    hasGoals: boolean;
+    canOpenDevelopmentPlan: boolean;
+    startAction: StartAction | null;
+}) {
+    const wizardUrl = route('performance.appraisals.plan', appraisal.id);
+    const steps = [
+        {
+            key: 'goal_setting',
+            title: '1. Agree your goals',
+            description: 'Write the work goals, how they will be measured, the target, evidence, and weight.',
+            href: route('performance.appraisals.plan', appraisal.id),
+            canOpen: abilities.plan,
+            isComplete: hasGoals && !['draft', 'goal_setting'].includes(appraisal.status),
+            icon: Target,
+        },
+        {
+            key: 'self_assessment',
+            title: '2. Do your self assessment',
+            description: 'Add what you achieved, upload evidence where needed, and rate your own performance.',
+            href: route('performance.appraisals.self_assessment', appraisal.id),
+            canOpen: abilities.selfAssess,
+            isComplete: Boolean(appraisal.self_assessment_submitted_at),
+            icon: ClipboardCheck,
+        },
+        {
+            key: 'manager_review',
+            title: '3. Manager review',
+            description: 'Your manager reviews the evidence, adds comments, and gives manager ratings.',
+            href: route('performance.appraisals.manager_review', appraisal.id),
+            canOpen: abilities.managerReview,
+            isComplete: Boolean(appraisal.manager_reviewed_at),
+            icon: UserCheck,
+        },
+        {
+            key: 'approval',
+            title: '4. Approval',
+            description: 'The approving manager checks the appraisal and either approves it or sends it back.',
+            href: route('performance.appraisals.approval', appraisal.id),
+            canOpen: abilities.approve,
+            isComplete: Boolean(appraisal.approved_at),
+            icon: BadgeCheck,
+        },
+        {
+            key: 'calibration',
+            title: '5. Calibration',
+            description: 'The calibration team confirms the final result before the appraisal is closed.',
+            href: route('performance.appraisals.calibration', appraisal.id),
+            canOpen: abilities.calibrate,
+            isComplete: Boolean(appraisal.calibrated_at),
+            icon: Sparkles,
+        },
+        {
+            key: 'finalized',
+            title: '6. Final record',
+            description: 'The final appraisal is locked. A development plan can be created after this point.',
+            href: appraisal.development_plan
+                ? route('performance.development_plans.edit', appraisal.id)
+                : route('performance.development_plans.edit', appraisal.id),
+            canOpen: appraisal.status === 'finalized' && canOpenDevelopmentPlan,
+            isComplete: appraisal.status === 'finalized',
+            icon: FileCheck2,
+        },
+    ];
+
     return (
-        <Card className="border-0 shadow-sm">
-            <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                        <p className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
-                            {label}
-                        </p>
-                        <p className="font-display text-foreground text-2xl leading-none font-light tracking-tight">
-                            {value}
-                        </p>
+        <section className="space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <div className="text-foreground flex items-center gap-2 text-base font-semibold">
+                        <ListChecks className="text-primary h-4.5 w-4.5" />
+                        Appraisal Steps
                     </div>
-                    <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
-                        <Icon className="h-5 w-5" />
-                    </div>
+                    <p className="text-muted-foreground mt-1 text-sm">Follow the steps from left to right.</p>
                 </div>
-                <p className="text-muted-foreground mt-3 text-[12px]">{hint}</p>
+                {startAction ? (
+                    <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90 w-fit">
+                        <Link href={wizardUrl}>
+                            <ArrowRight className="mr-2 h-4 w-4" />
+                            Start My Appraisals
+                        </Link>
+                    </Button>
+                ) : null}
+            </div>
+
+            <div className="overflow-x-auto pb-2">
+                <div className="grid min-w-[920px] grid-cols-6 items-start gap-3">
+                    {steps.map((step, index) => {
+                        const Icon = step.icon;
+                        const isCurrent = startAction?.href === step.href;
+
+                        return (
+                            <div key={step.key} className="relative">
+                                {index < steps.length - 1 ? (
+                                    <div className="bg-border absolute top-5 left-[calc(50%+24px)] h-px w-[calc(100%-24px)]" />
+                                ) : null}
+                                <Link
+                                    href={step.canOpen ? step.href : route('performance.appraisals.show', appraisal.id)}
+                                    preserveScroll
+                                    className="relative flex flex-col items-center text-center"
+                                >
+                                    <span
+                                        className={`bg-background flex h-10 w-10 items-center justify-center rounded-full border ${
+                                            isCurrent
+                                                ? 'border-primary bg-primary text-primary-foreground'
+                                                : step.isComplete
+                                                  ? 'border-primary/25 text-primary'
+                                                  : 'text-muted-foreground'
+                                        }`}
+                                    >
+                                        {step.isComplete ? <CheckCircle2 className="h-4.5 w-4.5" /> : <Icon className="h-4.5 w-4.5" />}
+                                    </span>
+                                    <span className="text-foreground mt-2 text-xs font-semibold">{step.title}</span>
+                                    <span className="text-muted-foreground mt-1 text-[11px] leading-4">{step.description}</span>
+                                    <span className="mt-2 flex min-h-5 items-center justify-center">
+                                        {isCurrent ? (
+                                            <Badge>Start here</Badge>
+                                        ) : step.isComplete ? (
+                                            <Badge variant="secondary">Done</Badge>
+                                        ) : !step.canOpen ? (
+                                            <Badge variant="outline">Wait</Badge>
+                                        ) : null}
+                                    </span>
+                                </Link>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </section>
+    );
+}
+
+function AssessmentFormView({ appraisal }: { appraisal: Appraisal }) {
+    const reviewPeriod = getReviewPeriod(appraisal);
+    const achievementComments = (appraisal.comments ?? []).filter((comment) => comment.comment_type === 'achievement_note');
+    const issueComments = (appraisal.comments ?? []).filter((comment) => comment.comment_type === 'significant_issue');
+    const generalComments = (appraisal.comments ?? []).filter((comment) => comment.comment_type === 'general');
+    const formDetails: { icon: LucideIcon; label: string; value: string }[] = [
+        { icon: UserCheck, label: 'Employee Name', value: appraisal.employee_name_snapshot || '-' },
+        { icon: BadgeCheck, label: 'Employee #', value: appraisal.employee_number_snapshot || '-' },
+        { icon: ClipboardList, label: 'Job Title', value: appraisal.job_title_name_snapshot || '-' },
+        { icon: LayoutDashboard, label: 'Department', value: appraisal.department_name_snapshot || '-' },
+        { icon: FolderClock, label: 'Review Period', value: reviewPeriod },
+        { icon: UserCheck, label: 'Line Manager', value: appraisal.line_manager?.name || '-' },
+        { icon: ShieldCheck, label: 'Approving Manager', value: appraisal.approving_manager?.name || '-' },
+        { icon: FileCheck2, label: 'Template', value: appraisal.template_name_snapshot || '-' },
+    ];
+
+    return (
+        <div className="space-y-6">
+            <Card className="border-0 shadow-md">
+                <CardHeader className="bg-muted/20 border-b">
+                    <CardDescription className="text-[11px] font-medium tracking-[0.18em] uppercase">
+                        Individual Performance Assessment Form
+                    </CardDescription>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <FileText className="h-4.5 w-4.5" />
+                        Goals
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-4">
+                    {formDetails.map(({ icon: Icon, label, value }) => (
+                        <div key={label} className="bg-muted/10 flex items-start gap-3 rounded-lg border p-4">
+                            <span className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                                <Icon className="h-4.5 w-4.5" />
+                            </span>
+                            <div className="min-w-0">
+                                <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">{label}</div>
+                                <div className="text-foreground mt-2 text-sm font-medium break-words">{value}</div>
+                            </div>
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-md">
+                <CardHeader className="bg-muted/20 border-b">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Target className="h-4.5 w-4.5" />
+                        Business Objectives
+                    </CardTitle>
+                    <CardDescription>Goals, measures, targets, evidence, achieved performance, and ratings.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-[1120px] text-left text-sm">
+                            <thead className="bg-muted/30">
+                                <tr>
+                                    {[
+                                        'Perspective',
+                                        'Objective (The Goal)',
+                                        'KPI / Measure (How Measured)',
+                                        'Target (Success Definition)',
+                                        'Weight',
+                                        'Evidence Source',
+                                        'Performance Achieved',
+                                        'Self Rating',
+                                        "Manager's Rating",
+                                    ].map((heading) => (
+                                        <th
+                                            key={heading}
+                                            className="text-muted-foreground px-4 py-3 text-[11px] font-semibold tracking-[0.14em] uppercase"
+                                        >
+                                            {heading}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(appraisal.objectives ?? []).length === 0 ? (
+                                    <tr>
+                                        <td colSpan={9} className="text-muted-foreground px-4 py-10 text-center text-sm">
+                                            No objectives have been captured for this appraisal yet.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    (appraisal.objectives ?? []).map((objective) => (
+                                        <tr key={objective.id} className="border-t align-top">
+                                            <td className="px-4 py-4">
+                                                <Badge variant="secondary">{objective.perspective?.name || '-'}</Badge>
+                                            </td>
+                                            <td className="text-foreground px-4 py-4 font-medium">{objective.title || '-'}</td>
+                                            <td className="text-muted-foreground px-4 py-4">{objective.kpi_measure || '-'}</td>
+                                            <td className="text-muted-foreground px-4 py-4">{objective.target_definition || '-'}</td>
+                                            <td className="text-muted-foreground px-4 py-4">
+                                                {objective.weight !== null && objective.weight !== undefined ? `${objective.weight}%` : '-'}
+                                            </td>
+                                            <td className="text-muted-foreground px-4 py-4">{objective.evidence_source || '-'}</td>
+                                            <td className="text-muted-foreground px-4 py-4">{objective.performance_achieved || '-'}</td>
+                                            <td className="text-muted-foreground px-4 py-4">
+                                                {objective.self_rating_level?.label ?? objective.self_rating_score ?? '-'}
+                                            </td>
+                                            <td className="text-muted-foreground px-4 py-4">
+                                                {objective.manager_rating_level?.label ?? objective.manager_rating_score ?? '-'}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <section className="grid gap-6 xl:grid-cols-2">
+                <CommentBox title="Other Substantial Achievements" empty="No achievement comments captured." comments={achievementComments} />
+                <CommentBox title="Significant Issues" empty="No significant issues captured." comments={issueComments} />
+            </section>
+
+            <Card className="border-0 shadow-md">
+                <CardHeader className="bg-muted/20 border-b">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <MessageSquareMore className="h-4.5 w-4.5" />
+                        Comments
+                    </CardTitle>
+                    <CardDescription>Individual, manager, and approving manager comments for the form.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 p-5 lg:grid-cols-3">
+                    <FormCommentColumn title="Individual Comments" comments={generalComments.map((comment) => comment.body)} />
+                    <FormCommentColumn
+                        title="Manager Comments"
+                        comments={(appraisal.objectives ?? [])
+                            .map((objective) => objective.manager_comment)
+                            .filter((comment): comment is string => Boolean(comment))}
+                    />
+                    <FormCommentColumn title="Approving Manager Comments" comments={[]} />
+                </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-md">
+                <CardHeader className="bg-muted/20 border-b">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Medal className="h-4.5 w-4.5" />
+                        Rating Scale Reference
+                    </CardTitle>
+                    <CardDescription>Business objectives rating scale configured on this appraisal template.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 p-5">
+                    <RatingScaleBox title="Business Objectives Rating Scale" levels={appraisal.template?.objective_rating_scale?.levels ?? []} />
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function CommentBox({ title, empty, comments }: { title: string; empty: string; comments: NonNullable<Appraisal['comments']> }) {
+    return (
+        <Card className="border-0 shadow-md">
+            <CardHeader className="bg-muted/20 border-b">
+                <CardTitle className="text-base">{title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 p-5">
+                {comments.length > 0 ? (
+                    comments.map((comment) => (
+                        <div key={comment.id} className="bg-muted/10 rounded-lg border p-4">
+                            <p className="text-foreground text-sm leading-6">{comment.body}</p>
+                            {comment.author?.name ? <p className="text-muted-foreground mt-2 text-xs">{comment.author.name}</p> : null}
+                        </div>
+                    ))
+                ) : (
+                    <div className="bg-muted/10 text-muted-foreground rounded-lg border border-dashed px-6 py-10 text-center text-sm">{empty}</div>
+                )}
             </CardContent>
         </Card>
     );
 }
 
-type HighlightCardProps = {
-    icon: typeof Trophy;
-    label: string;
-    value: string;
-    hint: string;
-};
-
-function HighlightCard({ icon: Icon, label, value, hint }: HighlightCardProps) {
+function FormCommentColumn({ title, comments }: { title: string; comments: string[] }) {
     return (
-        <div className="rounded-2xl border bg-background/85 p-4 shadow-sm backdrop-blur">
-            <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                    <p className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">{label}</p>
-                    <p className="font-display text-foreground text-lg leading-tight font-light tracking-tight">
-                        {value}
-                    </p>
+        <div className="bg-muted/10 min-h-[150px] rounded-lg border p-4">
+            <div className="text-muted-foreground mb-3 text-[11px] font-semibold tracking-[0.16em] uppercase">{title}</div>
+            {comments.length > 0 ? (
+                <div className="space-y-3">
+                    {comments.map((comment, index) => (
+                        <p key={`${title}-${index}`} className="text-foreground text-sm leading-6">
+                            {comment}
+                        </p>
+                    ))}
                 </div>
-                <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
-                    <Icon className="h-5 w-5" />
-                </div>
-            </div>
-            <p className="text-muted-foreground mt-3 text-[12px]">{hint}</p>
+            ) : (
+                <p className="text-muted-foreground text-sm">No comments captured.</p>
+            )}
         </div>
     );
 }
 
-type InfoBadgeProps = {
-    icon: typeof Sparkles;
-    label: string;
-};
+function RatingScaleBox({
+    title,
+    levels,
+}: {
+    title: string;
+    levels: NonNullable<NonNullable<Appraisal['template']>['objective_rating_scale']>['levels'];
+}) {
+    const orderedLevels = [...(levels ?? [])].sort((left, right) => {
+        const leftOrder = left.sort_order ?? left.value ?? 0;
+        const rightOrder = right.sort_order ?? right.value ?? 0;
 
-function InfoBadge({ icon: Icon, label }: InfoBadgeProps) {
+        return leftOrder - rightOrder;
+    });
+
     return (
-        <div className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-sm text-foreground shadow-sm">
-            <Icon className="h-3.5 w-3.5 text-primary" />
-            <span>{label}</span>
+        <div className="bg-muted/10 overflow-hidden rounded-lg border">
+            <div className="bg-background flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+                <div>
+                    <div className="text-foreground text-sm font-semibold">{title}</div>
+                    <div className="text-muted-foreground mt-1 text-xs">Ordered from lowest to highest rating.</div>
+                </div>
+                <Badge variant="outline">{orderedLevels.length} levels</Badge>
+            </div>
+
+            {orderedLevels.length > 0 ? (
+                <div className="divide-y">
+                    <div className="text-muted-foreground bg-muted/30 hidden grid-cols-[72px_minmax(160px,1fr)_minmax(140px,180px)_minmax(220px,2fr)] gap-4 px-4 py-2 text-[11px] font-semibold tracking-[0.14em] uppercase md:grid">
+                        <span>Level</span>
+                        <span>Rating</span>
+                        <span>Score / Range</span>
+                        <span>Description</span>
+                    </div>
+
+                    {orderedLevels.map((level, index) => (
+                        <div
+                            key={level.id}
+                            className="bg-background grid gap-3 px-4 py-4 text-sm md:grid-cols-[72px_minmax(160px,1fr)_minmax(140px,180px)_minmax(220px,2fr)] md:items-start md:gap-4"
+                        >
+                            <div className="flex items-center gap-2">
+                                <span className="bg-primary/10 text-primary flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold">
+                                    {level.short_label || level.value || index + 1}
+                                </span>
+                            </div>
+
+                            <div>
+                                <div className="text-muted-foreground mb-1 text-[11px] font-semibold tracking-[0.14em] uppercase md:hidden">
+                                    Rating
+                                </div>
+                                <div className="text-foreground font-medium">{level.label}</div>
+                                {level.is_default ? (
+                                    <Badge variant="secondary" className="mt-2">
+                                        Default
+                                    </Badge>
+                                ) : null}
+                            </div>
+
+                            <div>
+                                <div className="text-muted-foreground mb-1 text-[11px] font-semibold tracking-[0.14em] uppercase md:hidden">
+                                    Score / Range
+                                </div>
+                                <span className="text-muted-foreground">{formatRatingScaleRange(level)}</span>
+                            </div>
+
+                            <div>
+                                <div className="text-muted-foreground mb-1 text-[11px] font-semibold tracking-[0.14em] uppercase md:hidden">
+                                    Description
+                                </div>
+                                <p className="text-muted-foreground leading-6">{level.description || 'No description captured.'}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-muted-foreground bg-background px-4 py-6 text-sm">No scale levels configured.</p>
+            )}
         </div>
     );
+}
+
+function formatRatingScaleRange(level: RatingScaleLevel) {
+    if (level.min_percent !== null && level.min_percent !== undefined && level.max_percent !== null && level.max_percent !== undefined) {
+        return `${level.min_percent}% - ${level.max_percent}%`;
+    }
+
+    return `Score ${level.value}`;
 }
 
 type FactRowProps = {
@@ -554,128 +669,96 @@ type FactRowProps = {
 
 function FactRow({ icon: Icon, label, value }: FactRowProps) {
     return (
-        <div className="flex items-start gap-3 rounded-2xl border bg-background p-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <div className="bg-background flex items-start gap-3 rounded-2xl border p-3">
+            <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
                 <Icon className="h-4.5 w-4.5" />
             </div>
             <div className="space-y-1">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-                <p className="text-sm font-medium text-foreground">{value}</p>
+                <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
+                <p className="text-foreground text-sm font-medium">{value}</p>
             </div>
         </div>
     );
 }
 
-function formatStatus(value: string) {
-    return value
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function getWorkflowProgress(status: string, reopenedStage?: string | null) {
-    const progressMap: Record<string, { percent: number; label: string; description: string }> = {
-        draft: {
-            percent: 5,
-            label: 'Appraisal created',
-            description: 'The appraisal record exists, but goals still need to be agreed.',
-        },
-        goal_setting: {
-            percent: 20,
-            label: 'Goal setting in progress',
-            description: 'Employee and manager can still define or edit the appraisal goals.',
-        },
-        self_assessment_pending: {
-            percent: 40,
-            label: 'Awaiting self assessment',
-            description: 'Goals are in place and the employee can complete the self assessment.',
-        },
-        self_assessment_submitted: {
-            percent: 55,
-            label: 'Self assessment submitted',
-            description: 'Employee input is complete and ready for manager review.',
-        },
-        manager_review_pending: {
-            percent: 70,
-            label: 'Manager review in progress',
-            description: 'The line manager should review ratings, evidence, and comments now.',
-        },
-        manager_review_completed: {
-            percent: 82,
-            label: 'Manager review completed',
-            description: 'Manager scoring is complete and the appraisal is moving toward approval.',
-        },
-        approval_pending: {
-            percent: 88,
-            label: 'Awaiting approval',
-            description: 'The approving manager can now approve or send the appraisal back.',
-        },
-        approved: {
-            percent: 92,
-            label: 'Approved and queued',
-            description: 'Approval is complete and the appraisal is now waiting for calibration review.',
-        },
-        calibration_pending: {
-            percent: 96,
-            label: 'Calibration in progress',
-            description: 'The calibration committee can now confirm or adjust the final overall result.',
-        },
-        finalized: {
-            percent: 100,
-            label: 'Finalized',
-            description: 'The appraisal is complete and locked as the final performance record.',
-        },
-        sent_back: {
-            percent: 30,
-            label: 'Sent back for correction',
-            description: reopenedStage
-                ? `The appraisal was returned to ${formatStatus(reopenedStage)} for updates.`
-                : 'The appraisal was sent back for updates before it can continue.',
-        },
-    };
-
-    if (status === 'sent_back') {
-        if (reopenedStage === 'goal_setting') {
-            return {
-                percent: 20,
-                label: 'Returned to goal setting',
-                description: 'Goals need to be reviewed and updated before the appraisal can continue.',
-            };
-        }
-
-        if (reopenedStage === 'self_assessment') {
-            return {
-                percent: 40,
-                label: 'Returned to self assessment',
-                description: 'The employee should revise the self assessment and resubmit it.',
-            };
-        }
-
-        if (reopenedStage === 'manager_review') {
-            return {
-                percent: 70,
-                label: 'Returned to manager review',
-                description: 'The manager needs to revisit the ratings or comments before approval.',
-            };
-        }
-
-        if (reopenedStage === 'approval') {
-            return {
-                percent: 88,
-                label: 'Returned to approval',
-                description: 'The appraisal was returned at approval stage and needs correction before approval can continue.',
-            };
-        }
-
-        if (reopenedStage === 'calibration') {
-            return {
-                percent: 96,
-                label: 'Returned to calibration',
-                description: 'The appraisal was returned to calibration so the committee can revisit the final outcome.',
-            };
-        }
+function getStartAction(
+    appraisal: Appraisal,
+    abilities: Record<string, boolean>,
+    hasGoals: boolean,
+    canOpenDevelopmentPlan: boolean,
+): StartAction | null {
+    if (abilities.planEdit && (!hasGoals || ['draft', 'goal_setting', 'sent_back'].includes(appraisal.status))) {
+        return {
+            href: route('performance.appraisals.plan', appraisal.id),
+            label: hasGoals ? 'Review goals' : 'Set goals',
+            description: 'Start by agreeing the goals and measurements.',
+        };
     }
 
-    return progressMap[status] ?? progressMap.draft;
+    if (hasGoals && abilities.selfAssessEdit && ['self_assessment_pending', 'sent_back'].includes(appraisal.status)) {
+        return {
+            href: route('performance.appraisals.self_assessment', appraisal.id),
+            label: 'Do self assessment',
+            description: 'Add your results, evidence, and self rating.',
+        };
+    }
+
+    if (abilities.managerReviewEdit && ['self_assessment_submitted', 'manager_review_pending', 'sent_back'].includes(appraisal.status)) {
+        return {
+            href: route('performance.appraisals.manager_review', appraisal.id),
+            label: 'Manager review',
+            description: 'Review the employee input and add manager ratings.',
+        };
+    }
+
+    if (abilities.approveEdit && ['manager_review_completed', 'approval_pending', 'sent_back'].includes(appraisal.status)) {
+        return {
+            href: route('performance.appraisals.approval', appraisal.id),
+            label: 'Approve appraisal',
+            description: 'Approve the appraisal or send it back for correction.',
+        };
+    }
+
+    if (abilities.calibrateEdit && ['approved', 'calibration_pending', 'sent_back'].includes(appraisal.status)) {
+        return {
+            href: route('performance.appraisals.calibration', appraisal.id),
+            label: 'Calibrate result',
+            description: 'Confirm or adjust the final result.',
+        };
+    }
+
+    if (abilities.finalizeEdit && appraisal.calibrated_at && appraisal.status !== 'finalized') {
+        return {
+            href: route('performance.appraisals.finalize', appraisal.id),
+            label: 'Finalize appraisal',
+            description: 'Lock the appraisal as the final record.',
+        };
+    }
+
+    if (appraisal.status === 'finalized' && canOpenDevelopmentPlan) {
+        return {
+            href: route('performance.development_plans.edit', appraisal.id),
+            label: appraisal.development_plan ? 'Update development plan' : 'Create development plan',
+            description: 'Capture next steps after the appraisal is complete.',
+        };
+    }
+
+    return null;
+}
+
+function getReviewPeriod(appraisal: Appraisal) {
+    const start = appraisal.review_cycle?.start_date;
+    const end = appraisal.review_cycle?.end_date;
+
+    if (start || end) {
+        return [formatDate(start, ''), formatDate(end, '')].filter(Boolean).join(' - ');
+    }
+
+    return appraisal.cycle_name_snapshot || '-';
+}
+
+function formatStatus(value: string) {
+    return value.replace(/_/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function isMeaningfulGoal(appraisal: Appraisal, objective: Appraisal['objectives'][number]) {
@@ -691,9 +774,7 @@ function isMeaningfulGoal(appraisal: Appraisal, objective: Appraisal['objectives
     const hasEvidenceRows = (objective.evidences?.length ?? 0) > 0;
     const hasLinkedLibraryItem = Boolean(objective.goal_library_item_id);
 
-    const templateItem = objective.template_item_id
-        ? (appraisal.template?.items ?? []).find((item) => item.id === objective.template_item_id)
-        : null;
+    const templateItem = objective.template_item_id ? (appraisal.template?.items ?? []).find((item) => item.id === objective.template_item_id) : null;
 
     const matchesTemplateDefaults = Boolean(
         templateItem &&

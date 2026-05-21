@@ -103,6 +103,7 @@ class RatingScaleController extends Controller
         foreach ($levels as $level) {
             $ratingScale->levels()->create([
                 'label' => $level['label'],
+                'description' => $level['description'] ?? null,
                 'short_label' => $level['short_label'] ?? null,
                 'value' => $level['value'],
                 'min_percent' => $level['min_percent'] ?? null,

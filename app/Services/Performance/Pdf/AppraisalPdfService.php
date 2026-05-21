@@ -3,9 +3,11 @@
 namespace App\Services\Performance\Pdf;
 
 use App\Models\Appraisal;
+use App\Models\SystemSetting;
 use App\Support\Branding;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AppraisalPdfService
@@ -66,19 +68,20 @@ class AppraisalPdfService
         $filePath = storage_path("app/{$fileName}");
 
         $poweredByPath = Branding::poweredByPath();
+        $settings = SystemSetting::query()->first();
 
-        Pdf::loadView('pdf.performance.appraisal-summary', [
+        Pdf::loadView('pdf.performance.appraisal-assessment-form', [
             'appraisal' => $appraisal,
             'poweredByPath' => $poweredByPath,
             'poweredByExists' => $poweredByPath !== null,
+            'companyName' => $settings?->company_name ?? 'Monomotapa',
+            'exportedAt' => Carbon::now(),
         ])
-            ->setPaper('a4', 'landscape')
+            ->setPaper('a4', 'portrait')
             ->setOptions([
                 'isHtml5ParserEnabled' => true,
                 'isRemoteEnabled' => true,
-                // dompdf ships Helvetica natively, which is metrically identical to Arial.
-                // CSS in the view still requests Arial first.
-                'defaultFont' => 'Helvetica',
+                'defaultFont' => 'DejaVu Sans',
             ])
             ->save($filePath);
 

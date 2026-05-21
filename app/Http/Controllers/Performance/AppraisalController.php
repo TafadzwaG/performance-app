@@ -7,6 +7,7 @@ use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Models\Appraisal;
 use App\Models\AppraisalTemplate;
 use App\Models\ReviewCycle;
+use App\Services\Performance\AppraisalNavigationService;
 use App\Services\Performance\PendingAppraisalNavService;
 use App\Services\Performance\ReviewCycleAssignmentService;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +23,7 @@ class AppraisalController extends Controller
     public function __construct(
         private readonly ReviewCycleAssignmentService $assignmentService,
         private readonly PendingAppraisalNavService $pendingAppraisalNav,
+        private readonly AppraisalNavigationService $appraisalNavigation,
     ) {}
 
     public function index(Request $request): Response
@@ -33,7 +35,10 @@ class AppraisalController extends Controller
         $needsAction = $request->boolean('needs_action');
         $user = $request->user();
 
-        $appraisals = $this->visibleAppraisals($user)
+        $appraisals = Appraisal::query();
+        $this->pendingAppraisalNav->applyIndexVisibleScope($appraisals, $user);
+
+        $appraisals = $appraisals
             ->with(['reviewCycle', 'employeeProfile.user', 'template', 'overallRatingLevel'])
             ->when($search, function (Builder $query) use ($search) {
                 $query->where(function (Builder $scoped) use ($search) {
@@ -119,30 +124,31 @@ class AppraisalController extends Controller
             ->with('success', "Assigned {$assigned->count()} appraisal".($assigned->count() === 1 ? '' : 's').' successfully.');
     }
 
-    public function show(Appraisal $appraisal): Response
+    public function show(Appraisal $appraisal): Response|RedirectResponse
     {
         $this->authorize('view', $appraisal);
 
+        $appraisal = $this->loadAppraisal($appraisal);
+
+        if (! request()->boolean('overview')) {
+            $continueRoute = $this->appraisalNavigation->continueRoute($appraisal, request()->user());
+
+            if ($continueRoute) {
+                return redirect($continueRoute);
+            }
+        }
+
         return Inertia::render('performance/appraisals/Show', [
-            'appraisal' => $this->loadAppraisal($appraisal),
+            'appraisal' => $appraisal,
             'abilities' => $this->abilities($appraisal, request()->user()),
         ]);
     }
 
-    private function visibleAppraisals($user): Builder
+    public function stepWizard(Appraisal $appraisal): RedirectResponse
     {
-        return Appraisal::query()->where(function (Builder $query) use ($user) {
-            if ($user->can('performance.appraisals.view_all')) {
-                $query->whereRaw('1 = 1');
+        $this->authorize('view', $appraisal);
 
-                return;
-            }
-
-            $query->when($user->can('performance.appraisals.view_own'), fn (Builder $builder) => $builder->orWhere('employee_user_id', $user->id))
-                ->when($user->can('performance.appraisals.manager_review'), fn (Builder $builder) => $builder->orWhere('line_manager_user_id', $user->id))
-                ->when($user->can('performance.appraisals.approve'), fn (Builder $builder) => $builder->orWhere('approving_manager_user_id', $user->id))
-                ->when($user->can('performance.appraisals.finalize'), fn (Builder $builder) => $builder->orWhereNotNull('id'));
-        });
+        return to_route('performance.appraisals.plan', $appraisal);
     }
 
     private function abilities(Appraisal $appraisal, $user): array
@@ -152,6 +158,7 @@ class AppraisalController extends Controller
             'selfAssess' => $user->can('selfAssess', $appraisal),
             'managerReview' => $user->can('managerReview', $appraisal),
             'approve' => $user->can('approve', $appraisal),
+            'calibrate' => $user->can('calibrate', $appraisal),
             'finalize' => $user->can('finalize', $appraisal),
             'print' => $user->can('print', $appraisal),
             'uploadEvidence' => $user->can('uploadEvidence', $appraisal),

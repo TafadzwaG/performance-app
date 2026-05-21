@@ -1,9 +1,6 @@
-import AppraisalWorkspaceChrome from '@/components/performance/AppraisalWorkspaceChrome';
-import AppraisalWorkflowJourneyCard from '@/components/performance/AppraisalWorkflowJourneyCard';
-import CompetencyRatingTable from '@/components/performance/CompetencyRatingTable';
+import AppraisalSteps, { AppraisalStepSubmitActions } from '@/components/performance/AppraisalSteps';
 import ObjectiveTable from '@/components/performance/ObjectiveTable';
 import PerformancePage from '@/components/performance/PerformancePage';
-import ScoreSummaryCard from '@/components/performance/ScoreSummaryCard';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -17,9 +14,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { BreadcrumbItem } from '@/types';
-import type { Appraisal, CompetencyRating, Objective, Option } from '@/types/performance';
-import { router, useForm } from '@inertiajs/react';
+import type { BreadcrumbItem, SharedData } from '@/types';
+import type { Appraisal, Objective, Option } from '@/types/performance';
+import { router, useForm, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     Calculator,
@@ -33,7 +30,6 @@ import {
     ShieldCheck,
     Star,
     Target,
-    Trophy,
     User,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -49,17 +45,12 @@ type ManagerReviewForm = {
         manager_rating_scale_level_id: string | number;
         manager_comment: string;
     }>;
-    competency_ratings: Array<{
-        id: number;
-        manager_rating_scale_level_id: string | number;
-        manager_comment: string;
-    }>;
     comment: string;
 };
 
 type ValidationIssue = {
     key: string;
-    section: 'overall' | 'objective' | 'competency';
+    section: 'overall' | 'objective';
     title: string;
     employeeRating: string | null;
     employeeComment: string | null;
@@ -80,15 +71,17 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
 ];
 
 export default function ManagerReview({ appraisal, abilities }: Props) {
+    const { auth } = usePage<SharedData>().props;
     const [draftSaved, setDraftSaved] = useState(false);
     const [submitAlertOpen, setSubmitAlertOpen] = useState(false);
     const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
 
     const appraisalRecord = appraisal as unknown as LooseRecord;
     const objectiveLevels = (appraisal.template?.objective_rating_scale?.levels ?? []) as Array<LooseRecord>;
-    const competencyLevels = (appraisal.template?.competency_rating_scale?.levels ?? []) as Array<LooseRecord>;
-    const initialOverallManagerComment =
-        readText(appraisalRecord, ['manager_comment', 'overall_manager_comment', 'comment_manager']) ?? '';
+    const hasGoals = (appraisal.objectives ?? []).length > 0;
+    const canOpenDevelopmentPlan =
+        auth.permissions.includes('performance.development_plans.view') || auth.permissions.includes('performance.development_plans.update');
+    const initialOverallManagerComment = readText(appraisalRecord, ['manager_comment', 'overall_manager_comment', 'comment_manager']) ?? '';
 
     const perspectiveOptions: Option[] = (appraisal.objectives ?? []).map((objective) => ({
         value: objective.perspective_id,
@@ -102,21 +95,12 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                 manager_rating_scale_level_id: objective.manager_rating_scale_level_id ?? '',
                 manager_comment: objective.manager_comment ?? '',
             })) ?? [],
-        competency_ratings:
-            appraisal.competency_ratings?.map((rating) => ({
-                id: rating.id,
-                manager_rating_scale_level_id: rating.manager_rating_scale_level_id ?? '',
-                manager_comment: rating.manager_comment ?? '',
-            })) ?? [],
         comment: initialOverallManagerComment,
     });
 
     const hydratedFromStorage = useRef(false);
 
-    const draftStorageKey = useMemo(
-        () => `performance:appraisals:manager-review:draft:${appraisal.id}`,
-        [appraisal.id],
-    );
+    const draftStorageKey = useMemo(() => `performance:appraisals:manager-review:draft:${appraisal.id}`, [appraisal.id]);
 
     const initialDraftSnapshot = useMemo(
         () =>
@@ -127,15 +111,9 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                         manager_rating_scale_level_id: objective.manager_rating_scale_level_id ?? '',
                         manager_comment: objective.manager_comment ?? '',
                     })) ?? [],
-                competency_ratings:
-                    appraisal.competency_ratings?.map((rating) => ({
-                        id: rating.id,
-                        manager_rating_scale_level_id: rating.manager_rating_scale_level_id ?? '',
-                        manager_comment: rating.manager_comment ?? '',
-                    })) ?? [],
                 comment: initialOverallManagerComment,
             }),
-        [appraisal.competency_ratings, appraisal.objectives, initialOverallManagerComment],
+        [appraisal.objectives, initialOverallManagerComment],
     );
 
     useEffect(() => {
@@ -186,22 +164,11 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
         setData('objectives', next);
     };
 
-    const updateRating = (index: number, field: string, value: string | number | null) => {
-        const next = [...data.competency_ratings];
-        next[index] = { ...next[index], [field]: value };
-        setData('competency_ratings', next);
-    };
-
     const getManagerValidationIssues = (): ValidationIssue[] => {
         const issues: ValidationIssue[] = [];
 
         const overallEmployeeComment =
-            readText(appraisalRecord, [
-                'employee_comment',
-                'employee_overall_comment',
-                'self_comment',
-                'self_overall_comment',
-            ]) ?? null;
+            readText(appraisalRecord, ['employee_comment', 'employee_overall_comment', 'self_comment', 'self_overall_comment']) ?? null;
 
         const overallEmployeeRating =
             firstNonEmpty(
@@ -228,10 +195,8 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
             const sourceObjective = ((appraisal.objectives ?? [])[index] ?? {}) as unknown as LooseRecord;
 
             const title =
-                firstNonEmpty(
-                    readText(sourceObjective, ['title', 'name', 'objective_title', 'label']),
-                    `Objective ${index + 1}`,
-                ) ?? `Objective ${index + 1}`;
+                firstNonEmpty(readText(sourceObjective, ['title', 'name', 'objective_title', 'label']), `Objective ${index + 1}`) ??
+                `Objective ${index + 1}`;
 
             const employeeRatingValue = readValue(sourceObjective, [
                 'employee_rating_scale_level_id',
@@ -246,8 +211,7 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                     readText(sourceObjective, ['employee_rating_label', 'self_rating_label']),
                 ) ?? null;
 
-            const employeeComment =
-                readText(sourceObjective, ['employee_comment', 'self_comment', 'comment']) ?? null;
+            const employeeComment = readText(sourceObjective, ['employee_comment', 'self_comment', 'comment']) ?? null;
 
             const managerRatingValue = objective.manager_rating_scale_level_id;
             const managerRating =
@@ -263,59 +227,6 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                 issues.push({
                     key: `objective-${objective.id}`,
                     section: 'objective',
-                    title,
-                    employeeRating,
-                    employeeComment,
-                    managerRating,
-                    managerComment,
-                    missingManagerRating,
-                    missingManagerComment,
-                    instruction: buildInstructionText(missingManagerRating, missingManagerComment),
-                });
-            }
-        });
-
-        data.competency_ratings.forEach((rating, index) => {
-            const sourceRating = ((appraisal.competency_ratings ?? [])[index] ?? {}) as unknown as LooseRecord;
-            const competencyRecord = readValue(sourceRating, ['competency']) as LooseRecord | null;
-
-            const title =
-                firstNonEmpty(
-                    competencyRecord ? readText(competencyRecord, ['name', 'label']) : null,
-                    readText(sourceRating, ['title', 'name', 'label']),
-                    `Value ${index + 1}`,
-                ) ?? `Value ${index + 1}`;
-
-            const employeeRatingValue = readValue(sourceRating, [
-                'employee_rating_scale_level_id',
-                'self_rating_scale_level_id',
-                'employee_rating_level_id',
-                'self_rating_level_id',
-            ]);
-
-            const employeeRating =
-                firstNonEmpty(
-                    getRatingLabel(competencyLevels, employeeRatingValue),
-                    readText(sourceRating, ['employee_rating_label', 'self_rating_label']),
-                ) ?? null;
-
-            const employeeComment =
-                readText(sourceRating, ['employee_comment', 'self_comment', 'comment']) ?? null;
-
-            const managerRatingValue = rating.manager_rating_scale_level_id;
-            const managerRating =
-                getRatingLabel(competencyLevels, managerRatingValue) ??
-                getRatingLabel(competencyLevels, readValue(sourceRating, ['manager_rating_scale_level_id'])) ??
-                null;
-
-            const managerComment = String(rating.manager_comment ?? '').trim() || null;
-            const missingManagerRating = isEmptySelection(managerRatingValue);
-            const missingManagerComment = !managerComment;
-
-            if (missingManagerRating || missingManagerComment) {
-                issues.push({
-                    key: `competency-${rating.id}`,
-                    section: 'competency',
                     title,
                     employeeRating,
                     employeeComment,
@@ -353,26 +264,51 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
         });
     };
 
+    const reopenedStage =
+        typeof appraisal.reopened_stage === 'string'
+            ? appraisal.reopened_stage
+            : ((appraisal.reopened_stage as { value?: string } | null)?.value ?? null);
+    const isManagerReviewRework =
+        (appraisal.status === 'sent_back' && ['self_assessment', 'goal_setting', 'manager_review'].includes(reopenedStage ?? ''))
+        || (appraisal.status === 'manager_review_pending' && Boolean(appraisal.self_assessment_submitted_at));
+    const awaitingEmployeeSelfAssessmentResubmit =
+        appraisal.status === 'sent_back' && reopenedStage === 'self_assessment' && !appraisal.self_assessment_submitted_at;
+
     return (
         <PerformancePage
             title="Manager Review"
             description="Review self-assessment responses, rate performance, and submit to approval."
             breadcrumbs={breadcrumbs(appraisal)}
         >
-            <AppraisalWorkspaceChrome
+            <AppraisalSteps
                 appraisal={appraisal}
-                title="Manager Review"
-                description="Use this workspace to evaluate submitted goals, review evidence, score performance, and move the appraisal forward for approval."
-                badgeLabel="Manager Review Workspace"
-                badgeIcon={ClipboardCheck}
-                canEditGoals={abilities.plan}
-                draftTag={draftSaved ? 'Saved as draft' : null}
+                abilities={abilities}
+                hasGoals={hasGoals}
+                canOpenDevelopmentPlan={canOpenDevelopmentPlan}
+                currentStepKey="manager_review"
+                showStartButton={false}
             />
 
+            {isManagerReviewRework ? (
+                <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm">
+                    <div className="flex items-start gap-3">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                        <div className="space-y-1">
+                            <p className="font-medium text-foreground">Manager review rework</p>
+                            <p className="text-muted-foreground leading-relaxed">
+                                {awaitingEmployeeSelfAssessmentResubmit
+                                    ? 'This appraisal was sent back for the employee to update their self assessment. You can save draft manager ratings now; submit forward once they have resubmitted.'
+                                    : 'This appraisal was sent back for updates. Update manager ratings and comments, then submit forward when ready.'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
             <div className="grid gap-6 xl:grid-cols-12">
-                <div className="space-y-6 xl:col-span-8">
+                <div className="space-y-6 xl:col-span-12">
                     <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20" style={{ margin: '10px' }}>
+                        <CardHeader className="bg-muted/20 border-b" style={{ margin: '10px' }}>
                             <CardTitle className="flex items-center gap-2">
                                 <Target className="h-4.5 w-4.5" />
                                 Objectives
@@ -381,16 +317,16 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                         <CardContent>
                             <ObjectiveTable
                                 appraisalId={appraisal.id}
-                                objectives={(appraisal.objectives ?? []).map((objective, index) => ({
-                                    ...objective,
-                                    manager_rating_scale_level_id:
-                                        Number(
-                                            data.objectives[index]?.manager_rating_scale_level_id ??
-                                                objective.manager_rating_scale_level_id ??
-                                                0,
-                                        ) || null,
-                                    manager_comment: data.objectives[index]?.manager_comment ?? '',
-                                })) as Objective[]}
+                                objectives={
+                                    (appraisal.objectives ?? []).map((objective, index) => ({
+                                        ...objective,
+                                        manager_rating_scale_level_id:
+                                            Number(
+                                                data.objectives[index]?.manager_rating_scale_level_id ?? objective.manager_rating_scale_level_id ?? 0,
+                                            ) || null,
+                                        manager_comment: data.objectives[index]?.manager_comment ?? '',
+                                    })) as Objective[]
+                                }
                                 mode="manager"
                                 perspectiveOptions={perspectiveOptions}
                                 ratingLevels={objectiveLevels}
@@ -400,33 +336,7 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                     </Card>
 
                     <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20" style={{ margin: '10px' }}>
-                            <CardTitle className="flex items-center gap-2">
-                                <ShieldCheck className="h-4.5 w-4.5" />
-                                Values
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <CompetencyRatingTable
-                                ratings={(appraisal.competency_ratings ?? []).map((rating, index) => ({
-                                    ...rating,
-                                    manager_rating_scale_level_id:
-                                        Number(
-                                            data.competency_ratings[index]?.manager_rating_scale_level_id ??
-                                                rating.manager_rating_scale_level_id ??
-                                                0,
-                                        ) || null,
-                                    manager_comment: data.competency_ratings[index]?.manager_comment ?? '',
-                                })) as CompetencyRating[]}
-                                mode="manager"
-                                ratingLevels={competencyLevels}
-                                onChange={updateRating}
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20" style={{ margin: '10px' }}>
+                        <CardHeader className="bg-muted/20 border-b" style={{ margin: '10px' }}>
                             <CardTitle className="flex items-center gap-2">
                                 <MessageSquare className="h-4.5 w-4.5" />
                                 Overall Manager Comment
@@ -434,123 +344,75 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                         </CardHeader>
                         <CardContent>
                             <textarea
-                                className="min-h-32 w-full rounded-md border bg-background px-3 py-2"
+                                className="bg-background min-h-32 w-full rounded-md border px-3 py-2"
                                 value={data.comment}
                                 onChange={(event) => setData('comment', event.target.value)}
                             />
                         </CardContent>
                     </Card>
 
-                    <div className="flex flex-wrap gap-2">
-                        {abilities.managerReview ? (
+                    <AppraisalStepSubmitActions
+                        stepKey="manager_review"
+                        appraisal={appraisal}
+                        abilities={abilities}
+                        hasGoals={hasGoals}
+                        canOpenDevelopmentPlan={canOpenDevelopmentPlan}
+                    >
+                        <div className="flex flex-wrap gap-2">
+                            {abilities.managerReviewEdit ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => router.post(route('performance.appraisals.manager_review.recalculate_score', appraisal.id))}
+                                    disabled={processing}
+                                    aria-busy={processing}
+                                >
+                                    {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
+                                    Re-Calculate Score
+                                </Button>
+                            ) : null}
+
                             <Button
                                 type="button"
-                                variant="outline"
                                 onClick={() =>
-                                    router.post(
-                                        route('performance.appraisals.manager_review.recalculate_score', appraisal.id),
-                                    )
+                                    put(route('performance.appraisals.manager_review.update', appraisal.id), {
+                                        onSuccess: () => setDraftSaved(true),
+                                    })
                                 }
                                 disabled={processing}
                                 aria-busy={processing}
                             >
-                                {processing ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Calculator className="mr-2 h-4 w-4" />
-                                )}
-                                Re-Calculate Score
+                                {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                {processing ? 'Saving…' : 'Save Review'}
                             </Button>
-                        ) : null}
 
-                        <Button
-                            type="button"
-                            onClick={() =>
-                                put(route('performance.appraisals.manager_review.update', appraisal.id), {
-                                    onSuccess: () => setDraftSaved(true),
-                                })
-                            }
-                            disabled={processing}
-                            aria-busy={processing}
-                        >
-                            {processing ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <Save className="mr-2 h-4 w-4" />
-                            )}
-                            {processing ? 'Saving…' : 'Save Review'}
-                        </Button>
+                            <Button type="button" variant="outline" onClick={handleSubmitForward} disabled={processing} aria-busy={processing}>
+                                {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                {processing ? 'Submitting…' : 'Submit Forward'}
+                            </Button>
 
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleSubmitForward}
-                            disabled={processing}
-                            aria-busy={processing}
-                        >
-                            {processing ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <Send className="mr-2 h-4 w-4" />
-                            )}
-                            {processing ? 'Submitting…' : 'Submit Forward'}
-                        </Button>
-
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() =>
-                                router.post(route('performance.appraisals.manager_review.send_back', appraisal.id), {
-                                    reason: 'Returned to employee for updates.',
-                                    reopened_stage: 'self_assessment',
-                                })
-                            }
-                            disabled={processing}
-                            aria-busy={processing}
-                        >
-                            <CornerUpLeft className="mr-2 h-4 w-4" />
-                            Send Back
-                        </Button>
-                    </div>
-                </div>
-
-                <div className="space-y-6 xl:col-span-4">
-                    <AppraisalWorkflowJourneyCard
-                        appraisalId={appraisal.id}
-                        status={appraisal.status}
-                        reopenedStage={appraisal.reopened_stage}
-                        stageAccess={{
-                            goal_setting: abilities.plan,
-                            self_assessment_pending: abilities.selfAssess,
-                            manager_review_pending: abilities.managerReview,
-                            approval_pending: abilities.approve,
-                            calibration_pending: abilities.calibrate,
-                            finalized: abilities.finalize,
-                        }}
-                    />
-
-                    <Card className="border-0 shadow-md">
-                        <CardHeader className="border-b bg-muted/20 pb-3" style={{ margin: '10px' }}>
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <Trophy className="h-4.5 w-4.5" />
-                                Score Overview
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ScoreSummaryCard
-                                businessScore={appraisal.business_score}
-                                valuesScore={appraisal.values_score}
-                                overallScore={appraisal.calibrated_overall_score ?? appraisal.overall_score}
-                                overallRating={appraisal.calibrated_overall_rating_level?.label ?? appraisal.overall_rating_level?.label ?? null}
-                                layout="row"
-                            />
-                        </CardContent>
-                    </Card>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                    router.post(route('performance.appraisals.manager_review.send_back', appraisal.id), {
+                                        reason: 'Returned to employee for updates.',
+                                        reopened_stage: 'self_assessment',
+                                    })
+                                }
+                                disabled={processing}
+                                aria-busy={processing}
+                            >
+                                <CornerUpLeft className="mr-2 h-4 w-4" />
+                                Send Back
+                            </Button>
+                        </div>
+                    </AppraisalStepSubmitActions>
                 </div>
             </div>
 
             <AlertDialog open={submitAlertOpen} onOpenChange={setSubmitAlertOpen}>
-                <AlertDialogContent className="max-w-4xl">
+                <AlertDialogContent className="w-[min(96vw,88rem)] max-w-[min(96vw,88rem)]">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-center gap-2 text-left">
                             <AlertTriangle className="h-5 w-5 text-amber-600" />
@@ -568,8 +430,8 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                                                 Please complete the missing manager review details before submitting.
                                             </p>
                                             <p className="text-sm text-amber-800">
-                                                The cards below show what the employee submitted and what the manager
-                                                still needs to add for each section.
+                                                The cards below show what the employee submitted and what the manager still needs to add for each
+                                                section.
                                             </p>
                                         </div>
                                     </div>
@@ -580,17 +442,11 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
                                         <AlertTriangle className="h-3.5 w-3.5" />
                                         {validationIssues.length} item{validationIssues.length === 1 ? '' : 's'} need attention
                                     </Badge>
-                                    <Badge
-                                        variant="outline"
-                                        className="gap-1.5 border-amber-200 bg-amber-50 px-3 py-1 text-amber-700"
-                                    >
+                                    <Badge variant="outline" className="gap-1.5 border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
                                         <Star className="h-3.5 w-3.5" />
                                         Missing manager rating
                                     </Badge>
-                                    <Badge
-                                        variant="outline"
-                                        className="gap-1.5 border-rose-200 bg-rose-50 px-3 py-1 text-rose-700"
-                                    >
+                                    <Badge variant="outline" className="gap-1.5 border-rose-200 bg-rose-50 px-3 py-1 text-rose-700">
                                         <MessageSquare className="h-3.5 w-3.5" />
                                         Missing manager comment
                                     </Badge>
@@ -607,9 +463,7 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
 
                     <AlertDialogFooter>
                         <AlertDialogCancel>Back to review</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => setSubmitAlertOpen(false)}>
-                            Continue editing
-                        </AlertDialogAction>
+                        <AlertDialogAction onClick={() => setSubmitAlertOpen(false)}>Continue editing</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -622,7 +476,7 @@ function ValidationIssueCard({ issue }: { issue: ValidationIssue }) {
     const SectionIcon = meta.icon;
 
     return (
-        <div className="rounded-2xl border bg-background p-4 shadow-sm">
+        <div className="bg-background rounded-2xl border p-4 shadow-sm">
             <div className="flex items-start gap-3">
                 <div className={`rounded-2xl p-2 ${meta.iconContainerClass}`}>
                     <SectionIcon className={`h-5 w-5 ${meta.iconClass}`} />
@@ -630,23 +484,17 @@ function ValidationIssueCard({ issue }: { issue: ValidationIssue }) {
 
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-foreground">{issue.title}</p>
+                        <p className="text-foreground font-semibold">{issue.title}</p>
                         <Badge variant="secondary" className="px-2 py-0.5">
                             {meta.label}
                         </Badge>
 
                         {issue.missingManagerRating ? (
-                            <Badge
-                                variant="outline"
-                                className="border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700"
-                            >
+                            <Badge variant="outline" className="border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700">
                                 Manager rating missing
                             </Badge>
                         ) : (
-                            <Badge
-                                variant="outline"
-                                className="border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700"
-                            >
+                            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">
                                 Manager rating added
                             </Badge>
                         )}
@@ -656,10 +504,7 @@ function ValidationIssueCard({ issue }: { issue: ValidationIssue }) {
                                 Manager comment missing
                             </Badge>
                         ) : (
-                            <Badge
-                                variant="outline"
-                                className="border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700"
-                            >
+                            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">
                                 Manager comment added
                             </Badge>
                         )}
@@ -709,9 +554,9 @@ function ValidationIssueCard({ issue }: { issue: ValidationIssue }) {
                         />
                     </div>
 
-                    <div className="flex items-start gap-2 rounded-xl border border-dashed bg-muted/20 px-3 py-2">
+                    <div className="bg-muted/20 flex items-start gap-2 rounded-xl border border-dashed px-3 py-2">
                         <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
-                        <p className="text-sm text-muted-foreground">{issue.instruction}</p>
+                        <p className="text-muted-foreground text-sm">{issue.instruction}</p>
                     </div>
                 </div>
             </div>
@@ -734,12 +579,12 @@ function InfoPanel({
     }>;
 }) {
     return (
-        <div className="rounded-2xl border bg-muted/20 p-3">
+        <div className="bg-muted/20 rounded-2xl border p-3">
             <div className="mb-3 flex items-center gap-2">
-                <div className="rounded-xl bg-background p-2 shadow-sm">
-                    <Icon className="h-4 w-4 text-primary" />
+                <div className="bg-background rounded-xl p-2 shadow-sm">
+                    <Icon className="text-primary h-4 w-4" />
                 </div>
-                <p className="font-medium text-foreground">{title}</p>
+                <p className="text-foreground font-medium">{title}</p>
             </div>
 
             <div className="space-y-2">
@@ -749,17 +594,13 @@ function InfoPanel({
                     return (
                         <div
                             key={`${title}-${row.label}`}
-                            className={`rounded-xl border px-3 py-2 ${
-                                row.emphasize ? 'border-amber-200 bg-amber-50' : 'bg-background'
-                            }`}
+                            className={`rounded-xl border px-3 py-2 ${row.emphasize ? 'border-amber-200 bg-amber-50' : 'bg-background'}`}
                         >
-                            <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
                                 <RowIcon className="h-3.5 w-3.5" />
                                 {row.label}
                             </div>
-                            <p className={`text-sm ${row.emphasize ? 'font-medium text-amber-900' : 'text-foreground'}`}>
-                                {row.value}
-                            </p>
+                            <p className={`text-sm ${row.emphasize ? 'font-medium text-amber-900' : 'text-foreground'}`}>{row.value}</p>
                         </div>
                     );
                 })}
@@ -783,13 +624,6 @@ function getIssueMeta(section: ValidationIssue['section']) {
                 icon: Target,
                 iconClass: 'text-violet-700',
                 iconContainerClass: 'bg-violet-100',
-            };
-        case 'competency':
-            return {
-                label: 'Value / competency',
-                icon: ShieldCheck,
-                iconClass: 'text-emerald-700',
-                iconContainerClass: 'bg-emerald-100',
             };
         default:
             return {
@@ -857,10 +691,7 @@ function getRatingLabel(levels: Array<LooseRecord>, selectedValue: unknown) {
     const match = levels.find((level) => String(level.id ?? '').trim() === selected);
     if (!match) return null;
 
-    const label = firstNonEmpty(
-        typeof match.label === 'string' ? match.label : null,
-        typeof match.name === 'string' ? match.name : null,
-    );
+    const label = firstNonEmpty(typeof match.label === 'string' ? match.label : null, typeof match.name === 'string' ? match.name : null);
 
     return label ?? null;
 }

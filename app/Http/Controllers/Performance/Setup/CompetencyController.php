@@ -40,6 +40,7 @@ class CompetencyController extends Controller
             'filters' => ['search' => $search],
             'can' => [
                 'create' => $request->user()->can('performance.setup.competencies.create'),
+                'archive' => $request->user()->can('performance.setup.competencies.archive'),
             ],
         ]);
     }

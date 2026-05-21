@@ -65,14 +65,31 @@ class AppraisalWorkflowService
                 ['objectives.*.self_rating_scale_level_id' => ['required']]
             )->validate();
 
+            $attributes = [
+                'self_assessment_submitted_at' => now(),
+                'reopened_stage' => null,
+            ];
+
+            if ($appraisal->status === AppraisalStatus::SentBack) {
+                $attributes['manager_reviewed_at'] = null;
+                $attributes['approved_at'] = null;
+                $attributes['calibrated_at'] = null;
+                $attributes['calibrated_by_user_id'] = null;
+                $attributes['calibrated_overall_score'] = null;
+                $attributes['calibrated_overall_rating_scale_level_id'] = null;
+                $attributes['calibration_comment'] = null;
+            }
+
             return $this->transition(
                 $appraisal,
                 $actor,
                 AppraisalStatus::ManagerReviewPending,
                 ApprovalStage::SelfAssessment,
                 ApprovalAction::Submitted,
-                'Self assessment submitted.',
-                ['self_assessment_submitted_at' => now(), 'reopened_stage' => null],
+                $appraisal->status === AppraisalStatus::SentBack
+                    ? 'Self assessment resubmitted after send back.'
+                    : 'Self assessment submitted.',
+                $attributes,
                 'self_submitted'
             );
         });
@@ -81,19 +98,18 @@ class AppraisalWorkflowService
     public function submitManagerReview(Appraisal $appraisal, User $actor, ?string $comments = null): Appraisal
     {
         return DB::transaction(function () use ($appraisal, $actor, $comments) {
+            if (! $this->canSubmitManagerReview($appraisal)) {
+                throw ValidationException::withMessages([
+                    'appraisal' => $this->managerReviewSubmitBlockedMessage($appraisal),
+                ]);
+            }
+
             $appraisal->loadMissing(['objectives', 'competencyRatings']);
 
             Validator::make(
                 ['objectives' => $appraisal->objectives->toArray()],
                 ['objectives.*.manager_rating_scale_level_id' => ['required']]
             )->validate();
-
-            if ($appraisal->competencyRatings()->exists()) {
-                Validator::make(
-                    ['ratings' => $appraisal->competencyRatings->toArray()],
-                    ['ratings.*.manager_rating_scale_level_id' => ['required']]
-                )->validate();
-            }
 
             if ($comments) {
                 AppraisalComment::create([
@@ -119,15 +135,51 @@ class AppraisalWorkflowService
         });
     }
 
+    private function canSubmitManagerReview(Appraisal $appraisal): bool
+    {
+        if (in_array($appraisal->status, [AppraisalStatus::ManagerReviewPending, AppraisalStatus::SelfAssessmentSubmitted], true)) {
+            return true;
+        }
+
+        if ($appraisal->status !== AppraisalStatus::SentBack) {
+            return false;
+        }
+
+        return match ($appraisal->reopened_stage) {
+            WorkflowStage::ManagerReview => true,
+            WorkflowStage::SelfAssessment => $appraisal->self_assessment_submitted_at !== null,
+            default => false,
+        };
+    }
+
+    private function managerReviewSubmitBlockedMessage(Appraisal $appraisal): string
+    {
+        if ($appraisal->status === AppraisalStatus::SentBack && $appraisal->reopened_stage === WorkflowStage::SelfAssessment) {
+            return 'The employee must resubmit their self assessment before you can forward the manager review again.';
+        }
+
+        return 'This appraisal is not ready for manager review submission.';
+    }
+
     public function sendBack(Appraisal $appraisal, User $actor, WorkflowStage $reopenStage, string $reason, ApprovalStage $stage, bool $rejected = false): Appraisal
     {
         return DB::transaction(function () use ($appraisal, $actor, $reopenStage, $reason, $stage, $rejected) {
             $previousStatus = $appraisal->status;
 
-            $appraisal->forceFill([
+            $attributes = [
                 'status' => AppraisalStatus::SentBack,
                 'reopened_stage' => $reopenStage,
-            ])->save();
+            ];
+
+            if ($reopenStage === WorkflowStage::SelfAssessment) {
+                $attributes['self_assessment_submitted_at'] = null;
+            }
+
+            if ($reopenStage === WorkflowStage::ManagerReview) {
+                $attributes['manager_reviewed_at'] = null;
+            }
+
+            $appraisal->forceFill($attributes)->save();
 
             AppraisalComment::create([
                 'appraisal_id' => $appraisal->id,

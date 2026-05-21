@@ -7,6 +7,7 @@ export interface Auth {
     requiresPasswordChange: boolean;
     hasEmployeeProfile: boolean;
     requiresEmployeeProfileCompletion: boolean;
+    emailMfaEnabled: boolean;
     impersonation: {
         isImpersonating: boolean;
         impersonator: Pick<User, 'id' | 'name' | 'email'> | null;
@@ -51,6 +52,7 @@ export interface SharedData {
         warning?: string | null;
         error?: string | null;
         generatedCredentials?: Array<{ name: string; email: string; password: string }> | null;
+        showFinalizeNextSteps?: boolean;
     };
     [key: string]: unknown;
 }

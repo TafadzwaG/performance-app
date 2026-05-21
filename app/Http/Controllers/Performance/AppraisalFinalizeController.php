@@ -17,14 +17,13 @@ class AppraisalFinalizeController extends Controller
 
     public function __construct(
         private readonly AppraisalWorkflowService $workflowService,
-    ) {
-    }
+    ) {}
 
     public function edit(Appraisal $appraisal): Response
     {
-        $this->authorize('finalize', $appraisal);
+        $this->authorize('viewFinalize', $appraisal);
 
-        return Inertia::render('performance/appraisals/Finalize', [
+        return Inertia::render('performance/appraisals/FinalizeAppraisal', [
             'appraisal' => $this->loadAppraisal($appraisal),
             'abilities' => $this->appraisalAbilities($appraisal, request()->user()),
         ]);
@@ -36,6 +35,9 @@ class AppraisalFinalizeController extends Controller
 
         $this->workflowService->finalize($appraisal, $request->user(), $request->input('comment'));
 
-        return to_route('performance.appraisals.show', $appraisal);
+        return redirect()
+            ->route('performance.appraisals.finalize', $appraisal)
+            ->with('success', 'Appraisal finalized successfully.')
+            ->with('show_finalize_next_steps', true);
     }
 }

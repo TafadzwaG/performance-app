@@ -7,25 +7,14 @@ import { Input } from '@/components/ui/input';
 import type { BreadcrumbItem } from '@/types';
 import type { GoalLibraryItem, Paginated } from '@/types/performance';
 import { Link, router } from '@inertiajs/react';
+import { BookOpen, Briefcase, Download, Filter, FolderKanban, Layers3, PencilLine, Plus, Search, Target, Upload, View } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
-import {
-    BookOpen,
-    Briefcase,
-    Filter,
-    FolderKanban,
-    Layers3,
-    Plus,
-    Search,
-    Target,
-    View,
-    PencilLine,
-} from 'lucide-react';
 
 interface Props {
     goalLibraryItems: Paginated<GoalLibraryItem>;
     filters: { search: string };
-    can: { create: boolean };
+    can: { create: boolean; import: boolean };
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -63,22 +52,12 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
     const totalCount = goalLibraryItems.total ?? totalVisible;
 
     const perspectiveCoverage = useMemo(
-        () =>
-            new Set(
-                goalLibraryItems.data
-                    .map((item) => item.perspective?.name)
-                    .filter((value): value is string => Boolean(value)),
-            ).size,
+        () => new Set(goalLibraryItems.data.map((item) => item.perspective?.name).filter((value): value is string => Boolean(value))).size,
         [goalLibraryItems.data],
     );
 
     const departmentCoverage = useMemo(
-        () =>
-            new Set(
-                goalLibraryItems.data
-                    .map((item) => item.department?.name)
-                    .filter((value): value is string => Boolean(value)),
-            ).size,
+        () => new Set(goalLibraryItems.data.map((item) => item.department?.name).filter((value): value is string => Boolean(value))).size,
         [goalLibraryItems.data],
     );
 
@@ -104,9 +83,27 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                       }
                     : undefined
             }
+            secondaryActions={
+                can.import ? (
+                    <>
+                        <Button asChild variant="outline" size="sm">
+                            <a href={route('performance.goal_library.upload.template')}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Download Template
+                            </a>
+                        </Button>
+                        <Button asChild variant="outline" size="sm">
+                            <Link href={route('performance.goal_library.upload')}>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Import Goals
+                            </Link>
+                        </Button>
+                    </>
+                ) : undefined
+            }
         >
             <div className="space-y-6">
-                <div className="rounded-2xl border bg-background p-6 shadow-sm">
+                <div className="bg-background rounded-2xl border p-6 shadow-sm">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-3">
                             <Badge variant="secondary" className="w-fit">
@@ -114,23 +111,23 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                             </Badge>
 
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight text-foreground">Goal Library</h1>
-                                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                                    Reusable SMART goals categorized by department and strategic perspective to support
-                                    consistent planning across the organization.
+                                <h1 className="text-foreground text-3xl font-bold tracking-tight">Goal Library</h1>
+                                <p className="text-muted-foreground mt-2 max-w-2xl text-sm">
+                                    Reusable SMART goals categorized by department and strategic perspective to support consistent planning across the
+                                    organization.
                                 </p>
                             </div>
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Total goals</div>
-                                <div className="mt-1 font-semibold text-foreground">{totalCount}</div>
+                            <div className="bg-muted/30 rounded-xl border px-4 py-3 text-sm">
+                                <div className="text-muted-foreground text-xs tracking-wide uppercase">Total goals</div>
+                                <div className="text-foreground mt-1 font-semibold">{totalCount}</div>
                             </div>
 
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Visible now</div>
-                                <div className="mt-1 font-semibold text-foreground">{totalVisible}</div>
+                            <div className="bg-muted/30 rounded-xl border px-4 py-3 text-sm">
+                                <div className="text-muted-foreground text-xs tracking-wide uppercase">Visible now</div>
+                                <div className="text-foreground mt-1 font-semibold">{totalVisible}</div>
                             </div>
                         </div>
                     </div>
@@ -139,61 +136,53 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                 <div className="grid gap-4 md:grid-cols-3">
                     <Card className="shadow-sm">
                         <CardHeader className="pb-2">
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="text-muted-foreground flex items-center gap-2">
                                 <BookOpen className="h-4.5 w-4.5" />
                                 <CardTitle className="text-sm font-medium">Library Goals</CardTitle>
                             </div>
                         </CardHeader>
                         <CardContent>
                             <div className="text-3xl font-bold tracking-tight">{totalVisible}</div>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                                Goal templates currently visible in the filtered catalog.
-                            </p>
+                            <p className="text-muted-foreground mt-2 text-xs">Goal templates currently visible in the filtered catalog.</p>
                         </CardContent>
                     </Card>
 
                     <Card className="shadow-sm">
                         <CardHeader className="pb-2">
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="text-muted-foreground flex items-center gap-2">
                                 <Layers3 className="h-4.5 w-4.5" />
                                 <CardTitle className="text-sm font-medium">Perspective Coverage</CardTitle>
                             </div>
                         </CardHeader>
                         <CardContent>
                             <div className="text-3xl font-bold tracking-tight">{perspectiveCoverage}</div>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                                Unique strategic perspectives represented in this result set.
-                            </p>
+                            <p className="text-muted-foreground mt-2 text-xs">Unique strategic perspectives represented in this result set.</p>
                         </CardContent>
                     </Card>
 
                     <Card className="shadow-sm">
                         <CardHeader className="pb-2">
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="text-muted-foreground flex items-center gap-2">
                                 <Briefcase className="h-4.5 w-4.5" />
                                 <CardTitle className="text-sm font-medium">Department Alignment</CardTitle>
                             </div>
                         </CardHeader>
                         <CardContent>
                             <div className="text-3xl font-bold tracking-tight">{departmentCoverage}</div>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                                Departments linked to the visible goal templates.
-                            </p>
+                            <p className="text-muted-foreground mt-2 text-xs">Departments linked to the visible goal templates.</p>
                         </CardContent>
                     </Card>
                 </div>
 
                 <Card className="shadow-sm">
-                    <CardHeader className="border-b bg-muted/20">
+                    <CardHeader className="bg-muted/20 border-b">
                         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <CardTitle className="text-lg">Search & Filter</CardTitle>
-                                <CardDescription>
-                                    Find reusable goals by title, department, or strategic perspective.
-                                </CardDescription>
+                                <CardDescription>Find reusable goals by title, department, or strategic perspective.</CardDescription>
                             </div>
 
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-muted-foreground text-xs">
                                 {highAlignmentCount} high-alignment goal{highAlignmentCount === 1 ? '' : 's'}
                             </div>
                         </div>
@@ -202,7 +191,7 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                     <CardContent className="p-6">
                         <form onSubmit={submit} className="flex flex-col gap-3 md:flex-row">
                             <div className="relative flex-1">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                                 <Input
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
@@ -220,17 +209,16 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                 </Card>
 
                 <Card className="shadow-sm">
-                    <CardHeader className="border-b bg-muted/20">
+                    <CardHeader className="bg-muted/20 border-b">
                         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <CardTitle className="text-lg">Goal Catalog</CardTitle>
                                 <CardDescription>
-                                    Browse goal templates, perspective tags, department ownership, and available
-                                    actions.
+                                    Browse goal templates, perspective tags, department ownership, and available actions.
                                 </CardDescription>
                             </div>
 
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-muted-foreground text-xs">
                                 Showing {from} to {to} of {totalCount}
                             </div>
                         </div>
@@ -240,13 +228,11 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                         {goalLibraryItems.data.length === 0 ? (
                             <div className="flex min-h-[280px] items-center justify-center p-6">
                                 <div className="space-y-2 text-center">
-                                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-muted/30">
-                                        <FolderKanban className="h-5 w-5 text-muted-foreground" />
+                                    <div className="bg-muted/30 mx-auto flex h-12 w-12 items-center justify-center rounded-full border">
+                                        <FolderKanban className="text-muted-foreground h-5 w-5" />
                                     </div>
-                                    <h3 className="text-base font-semibold text-foreground">No goals found</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Try adjusting your search to find matching goal templates.
-                                    </p>
+                                    <h3 className="text-foreground text-base font-semibold">No goals found</h3>
+                                    <p className="text-muted-foreground text-sm">Try adjusting your search to find matching goal templates.</p>
                                 </div>
                             </div>
                         ) : (
@@ -255,19 +241,19 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                                     <table className="min-w-full text-sm">
                                         <thead className="bg-muted/30 text-left">
                                             <tr>
-                                                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Goal Title
                                                 </th>
-                                                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Perspective
                                                 </th>
-                                                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Department
                                                 </th>
-                                                <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Alignment
                                                 </th>
-                                                <th className="px-6 py-4 text-right text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <th className="text-muted-foreground px-6 py-4 text-right text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Actions
                                                 </th>
                                             </tr>
@@ -275,41 +261,28 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
 
                                         <tbody>
                                             {goalLibraryItems.data.map((item) => (
-                                                <tr
-                                                    key={item.id}
-                                                    className="border-t transition-colors hover:bg-muted/20"
-                                                >
+                                                <tr key={item.id} className="hover:bg-muted/20 border-t transition-colors">
                                                     <td className="px-6 py-5">
                                                         <div className="flex min-w-[240px] items-start gap-3">
-                                                            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg border bg-muted/30">
-                                                                <Target className="h-4 w-4 text-muted-foreground" />
+                                                            <div className="bg-muted/30 mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg border">
+                                                                <Target className="text-muted-foreground h-4 w-4" />
                                                             </div>
 
                                                             <div className="min-w-0">
-                                                                <div className="font-medium text-foreground">
-                                                                    {item.title}
-                                                                </div>
-                                                                <div className="mt-1 text-xs text-muted-foreground">
-                                                                    Reusable goal template
-                                                                </div>
+                                                                <div className="text-foreground font-medium">{item.title}</div>
+                                                                <div className="text-muted-foreground mt-1 text-xs">Reusable goal template</div>
                                                             </div>
                                                         </div>
                                                     </td>
 
                                                     <td className="px-6 py-5">
-                                                        <Badge variant="secondary">
-                                                            {item.perspective?.name ?? '-'}
-                                                        </Badge>
+                                                        <Badge variant="secondary">{item.perspective?.name ?? '-'}</Badge>
                                                     </td>
 
-                                                    <td className="px-6 py-5 text-muted-foreground">
-                                                        {item.department?.name ?? '-'}
-                                                    </td>
+                                                    <td className="text-muted-foreground px-6 py-5">{item.department?.name ?? '-'}</td>
 
                                                     <td className="px-6 py-5">
-                                                        <Badge variant={getAlignmentVariant(item)}>
-                                                            {getAlignmentLabel(item)}
-                                                        </Badge>
+                                                        <Badge variant={getAlignmentVariant(item)}>{getAlignmentLabel(item)}</Badge>
                                                     </td>
 
                                                     <td className="px-6 py-5">
@@ -335,7 +308,7 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                                     </table>
                                 </div>
 
-                                <div className="border-t bg-muted/10 px-6 py-4">
+                                <div className="bg-muted/10 border-t px-6 py-4">
                                     <PaginationLinks paginated={goalLibraryItems} />
                                 </div>
                             </>

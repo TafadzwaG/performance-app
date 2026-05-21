@@ -1,5 +1,15 @@
 import PaginationLinks from '@/components/performance/PaginationLinks';
 import PerformancePage from '@/components/performance/PerformancePage';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +27,7 @@ import {
     Plus,
     Search,
     ShieldAlert,
+    Trash2,
 } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
@@ -24,7 +35,7 @@ import { useMemo, useState } from 'react';
 interface Props {
     competencies: Paginated<Competency>;
     filters: { search: string };
-    can: { create: boolean };
+    can: { create: boolean; archive: boolean };
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -49,10 +60,22 @@ function buildCategoryDistribution(items: Competency[]) {
 
 export default function CompetenciesIndex({ competencies, filters, can }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const [deleteTarget, setDeleteTarget] = useState<Competency | null>(null);
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         router.get(route('performance.setup.competencies.index'), { search }, { preserveState: true, replace: true });
+    };
+
+    const deleteCompetency = () => {
+        if (!deleteTarget) {
+            return;
+        }
+
+        router.delete(route('performance.setup.competencies.destroy', deleteTarget.id), {
+            preserveScroll: true,
+            onFinish: () => setDeleteTarget(null),
+        });
     };
 
     const totalOnPage = competencies.data.length;
@@ -236,6 +259,19 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
                                                             Edit
                                                         </Link>
                                                     </Button>
+
+                                                    {can.archive ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-destructive hover:text-destructive"
+                                                            onClick={() => setDeleteTarget(competency)}
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </Button>
+                                                    ) : null}
                                                 </div>
                                             </td>
                                         </tr>
@@ -338,6 +374,23 @@ export default function CompetenciesIndex({ competencies, filters, can }: Props)
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete value?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will remove {deleteTarget ? `"${deleteTarget.name}"` : 'this value'} from the active Values catalogue. Historical appraisals keep their existing references.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={deleteCompetency}>
+                            Delete Value
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PerformancePage>
     );
 }

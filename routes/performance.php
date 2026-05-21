@@ -83,6 +83,10 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
         ->names('templates');
     Route::get('templates/{template}/builder', [AppraisalTemplateController::class, 'builder'])->name('templates.builder');
 
+    Route::get('goal-library/upload', [GoalLibraryController::class, 'uploadCreate'])->name('goal_library.upload');
+    Route::post('goal-library/upload/preview', [GoalLibraryController::class, 'uploadPreview'])->name('goal_library.upload.preview');
+    Route::post('goal-library/upload', [GoalLibraryController::class, 'uploadStore'])->name('goal_library.upload.store');
+    Route::get('goal-library/upload/template', [GoalLibraryController::class, 'downloadUploadTemplate'])->name('goal_library.upload.template');
     Route::resource('goal-library', GoalLibraryController::class)
         ->parameters(['goal-library' => 'goal_library_item'])
         ->names('goal_library');
@@ -114,7 +118,9 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
         ->parameters(['appraisals' => 'appraisal'])
         ->only(['index', 'create', 'store', 'show'])
         ->names('appraisals');
+    Route::get('appraisals/{appraisal}/step-wizard', [AppraisalController::class, 'stepWizard'])->name('appraisals.step_wizard');
     Route::get('appraisals/{appraisal}/plan', [AppraisalPlanController::class, 'edit'])->name('appraisals.plan');
+    Route::get('appraisals/{appraisal}/plan/goal-library', [AppraisalPlanController::class, 'goalLibrary'])->name('appraisals.plan.goal_library');
     Route::put('appraisals/{appraisal}/plan', [AppraisalPlanController::class, 'update'])->name('appraisals.plan.update');
     Route::post('appraisals/{appraisal}/plan/submit', [AppraisalPlanController::class, 'submit'])->name('appraisals.plan.submit');
     Route::get('appraisals/{appraisal}/self-assessment', [AppraisalSelfAssessmentController::class, 'edit'])->name('appraisals.self_assessment');
