@@ -121,6 +121,35 @@ test('hr user with view all still sees every appraisal', function () {
         ->assertInertia(fn (Assert $page) => $page->has('appraisals.data', 2));
 });
 
+test('employee can open a finalized appraisal overview', function () {
+    $employee = User::factory()->create(['is_approved' => true]);
+    grantAppraisalIndexPermissions($employee, [
+        'performance.appraisals.view_own',
+        'performance.appraisals.self_assess',
+        'performance.development_plans.view',
+    ]);
+
+    $appraisal = createIndexedAppraisal($employee, [
+        'status' => AppraisalStatus::Finalized,
+        'finalized_at' => now(),
+        'goal_submitted_at' => now()->subDays(10),
+        'self_assessment_submitted_at' => now()->subDays(8),
+        'manager_reviewed_at' => now()->subDays(6),
+        'approved_at' => now()->subDays(4),
+        'calibrated_at' => now()->subDays(2),
+    ]);
+
+    $this->actingAs($employee)
+        ->get(route('performance.appraisals.show', $appraisal))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('performance/appraisals/Show'));
+
+    $this->actingAs($employee)
+        ->get(route('performance.appraisals.finalize', $appraisal))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('performance/appraisals/FinalizeAppraisal'));
+});
+
 function grantAppraisalIndexPermissions(User $user, array $permissions): void
 {
     foreach ($permissions as $permission) {

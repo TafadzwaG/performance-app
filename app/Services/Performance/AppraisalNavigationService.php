@@ -5,7 +5,9 @@ namespace App\Services\Performance;
 use App\Enums\AppraisalStatus;
 use App\Enums\WorkflowStage;
 use App\Models\Appraisal;
+use App\Models\DevelopmentPlan;
 use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 
 class AppraisalNavigationService
 {
@@ -47,11 +49,29 @@ class AppraisalNavigationService
             }
         }
 
-        if ($appraisal->status?->value === 'finalized' && $canOpenDevelopmentPlan) {
-            return route('performance.development_plans.edit', $appraisal);
+        if ($appraisal->status === AppraisalStatus::Finalized) {
+            if ($this->canAccessDevelopmentPlanEditor($appraisal, $user)) {
+                return route('performance.development_plans.edit', $appraisal);
+            }
+
+            if ($user->can('viewFinalize', $appraisal)) {
+                return route('performance.appraisals.finalize', $appraisal);
+            }
+
+            return null;
         }
 
         return null;
+    }
+
+    private function canAccessDevelopmentPlanEditor(Appraisal $appraisal, User $user): bool
+    {
+        if (! $user->can('performance.development_plans.view')) {
+            return false;
+        }
+
+        return Gate::forUser($user)->allows('manage', [DevelopmentPlan::class, $appraisal])
+            || Gate::forUser($user)->allows('progress', [DevelopmentPlan::class, $appraisal]);
     }
 
     public function afterSendBackRoute(Appraisal $appraisal, User $user, WorkflowStage $reopenedStage): string

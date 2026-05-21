@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Performance;
 
+use App\Enums\AppraisalStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Models\Appraisal;
@@ -130,7 +131,10 @@ class AppraisalController extends Controller
 
         $appraisal = $this->loadAppraisal($appraisal);
 
-        if (! request()->boolean('overview')) {
+        if (
+            ! request()->boolean('overview')
+            && $appraisal->status !== AppraisalStatus::Finalized
+        ) {
             $continueRoute = $this->appraisalNavigation->continueRoute($appraisal, request()->user());
 
             if ($continueRoute) {
@@ -140,7 +144,7 @@ class AppraisalController extends Controller
 
         return Inertia::render('performance/appraisals/Show', [
             'appraisal' => $appraisal,
-            'abilities' => $this->abilities($appraisal, request()->user()),
+            'abilities' => $this->appraisalAbilities($appraisal, request()->user()),
         ]);
     }
 
@@ -149,20 +153,5 @@ class AppraisalController extends Controller
         $this->authorize('view', $appraisal);
 
         return to_route('performance.appraisals.plan', $appraisal);
-    }
-
-    private function abilities(Appraisal $appraisal, $user): array
-    {
-        return [
-            'plan' => $user->can('plan', $appraisal),
-            'selfAssess' => $user->can('selfAssess', $appraisal),
-            'managerReview' => $user->can('managerReview', $appraisal),
-            'approve' => $user->can('approve', $appraisal),
-            'calibrate' => $user->can('calibrate', $appraisal),
-            'finalize' => $user->can('finalize', $appraisal),
-            'print' => $user->can('print', $appraisal),
-            'uploadEvidence' => $user->can('uploadEvidence', $appraisal),
-            'sendBack' => $user->can('sendBack', $appraisal),
-        ];
     }
 }

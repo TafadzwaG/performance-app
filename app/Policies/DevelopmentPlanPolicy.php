@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\AppraisalStatus;
 use App\Models\Appraisal;
 use App\Models\DevelopmentPlan;
 use App\Models\User;
@@ -43,7 +44,7 @@ class DevelopmentPlanPolicy
     {
         $appraisal = $developmentPlan->appraisal;
 
-        if (!$appraisal) {
+        if (! $appraisal) {
             return false;
         }
 
@@ -58,7 +59,11 @@ class DevelopmentPlanPolicy
 
     public function progress(User $user, Appraisal $appraisal): bool
     {
+        if (! $this->isEmployeeForAppraisal($user, $appraisal)) {
+            return false;
+        }
+
         return $user->can('performance.development_plans.update')
-            && $this->isEmployeeForAppraisal($user, $appraisal);
+            || ($user->can('performance.development_plans.view') && $appraisal->status === AppraisalStatus::Finalized);
     }
 }

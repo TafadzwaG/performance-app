@@ -215,13 +215,14 @@ export function buildAppraisalSteps(
             description: 'The final appraisal is locked. A development plan can be created after this point.',
             href:
                 appraisal.status === 'finalized'
-                    ? route('performance.development_plans.edit', appraisal.id)
+                    ? abilities.finalize
+                        ? route('performance.appraisals.finalize', appraisal.id)
+                        : canOpenDevelopmentPlan
+                          ? route('performance.development_plans.edit', appraisal.id)
+                          : `${route('performance.appraisals.show', appraisal.id)}?overview=1`
                     : route('performance.appraisals.finalize', appraisal.id),
             canOpen: abilities.finalize || (appraisal.status === 'finalized' && canOpenDevelopmentPlan),
-            canNavigate:
-                abilities.finalize ||
-                (appraisal.status === 'finalized' && canOpenDevelopmentPlan) ||
-                appraisal.status === 'finalized',
+            canNavigate: abilities.finalize || appraisal.status === 'finalized',
             isComplete: appraisal.status === 'finalized',
             icon: FileCheck2,
         },

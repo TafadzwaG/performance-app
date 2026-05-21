@@ -215,11 +215,16 @@ class AppraisalPolicy
 
     public function viewFinalize(User $user, Appraisal $appraisal): bool
     {
-        if (! $this->view($user, $appraisal) || ! $this->finalizationUnlocked($appraisal)) {
+        if (! $this->view($user, $appraisal)) {
             return false;
         }
 
-        return $user->can('performance.appraisals.finalize');
+        if ($appraisal->status === AppraisalStatus::Finalized) {
+            return true;
+        }
+
+        return $this->finalizationUnlocked($appraisal)
+            && $user->can('performance.appraisals.finalize');
     }
 
     public function finalize(User $user, Appraisal $appraisal): bool
