@@ -20,6 +20,7 @@ use App\Services\Performance\AppraisalNavigationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
@@ -178,7 +179,8 @@ test('approval send back redirects to reopened stage and navigation accepts enum
 
     $this->actingAs($approver)
         ->get(route('performance.appraisals.show', $appraisal))
-        ->assertRedirect(route('performance.appraisals.manager_review', $appraisal));
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('performance/appraisals/Show'));
 });
 
 test('approver approval moves appraisal to calibration pending', function () {
@@ -276,7 +278,7 @@ test('calibration adjustment resolves final rating from score using the overall 
 });
 
 test('calibration adjustment can attach evidence files', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     [$baseAppraisal, $overallScale] = createAppraisalForCalibrationFlow();
     $baseAppraisal->update([
@@ -345,6 +347,58 @@ test('calibration adjustment stores override without mutating manager ratings', 
         ->and($appraisal->calibrated_overall_rating_scale_level_id)->toBe($overallScale['medium']->id)
         ->and($objective->manager_rating_score)->toBe('5.00')
         ->and($competencyRating->manager_rating_score)->toBe('4.00');
+});
+
+test('employee self assessment submit redirects to appraisal overview', function () {
+    [$appraisal, $overallScale] = createAppraisalForCalibrationFlow([
+        'status' => AppraisalStatus::SelfAssessmentPending,
+        'goal_submitted_at' => now()->subDays(2),
+    ]);
+
+    $employee = User::query()->findOrFail($appraisal->employee_user_id);
+    grantCalibrationPermissions($employee, [
+        'performance.appraisals.view_own',
+        'performance.appraisals.self_assess',
+    ]);
+
+    $objective = $appraisal->objectives()->firstOrFail();
+    $selfLevel = RatingScaleLevel::query()
+        ->where('rating_scale_id', $appraisal->template->objective_rating_scale_id)
+        ->value('id');
+
+    $this->actingAs($employee)
+        ->put(route('performance.appraisals.self_assessment.update', $appraisal), [
+            'objectives' => [
+                [
+                    'id' => $objective->id,
+                    'performance_achieved' => 'Delivered all quarterly targets.',
+                    'self_rating_scale_level_id' => $selfLevel,
+                    'employee_comment' => 'Ready for manager review.',
+                ],
+            ],
+            'achievement_note' => '',
+            'significant_issue' => '',
+        ])
+        ->assertRedirect(route('performance.appraisals.self_assessment', $appraisal));
+
+    $this->actingAs($employee)
+        ->post(route('performance.appraisals.self_assessment.submit', $appraisal))
+        ->assertRedirect(route('performance.appraisals.show', $appraisal))
+        ->assertSessionHas('success');
+
+    $appraisal->refresh();
+
+    expect($appraisal->status)->toBe(AppraisalStatus::ManagerReviewPending)
+        ->and($employee->can('managerReview', $appraisal))->toBeFalse();
+
+    $this->actingAs($employee)
+        ->get(route('performance.appraisals.show', $appraisal))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('performance/appraisals/Show'));
+
+    $this->actingAs($employee)
+        ->get(route('performance.appraisals.manager_review', $appraisal))
+        ->assertForbidden();
 });
 
 test('employee can view a completed self assessment step while manager review is pending', function () {
@@ -536,4 +590,8 @@ function grantCalibrationPermissions(User $user, array $permissions): void
     }
 
     $user->givePermissionTo($permissions);
+
+    if (! $user->employeeProfile()->exists()) {
+        EmployeeProfile::factory()->for($user)->create();
+    }
 }

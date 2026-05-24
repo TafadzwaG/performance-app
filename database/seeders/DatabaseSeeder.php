@@ -18,7 +18,12 @@ class DatabaseSeeder extends Seeder
             HotelOrgStructureSeeder::class,
             JobTitleGoalLibrarySeeder::class,
             EmployeeFieldSettingsSeeder::class,
-            PerformanceTestingSeeder::class,
         ]);
+
+        if (app()->environment(['local', 'testing'])) {
+            $this->call([
+                PerformanceTestingSeeder::class,
+            ]);
+        }
     }
 }

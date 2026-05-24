@@ -1,5 +1,6 @@
 import EmployeeProfileEditSummary from '@/components/performance/employees/EmployeeProfileEditSummary';
 import EmployeeProfileForm from '@/components/performance/employees/EmployeeProfileForm';
+import ProfilePasswordChangeSection from '@/components/performance/employees/ProfilePasswordChangeSection';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -167,6 +168,8 @@ export default function EmployeeEdit({
                                 fieldConfig={fieldConfig}
                                 canAssignRoles={can.assignRoles}
                             />
+
+                            <ProfilePasswordChangeSection />
 
                             <div className="flex items-center justify-end border-t pt-6">
                                 <Button type="submit" disabled={form.processing}>

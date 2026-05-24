@@ -13,12 +13,15 @@ use App\Http\Controllers\Performance\AppraisalPlanController;
 use App\Http\Controllers\Performance\AppraisalPrintController;
 use App\Http\Controllers\Performance\AppraisalSelfAssessmentController;
 use App\Http\Controllers\Performance\AppraisalTemplateExportController;
+use App\Http\Controllers\Performance\AppraisalTemplatePrintController;
 use App\Http\Controllers\Performance\CycleAssignmentController;
 use App\Http\Controllers\Performance\DashboardController;
+use App\Http\Controllers\Performance\DashboardGoalsController;
 use App\Http\Controllers\Performance\DevelopmentPlanController;
 use App\Http\Controllers\Performance\EmployeeFieldSettingsController;
 use App\Http\Controllers\Performance\EmployeeProfileController;
 use App\Http\Controllers\Performance\MyEmployeeProfileController;
+use App\Http\Controllers\Performance\MyKpisController;
 use App\Http\Controllers\Performance\ReportController;
 use App\Http\Controllers\Performance\ReportExportController;
 use App\Http\Controllers\Performance\ReviewCycleController;
@@ -31,16 +34,23 @@ use App\Http\Controllers\Performance\Setup\PerspectiveController;
 use App\Http\Controllers\Performance\Setup\RatingScaleController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance')->as('performance.')->group(function () {
+Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.complete'])->prefix('performance')->as('performance.')->group(function () {
     Route::get('dashboard', DashboardController::class)
-        ->middleware('employee.profile.complete')
         ->name('dashboard');
+    Route::get('dashboard/goals/lookup', [DashboardGoalsController::class, 'lookup'])
+        ->name('dashboard.goals.lookup');
+    Route::get('dashboard/goals/{appraisal}', [DashboardGoalsController::class, 'show'])
+        ->name('dashboard.goals.show');
 
-    Route::middleware('employee.profile.complete')->group(function () {
-        Route::get('profile', [MyEmployeeProfileController::class, 'show'])->name('profile.show');
-        Route::get('profile/edit', [MyEmployeeProfileController::class, 'edit'])->name('profile.edit');
-        Route::put('profile', [MyEmployeeProfileController::class, 'update'])->name('profile.update');
-    });
+    Route::get('profile', [MyEmployeeProfileController::class, 'show'])->name('profile.show');
+    Route::get('profile/edit', [MyEmployeeProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('profile', [MyEmployeeProfileController::class, 'update'])->name('profile.update');
+
+    Route::get('my-kpis', [MyKpisController::class, 'index'])->name('my_kpis.index');
+    Route::get('my-kpis/create', [MyKpisController::class, 'create'])->name('my_kpis.create');
+    Route::post('my-kpis', [MyKpisController::class, 'store'])->name('my_kpis.store');
+    Route::get('my-kpis/{goal_library_item}/edit', [MyKpisController::class, 'edit'])->name('my_kpis.edit');
+    Route::put('my-kpis/{goal_library_item}', [MyKpisController::class, 'update'])->name('my_kpis.update');
 
     Route::resource('setup/departments', DepartmentController::class)
         ->parameters(['departments' => 'department'])
@@ -65,7 +75,6 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
 
     Route::resource('review-cycles', ReviewCycleController::class)
         ->parameters(['review-cycles' => 'review_cycle'])
-        ->except('destroy')
         ->names('review_cycles');
     Route::post('review-cycles/{review_cycle}/open', [ReviewCycleController::class, 'open'])->name('review_cycles.open');
     Route::post('review-cycles/{review_cycle}/close', [ReviewCycleController::class, 'close'])->name('review_cycles.close');
@@ -77,6 +86,9 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
     // Branded PDF / XLSX exports for an appraisal template.
     Route::get('templates/{template}/export/pdf', [AppraisalTemplateExportController::class, 'pdf'])->name('templates.export.pdf');
     Route::get('templates/{template}/export/excel', [AppraisalTemplateExportController::class, 'excel'])->name('templates.export.excel');
+    Route::get('templates/{template}/print', [AppraisalTemplatePrintController::class, 'show'])->name('templates.print');
+    Route::get('templates/{template}/print/pdf/inline', [AppraisalTemplatePrintController::class, 'inline'])->name('templates.print.pdf.inline');
+    Route::get('templates/{template}/preview/layout', [AppraisalTemplatePrintController::class, 'layout'])->name('templates.preview.layout');
 
     Route::resource('templates', AppraisalTemplateController::class)
         ->parameters(['templates' => 'template'])
@@ -87,6 +99,7 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
     Route::post('goal-library/upload/preview', [GoalLibraryController::class, 'uploadPreview'])->name('goal_library.upload.preview');
     Route::post('goal-library/upload', [GoalLibraryController::class, 'uploadStore'])->name('goal_library.upload.store');
     Route::get('goal-library/upload/template', [GoalLibraryController::class, 'downloadUploadTemplate'])->name('goal_library.upload.template');
+    Route::get('goal-library/export', [GoalLibraryController::class, 'export'])->name('goal_library.export');
     Route::resource('goal-library', GoalLibraryController::class)
         ->parameters(['goal-library' => 'goal_library_item'])
         ->names('goal_library');
@@ -96,9 +109,11 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
     Route::post('employees/upload/preview', [EmployeeProfileController::class, 'uploadPreview'])->name('employees.upload.preview');
     Route::post('employees/upload', [EmployeeProfileController::class, 'uploadStore'])->name('employees.upload.store');
     Route::get('employees/upload/template', [EmployeeProfileController::class, 'downloadUploadTemplate'])->name('employees.upload.template');
+    Route::get('employees/{employee_profile}/deletion-impact', [EmployeeProfileController::class, 'deletionImpact'])
+        ->name('employees.deletion_impact');
     Route::resource('employees', EmployeeProfileController::class)
         ->parameters(['employees' => 'employee_profile'])
-        ->only(['index', 'create', 'store', 'show', 'edit', 'update'])
+        ->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy'])
         ->names('employees');
     Route::patch('employees/{employee_profile}/line-manager', [EmployeeProfileController::class, 'updateLineManager'])
         ->name('employees.line_manager.update');
@@ -116,7 +131,7 @@ Route::middleware(['auth', 'approved', 'password.change'])->prefix('performance'
 
     Route::resource('appraisals', AppraisalController::class)
         ->parameters(['appraisals' => 'appraisal'])
-        ->only(['index', 'create', 'store', 'show'])
+        ->only(['index', 'create', 'store', 'show', 'destroy'])
         ->names('appraisals');
     Route::get('appraisals/{appraisal}/step-wizard', [AppraisalController::class, 'stepWizard'])->name('appraisals.step_wizard');
     Route::get('appraisals/{appraisal}/plan', [AppraisalPlanController::class, 'edit'])->name('appraisals.plan');

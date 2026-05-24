@@ -126,5 +126,126 @@ test('dashboard goal view is empty when user has no current open appraisal', fun
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('performance/dashboard/Index')
-            ->where('currentGoals', null));
+            ->where('currentGoals', null)
+            ->has('assignedGoalCycles', 0)
+            ->has('goalsLookupEndpoint'));
+});
+
+test('dashboard includes assigned review cycles including completed cycles', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+    $user->givePermissionTo(Permission::findOrCreate('performance.dashboard.view', 'web'));
+
+    $profile = EmployeeProfile::factory()->for($user)->create();
+
+    $openCycle = ReviewCycle::factory()->create([
+        'name' => '2026 Review',
+        'status' => ReviewCycleStatus::Open,
+    ]);
+
+    $closedCycle = ReviewCycle::factory()->create([
+        'name' => '2025 Review',
+        'status' => ReviewCycleStatus::Closed,
+    ]);
+
+    Appraisal::factory()
+        ->for($openCycle, 'reviewCycle')
+        ->for($profile, 'employeeProfile')
+        ->create([
+            'employee_user_id' => $user->id,
+            'status' => AppraisalStatus::GoalSetting,
+            'cycle_name_snapshot' => '2026 Review',
+        ]);
+
+    $completedAppraisal = Appraisal::factory()
+        ->for($closedCycle, 'reviewCycle')
+        ->for($profile, 'employeeProfile')
+        ->create([
+            'employee_user_id' => $user->id,
+            'status' => AppraisalStatus::Finalized,
+            'cycle_name_snapshot' => '2025 Review',
+            'finalized_at' => now()->subYear(),
+        ]);
+
+    $this->actingAs($user)
+        ->get(route('performance.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('performance/dashboard/Index')
+            ->has('assignedGoalCycles', 2)
+            ->where('assignedGoalCycles.0.cycle_name', '2026 Review')
+            ->where('assignedGoalCycles.0.is_current', true)
+            ->where('assignedGoalCycles.0.is_completed', false)
+            ->where('assignedGoalCycles.1.cycle_name', '2025 Review')
+            ->where('assignedGoalCycles.1.is_completed', true));
+});
+
+test('dashboard goals lookup returns signed-in user review cycles', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+    $user->givePermissionTo(Permission::findOrCreate('performance.dashboard.view', 'web'));
+
+    $profile = EmployeeProfile::factory()->for($user)->create();
+
+    $openCycle = ReviewCycle::factory()->create([
+        'name' => '2026 Review',
+        'code' => '2026',
+        'status' => ReviewCycleStatus::Open,
+        'start_date' => '2026-01-01',
+        'end_date' => '2026-12-31',
+    ]);
+
+    $closedCycle = ReviewCycle::factory()->create([
+        'name' => '2025 Review',
+        'code' => '2025',
+        'status' => ReviewCycleStatus::Closed,
+        'start_date' => '2025-01-01',
+        'end_date' => '2025-12-31',
+    ]);
+
+    $currentAppraisal = Appraisal::factory()
+        ->for($openCycle, 'reviewCycle')
+        ->for($profile, 'employeeProfile')
+        ->create([
+            'employee_user_id' => $user->id,
+            'status' => AppraisalStatus::GoalSetting,
+            'cycle_name_snapshot' => '2026 Review',
+        ]);
+
+    $historicalAppraisal = Appraisal::factory()
+        ->for($closedCycle, 'reviewCycle')
+        ->for($profile, 'employeeProfile')
+        ->create([
+            'employee_user_id' => $user->id,
+            'status' => AppraisalStatus::Finalized,
+            'cycle_name_snapshot' => '2025 Review',
+            'finalized_at' => now()->subYear(),
+        ]);
+
+    AppraisalObjective::factory()->for($historicalAppraisal)->create([
+        'title' => 'Improve guest satisfaction',
+        'sort_order' => 1,
+    ]);
+
+    $this->actingAs($user)
+        ->getJson(route('performance.dashboard.goals.lookup', ['q' => '2025']))
+        ->assertOk()
+        ->assertJsonPath('results.0.value', $historicalAppraisal->id)
+        ->assertJsonPath('results.0.cycle_name', '2025 Review')
+        ->assertJsonPath('results.0.is_completed', true);
+
+    $this->actingAs($user)
+        ->getJson(route('performance.dashboard.goals.show', $historicalAppraisal))
+        ->assertOk()
+        ->assertJsonPath('appraisal_id', $historicalAppraisal->id)
+        ->assertJsonPath('objectives.0.title', 'Improve guest satisfaction')
+        ->assertJsonPath('is_current', false);
+
+    $otherUser = User::factory()->create(['is_approved' => true]);
+    $otherUser->givePermissionTo(Permission::findOrCreate('performance.dashboard.view', 'web'));
+    EmployeeProfile::factory()->for($otherUser)->create();
+
+    $this->actingAs($otherUser)
+        ->getJson(route('performance.dashboard.goals.show', $historicalAppraisal))
+        ->assertForbidden();
+
+    expect($currentAppraisal->id)->not->toBe($historicalAppraisal->id);
 });

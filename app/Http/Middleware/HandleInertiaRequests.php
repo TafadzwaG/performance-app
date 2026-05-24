@@ -52,6 +52,7 @@ class HandleInertiaRequests extends Middleware
             || $user?->can('performance.employees.update');
         $pendingAppraisalNav = app(PendingAppraisalNavService::class);
         $systemSettings = SystemSetting::query()->first();
+        $showMyKpisNav = $user !== null;
 
         return array_merge(parent::share($request), [
             ...parent::share($request),
@@ -62,7 +63,6 @@ class HandleInertiaRequests extends Middleware
                 'info' => $request->session()->get('info'),
                 'warning' => $request->session()->get('warning'),
                 'error' => $request->session()->get('error'),
-                'generatedCredentials' => $request->session()->get('generated_credentials'),
                 'showFinalizeNextSteps' => (bool) $request->session()->pull('show_finalize_next_steps'),
             ],
             'auth' => [
@@ -91,6 +91,7 @@ class HandleInertiaRequests extends Middleware
                 'pendingAppraisalsCount' => $user && $pendingAppraisalNav->shouldShowFor($user)
                     ? $pendingAppraisalNav->countFor($user)
                     : null,
+                'showMyKpis' => $showMyKpisNav,
                 'profileUrl' => $user
                     ? ($user->employeeProfile()->exists()
                         ? route('performance.profile.show')

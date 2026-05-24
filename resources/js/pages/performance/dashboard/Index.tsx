@@ -1,4 +1,5 @@
 import AppraisalStatusBadge from '@/components/performance/AppraisalStatusBadge';
+import { AsyncSearchSelect, type AsyncOption } from '@/components/async-search-select';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import type { BreadcrumbItem, SharedData } from '@/types';
 import type { Appraisal, CurrentGoalView } from '@/types/performance';
 import { Link, usePage } from '@inertiajs/react';
-import { format, isBefore, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, isBefore, parseISO } from 'date-fns';
 import {
     Activity,
     ArrowRight,
@@ -33,7 +34,7 @@ import {
     UserCheck,
     Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart as RechartsPieChart, XAxis, YAxis } from 'recharts';
 
 type Props = {
@@ -55,6 +56,7 @@ type Props = {
             approval_pending_count: number;
             finalized_count: number;
             completion_rate: number;
+            pipeline: Array<{ stage: string; count: number }>;
         } | null;
         workflow_distribution: Array<{ status: string; total: number }>;
         rating_distribution: Array<{ rating: string; total: number }>;
@@ -97,6 +99,8 @@ type Props = {
     approvalQueue: Appraisal[];
     overdueQueue: Appraisal[];
     currentGoals: CurrentGoalView | null;
+    assignedGoalCycles: GoalCycleOption[];
+    goalsLookupEndpoint: string;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
@@ -337,28 +341,249 @@ function ProgressLine({ value, tone = 'bg-primary' }: { value: number; tone?: st
     );
 }
 
-function GoalsAssessmentTab({ currentGoals }: { currentGoals: CurrentGoalView | null }) {
-    if (!currentGoals) {
-        return (
-            <Card className="shadow-sm">
-                <CardContent className="flex min-h-[360px] items-center justify-center p-8">
-                    <div className="max-w-md space-y-3 text-center">
-                        <div className="bg-muted/20 mx-auto flex h-12 w-12 items-center justify-center rounded-lg border">
-                            <Target className="text-muted-foreground h-5 w-5" />
-                        </div>
-                        <h2 className="text-foreground text-lg font-semibold">No current goals available</h2>
-                        <p className="text-muted-foreground text-sm">
-                            Goals will appear here once you are assigned to an active review cycle with non-finalized appraisal objectives.
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
-        );
+type FocusCycle = NonNullable<Props['dashboard']['focus_cycle']>;
+
+function nextCycleMilestone(focusCycle: FocusCycle) {
+    const milestones = [
+        ['Goal setting', focusCycle.goal_setting_deadline],
+        ['Self assessment', focusCycle.self_assessment_deadline],
+        ['Manager review', focusCycle.manager_review_deadline],
+        ['Approval', focusCycle.approval_deadline],
+        ['Cycle closes', focusCycle.end_date],
+    ]
+        .filter((entry): entry is [string, string] => Boolean(entry[1]))
+        .map(([label, value]) => ({ label, date: parseISO(value) }));
+
+    if (milestones.length === 0) {
+        return null;
     }
 
-    const previewUrl = route('performance.appraisals.print.pdf.inline', currentGoals.appraisal_id);
-    const pdfDownloadUrl = route('performance.appraisals.export.pdf', currentGoals.appraisal_id);
-    const excelDownloadUrl = route('performance.appraisals.export.excel', currentGoals.appraisal_id);
+    const now = new Date();
+    const upcoming = milestones.find((milestone) => !isBefore(milestone.date, now));
+
+    return upcoming ?? milestones[milestones.length - 1];
+}
+
+function milestoneCountdown(date: Date) {
+    const days = differenceInCalendarDays(date, new Date());
+
+    if (days > 1) {
+        return `${days} days left`;
+    }
+
+    if (days === 1) {
+        return 'Due tomorrow';
+    }
+
+    if (days === 0) {
+        return 'Due today';
+    }
+
+    return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue`;
+}
+
+function FocusCycleActivitySection({
+    focusCycle,
+    stageCompletion,
+    coverage,
+    canAssignEmployees,
+    canViewReviewCycles,
+}: {
+    focusCycle: FocusCycle;
+    stageCompletion: Props['dashboard']['stage_completion'];
+    coverage: Props['dashboard']['coverage'];
+    canAssignEmployees: boolean;
+    canViewReviewCycles: boolean;
+}) {
+    const milestone = nextCycleMilestone(focusCycle);
+    const pipelineMax = Math.max(1, ...focusCycle.pipeline.map((stage) => stage.count));
+
+    return (
+        <div className="bg-muted/5 border-t px-8 py-6">
+            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">Workflow pipeline</div>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                        Live appraisal volume across each stage in {focusCycle.code}.
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {canViewReviewCycles ? (
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={route('performance.review_cycles.show', focusCycle.id)}>
+                                View cycle
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Link>
+                        </Button>
+                    ) : null}
+                    {canAssignEmployees ? (
+                        <Button asChild size="sm">
+                            <Link href={route('performance.review_cycles.assign', focusCycle.id)}>
+                                <UserCheck className="mr-2 h-4 w-4" />
+                                Assign employees
+                            </Link>
+                        </Button>
+                    ) : null}
+                </div>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-5">
+                {focusCycle.pipeline.map((stage, index) => {
+                    const share = focusCycle.appraisals_count > 0 ? Math.round((stage.count / focusCycle.appraisals_count) * 100) : 0;
+
+                    return (
+                        <div key={stage.stage} className="relative">
+                            {index < focusCycle.pipeline.length - 1 ? (
+                                <span className="bg-border absolute top-7 right-0 hidden h-px w-3 translate-x-1/2 lg:block" />
+                            ) : null}
+                            <div className="bg-background rounded-xl border p-4">
+                                <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.14em] uppercase">{stage.stage}</div>
+                                <div className="text-foreground mt-2 text-2xl font-bold tracking-tight">{stage.count}</div>
+                                <div className="text-muted-foreground mt-1 text-xs">
+                                    {focusCycle.appraisals_count > 0 ? `${share}% of cycle` : 'Awaiting assignments'}
+                                </div>
+                                <div className="mt-3">
+                                    <ProgressLine value={(stage.count / pipelineMax) * 100} tone="bg-sky-500" />
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <div className="mt-6 grid gap-4 xl:grid-cols-3">
+                <div className="bg-background rounded-xl border p-4 xl:col-span-2">
+                    <div className="text-muted-foreground mb-4 text-[11px] font-semibold tracking-[0.16em] uppercase">Stage completion</div>
+                    {stageCompletion.length > 0 ? (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            {stageCompletion.map((stage) => (
+                                <div key={stage.stage} className="space-y-2">
+                                    <div className="flex items-center justify-between gap-3 text-sm">
+                                        <span className="text-foreground font-medium">{stage.stage}</span>
+                                        <span className="text-muted-foreground">
+                                            {stage.completed}/{stage.total} ({stage.completion_rate}%)
+                                        </span>
+                                    </div>
+                                    <ProgressLine value={stage.completion_rate} tone="bg-emerald-500" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground text-sm">Stage completion appears once appraisals are assigned.</p>
+                    )}
+                </div>
+
+                <div className="grid gap-4">
+                    <div className="bg-background rounded-xl border p-4">
+                        <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">Employee coverage</div>
+                        <div className="text-foreground mt-2 text-3xl font-bold tracking-tight">{coverage.coverage_rate}%</div>
+                        <p className="text-muted-foreground mt-2 text-sm">
+                            {coverage.assigned_employees} of {coverage.eligible_employees} eligible employees assigned to appraisals.
+                        </p>
+                        <div className="mt-4">
+                            <ProgressLine value={coverage.coverage_rate} tone="bg-primary" />
+                        </div>
+                        {coverage.unassigned_employees > 0 ? (
+                            <p className="text-muted-foreground mt-3 text-xs">
+                                {coverage.unassigned_employees} employee{coverage.unassigned_employees === 1 ? '' : 's'} still unassigned.
+                            </p>
+                        ) : null}
+                    </div>
+
+                    {milestone ? (
+                        <div className="bg-background rounded-xl border p-4">
+                            <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">Next milestone</div>
+                            <div className="text-foreground mt-2 text-lg font-semibold">{milestone.label}</div>
+                            <div className="text-muted-foreground mt-1 text-sm">{format(milestone.date, 'dd MMM yyyy')}</div>
+                            <Badge variant="secondary" className="mt-3">
+                                <CalendarRange className="mr-1.5 h-3.5 w-3.5" />
+                                {milestoneCountdown(milestone.date)}
+                            </Badge>
+                        </div>
+                    ) : null}
+                </div>
+            </div>
+
+            {focusCycle.appraisals_count === 0 ? (
+                <div className="bg-background mt-6 flex flex-col gap-3 rounded-xl border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div className="text-foreground text-sm font-semibold">This cycle is open but has no appraisals yet.</div>
+                        <p className="text-muted-foreground mt-1 text-sm">
+                            Assign employees to start goal setting, self assessment, and manager review activity.
+                        </p>
+                    </div>
+                    {canAssignEmployees ? (
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={route('performance.review_cycles.assign', focusCycle.id)}>Start assigning</Link>
+                        </Button>
+                    ) : null}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+type GoalCycleOption = AsyncOption & {
+    cycle_name: string;
+    status: string;
+    review_period?: string | null;
+    objectives_count: number;
+    is_current: boolean;
+    is_completed: boolean;
+};
+
+function GoalCycleOptionButton({
+    option,
+    selected,
+    onSelect,
+}: {
+    option: GoalCycleOption;
+    selected: boolean;
+    onSelect: (appraisalId: number) => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={() => onSelect(Number(option.value))}
+            className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                selected
+                    ? 'border-primary bg-primary/5 shadow-sm'
+                    : 'border-border bg-background hover:border-primary/40 hover:bg-muted/20'
+            }`}
+        >
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-foreground text-sm font-medium">{option.cycle_name}</span>
+                {option.is_current ? <Badge className="px-2 py-0 text-[10px]">Current</Badge> : null}
+                {option.is_completed ? <Badge variant="secondary" className="px-2 py-0 text-[10px]">Completed</Badge> : null}
+            </div>
+            <div className="text-muted-foreground mt-1 text-xs">
+                {option.review_period || labelize(option.status)} · {option.objectives_count} objective
+                {option.objectives_count === 1 ? '' : 's'}
+            </div>
+        </button>
+    );
+}
+
+function GoalCycleOptionPreview({ option }: { option: GoalCycleOption }) {
+    return (
+        <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-foreground font-medium">{option.cycle_name}</span>
+                {option.is_current ? <Badge className="px-2 py-0 text-[10px]">Current</Badge> : null}
+                {option.is_completed ? <Badge variant="secondary" className="px-2 py-0 text-[10px]">Completed</Badge> : null}
+            </div>
+            <div className="text-muted-foreground text-xs">
+                {option.review_period || labelize(option.status)} · {option.objectives_count} objective
+                {option.objectives_count === 1 ? '' : 's'}
+            </div>
+        </div>
+    );
+}
+
+function GoalsAssessmentContent({ goals }: { goals: CurrentGoalView }) {
+    const previewUrl = route('performance.appraisals.print.pdf.inline', goals.appraisal_id);
+    const pdfDownloadUrl = route('performance.appraisals.export.pdf', goals.appraisal_id);
+    const excelDownloadUrl = route('performance.appraisals.export.excel', goals.appraisal_id);
 
     return (
         <div className="space-y-6">
@@ -367,7 +592,7 @@ function GoalsAssessmentTab({ currentGoals }: { currentGoals: CurrentGoalView | 
                     <div>
                         <div className="text-foreground text-sm font-semibold">Assessment form preview and downloads</div>
                         <p className="text-muted-foreground mt-1 text-sm">
-                            Preview or download the current appraisal using the Monomotapa assessment form layout.
+                            Preview or download this appraisal using the Monomotapa assessment form layout.
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-3">
@@ -381,9 +606,7 @@ function GoalsAssessmentTab({ currentGoals }: { currentGoals: CurrentGoalView | 
                             <DialogContent className="h-[90vh] max-w-6xl p-0">
                                 <DialogHeader className="border-b px-5 py-4">
                                     <DialogTitle>Individual Performance Assessment Form</DialogTitle>
-                                    <DialogDescription>
-                                        PDF print preview for {currentGoals.employee.name}.
-                                    </DialogDescription>
+                                    <DialogDescription>PDF print preview for {goals.employee.name}.</DialogDescription>
                                 </DialogHeader>
                                 <div className="min-h-0 flex-1 bg-muted/20 p-4">
                                     <iframe
@@ -415,14 +638,17 @@ function GoalsAssessmentTab({ currentGoals }: { currentGoals: CurrentGoalView | 
                     <CardDescription className="text-[11px] font-medium tracking-[0.18em] uppercase">
                         Individual Performance Assessment Form
                     </CardDescription>
-                    <CardTitle>{currentGoals.employee.name}</CardTitle>
+                    <CardTitle className="flex flex-wrap items-center gap-2">
+                        {goals.employee.name}
+                        {goals.is_current ? <Badge>Current cycle</Badge> : <Badge variant="secondary">Previous cycle</Badge>}
+                    </CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-4">
                     {[
-                        ['Employee #', currentGoals.employee.employee_number || '-'],
-                        ['Job Title', currentGoals.employee.job_title || '-'],
-                        ['Department', currentGoals.employee.department || '-'],
-                        ['Review Period', currentGoals.review_period || currentGoals.review_cycle.name || '-'],
+                        ['Employee #', goals.employee.employee_number || '-'],
+                        ['Job Title', goals.employee.job_title || '-'],
+                        ['Department', goals.employee.department || '-'],
+                        ['Review Period', goals.review_period || goals.review_cycle.name || '-'],
                     ].map(([label, value]) => (
                         <div key={label} className="bg-muted/10 rounded-lg border p-4">
                             <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.16em] uppercase">{label}</div>
@@ -463,14 +689,14 @@ function GoalsAssessmentTab({ currentGoals }: { currentGoals: CurrentGoalView | 
                                 </tr>
                             </thead>
                             <tbody>
-                                {currentGoals.objectives.length === 0 ? (
+                                {goals.objectives.length === 0 ? (
                                     <tr>
                                         <td colSpan={9} className="text-muted-foreground px-4 py-10 text-center text-sm">
                                             No objectives have been captured for this appraisal yet.
                                         </td>
                                     </tr>
                                 ) : (
-                                    currentGoals.objectives.map((objective) => (
+                                    goals.objectives.map((objective) => (
                                         <tr key={objective.id} className="border-t align-top">
                                             <td className="px-4 py-4">
                                                 <Badge variant="secondary">{objective.perspective || '-'}</Badge>
@@ -501,8 +727,8 @@ function GoalsAssessmentTab({ currentGoals }: { currentGoals: CurrentGoalView | 
                         <CardDescription>Achievements, significant issues, and appraisal comments captured so far.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        {currentGoals.comments.length > 0 ? (
-                            currentGoals.comments.map((comment) => (
+                        {goals.comments.length > 0 ? (
+                            goals.comments.map((comment) => (
                                 <div key={comment.id} className="bg-muted/10 rounded-lg border p-4">
                                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                                         <Badge variant="outline">{labelize(comment.type)}</Badge>
@@ -526,8 +752,8 @@ function GoalsAssessmentTab({ currentGoals }: { currentGoals: CurrentGoalView | 
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {[
-                            ['Business Objectives', currentGoals.rating_scales.business],
-                            ['Values Objectives', currentGoals.rating_scales.values],
+                            ['Business Objectives', goals.rating_scales.business],
+                            ['Values Objectives', goals.rating_scales.values],
                         ].map(([label, scale]) => (
                             <div key={label as string} className="bg-muted/10 rounded-lg border p-4">
                                 <div className="text-foreground mb-3 text-sm font-semibold">{label as string}</div>
@@ -557,7 +783,137 @@ function GoalsAssessmentTab({ currentGoals }: { currentGoals: CurrentGoalView | 
     );
 }
 
-export default function DashboardIndex({ dashboard, myAppraisals, teamPending, approvalQueue, overdueQueue, currentGoals }: Props) {
+function GoalsAssessmentTab({
+    currentGoals,
+    assignedGoalCycles,
+    goalsLookupEndpoint,
+}: {
+    currentGoals: CurrentGoalView | null;
+    assignedGoalCycles: GoalCycleOption[];
+    goalsLookupEndpoint: string;
+}) {
+    const [selectedAppraisalId, setSelectedAppraisalId] = useState<number | null>(currentGoals?.appraisal_id ?? null);
+    const [goalsView, setGoalsView] = useState<CurrentGoalView | null>(currentGoals);
+    const [loadingGoals, setLoadingGoals] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
+
+    useEffect(() => {
+        setGoalsView(currentGoals);
+        setSelectedAppraisalId(currentGoals?.appraisal_id ?? null);
+    }, [currentGoals]);
+
+    const loadGoals = async (appraisalId: number) => {
+        setLoadingGoals(true);
+        setLoadError(null);
+
+        try {
+            const response = await fetch(route('performance.dashboard.goals.show', appraisalId), {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                throw new Error('Unable to load goals for the selected review cycle.');
+            }
+
+            const payload = (await response.json()) as CurrentGoalView;
+            setGoalsView(payload);
+        } catch (error) {
+            setGoalsView(null);
+            setLoadError(error instanceof Error ? error.message : 'Unable to load goals for the selected review cycle.');
+        } finally {
+            setLoadingGoals(false);
+        }
+    };
+
+    const handleCycleChange = (value: number | string | null) => {
+        if (value == null) {
+            setSelectedAppraisalId(null);
+            setGoalsView(null);
+            setLoadError(null);
+            return;
+        }
+
+        const appraisalId = Number(value);
+        setSelectedAppraisalId(appraisalId);
+        void loadGoals(appraisalId);
+    };
+
+    useEffect(() => {
+        if (currentGoals || selectedAppraisalId != null || assignedGoalCycles.length === 0) {
+            return;
+        }
+
+        handleCycleChange(Number(assignedGoalCycles[0].value));
+    }, [assignedGoalCycles, currentGoals, selectedAppraisalId]);
+
+    return (
+        <div className="space-y-6">
+            <Card className="shadow-sm">
+                <CardHeader className="border-b bg-muted/20">
+                    <CardTitle className="text-base">Review cycle</CardTitle>
+                    <CardDescription>
+                        View goals from your current cycle, completed review cycles, or search any cycle you were assigned to.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 p-5">
+                    {assignedGoalCycles.length > 0 ? (
+                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                            {assignedGoalCycles.map((option) => (
+                                <GoalCycleOptionButton
+                                    key={option.value}
+                                    option={option}
+                                    selected={selectedAppraisalId === Number(option.value)}
+                                    onSelect={(appraisalId) => handleCycleChange(appraisalId)}
+                                />
+                            ))}
+                        </div>
+                    ) : null}
+                    <AsyncSearchSelect<GoalCycleOption>
+                        endpoint={goalsLookupEndpoint}
+                        value={selectedAppraisalId}
+                        onChange={handleCycleChange}
+                        placeholder="Search review cycles…"
+                        emptyText="No review cycles found for your profile."
+                        fallbackLabel={
+                            goalsView?.review_cycle.name
+                                ? `${goalsView.review_cycle.name} (${labelize(goalsView.status)})`
+                                : undefined
+                        }
+                        renderOption={(option) => <GoalCycleOptionPreview option={option} />}
+                    />
+                    {loadError ? <p className="text-sm text-red-700">{loadError}</p> : null}
+                </CardContent>
+            </Card>
+
+            {loadingGoals ? (
+                <Card className="shadow-sm">
+                    <CardContent className="text-muted-foreground flex min-h-[280px] items-center justify-center p-8 text-sm">
+                        Loading goals for the selected review cycle…
+                    </CardContent>
+                </Card>
+            ) : goalsView ? (
+                <GoalsAssessmentContent goals={goalsView} />
+            ) : (
+                <Card className="shadow-sm">
+                    <CardContent className="flex min-h-[280px] items-center justify-center p-8">
+                        <div className="max-w-md space-y-3 text-center">
+                            <div className="bg-muted/20 mx-auto flex h-12 w-12 items-center justify-center rounded-lg border">
+                                <Target className="text-muted-foreground h-5 w-5" />
+                            </div>
+                            <h2 className="text-foreground text-lg font-semibold">No goals selected</h2>
+                            <p className="text-muted-foreground text-sm">
+                                Select a current or completed review cycle above, or search for another cycle you were assigned to.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+    );
+}
+
+export default function DashboardIndex({ dashboard, myAppraisals, teamPending, approvalQueue, overdueQueue, currentGoals, assignedGoalCycles, goalsLookupEndpoint }: Props) {
     const [activeTab, setActiveTab] = useState<'overview' | 'goals'>('goals');
     const { auth } = usePage<SharedData>().props;
     const permissions = new Set(auth.permissions ?? []);
@@ -567,6 +923,8 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
         ...(metricMeta[key as keyof typeof metricMeta] ?? { label: labelize(key), helper: 'Dashboard metric', icon: Gauge }),
     }));
     const focusCycle = dashboard.focus_cycle;
+    const canAssignEmployees = permissions.has('performance.review_cycles.assign_employees');
+    const canViewReviewCycles = permissions.has('performance.review_cycles.view');
 
     return (
         <PerformancePage
@@ -575,14 +933,14 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
             breadcrumbs={breadcrumbs}
             secondaryActions={
                 <>
-                    <Button asChild variant="outline">
+                    <Button asChild variant="accent">
                         <Link href={route('performance.appraisals.index')}>
                             Appraisals
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
                     </Button>
                     {permissions.has('performance.reports.view') ? (
-                        <Button asChild variant="outline">
+                        <Button asChild variant="info">
                             <Link href={route('performance.reports.index')}>
                                 Reports
                                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -593,13 +951,13 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
             }
         >
             <div className="bg-muted/20 flex w-fit rounded-lg border p-1">
-                <Button type="button" size="sm" variant={activeTab === 'overview' ? 'default' : 'ghost'} onClick={() => setActiveTab('overview')}>
-                    <Gauge className="mr-2 h-4 w-4" />
-                    Overview
-                </Button>
                 <Button type="button" size="sm" variant={activeTab === 'goals' ? 'default' : 'ghost'} onClick={() => setActiveTab('goals')}>
                     <Target className="mr-2 h-4 w-4" />
                     Goals
+                </Button>
+                <Button type="button" size="sm" variant={activeTab === 'overview' ? 'default' : 'ghost'} onClick={() => setActiveTab('overview')}>
+                    <Gauge className="mr-2 h-4 w-4" />
+                    Overview
                 </Button>
             </div>
 
@@ -631,7 +989,8 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
                                     </div>
                                 </div>
                                 {focusCycle ? (
-                                    <div className="grid gap-6 p-8 lg:grid-cols-[1.2fr_0.8fr]">
+                                    <>
+                                        <div className="grid gap-6 p-8 lg:grid-cols-[1.2fr_0.8fr]">
                                         <div className="space-y-6">
                                             <div className="bg-muted/10 rounded-xl border p-4">
                                                 <div className="text-muted-foreground mb-3 flex items-center justify-between text-xs font-semibold tracking-[0.16em] uppercase">
@@ -684,6 +1043,14 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
                                             ))}
                                         </div>
                                     </div>
+                                    <FocusCycleActivitySection
+                                        focusCycle={focusCycle}
+                                        stageCompletion={dashboard.stage_completion}
+                                        coverage={dashboard.coverage}
+                                        canAssignEmployees={canAssignEmployees}
+                                        canViewReviewCycles={canViewReviewCycles}
+                                    />
+                                    </>
                                 ) : (
                                     <div className="text-muted-foreground px-8 py-10 text-sm">There is currently no open cycle.</div>
                                 )}
@@ -1261,7 +1628,7 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
                     </section>
                 </div>
             ) : (
-                <GoalsAssessmentTab currentGoals={currentGoals} />
+                <GoalsAssessmentTab currentGoals={currentGoals} assignedGoalCycles={assignedGoalCycles} goalsLookupEndpoint={goalsLookupEndpoint} />
             )}
         </PerformancePage>
     );

@@ -27,7 +27,7 @@ class UpdateReviewCycleRequest extends FormRequest
             'self_assessment_deadline' => ['nullable', 'date'],
             'manager_review_deadline' => ['nullable', 'date'],
             'approval_deadline' => ['nullable', 'date'],
-            'status' => ['nullable', Rule::in(['draft', 'open', 'closed'])],
+            'status' => ['prohibited'],
         ];
     }
 

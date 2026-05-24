@@ -8,19 +8,51 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDateTime } from '@/lib/date-utils';
 import type { BreadcrumbItem, SharedData } from '@/types';
 import type { AccessUserRecord, Option, Paginated } from '@/types/performance';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
-import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Briefcase, CheckCheck, Download, Eye, Filter, LogIn, Pencil, RotateCcw, Search, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
+import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Briefcase, CheckCheck, Download, Eye, FileSpreadsheet, FileText, Filter, LogIn, Pencil, RotateCcw, Search, ShieldCheck, SlidersHorizontal, Trash2, UserPlus, Users, X } from 'lucide-react';
+
+const ALL_FILTER_VALUE = 'all';
+
+const employeeLinkFilterOptions = [
+    { value: 'linked', label: 'Linked to employee profile' },
+    { value: 'unlinked', label: 'Not linked' },
+] as const;
+
+const directPermissionFilterOptions = [
+    { value: 'yes', label: 'Has direct permissions' },
+    { value: 'no', label: 'No direct permissions' },
+] as const;
+
+interface UserExportColumn {
+    key: string;
+    label: string;
+    section: string;
+    default: boolean;
+    required: boolean;
+}
 
 interface Props {
     users?: Paginated<AccessUserRecord> | null;
-    filters?: { search?: string; sort_by?: string; sort_dir?: 'asc' | 'desc'; approval_status?: 'active' | 'pending' } | null;
+    filters?: {
+        search?: string;
+        sort_by?: string;
+        sort_dir?: 'asc' | 'desc';
+        approval_status?: 'active' | 'pending';
+        role_id?: number | null;
+        department_id?: number | null;
+        employee_link?: 'linked' | 'unlinked' | null;
+        has_direct_permissions?: 'yes' | 'no' | null;
+    } | null;
     counts?: { active?: number; pending?: number } | null;
     roleOptions?: Option[] | null;
+    departmentOptions?: Option[] | null;
+    exportColumns?: UserExportColumn[] | null;
 }
 
 function getInitials(name: string) {
@@ -38,7 +70,7 @@ function permissionTone(count: number) {
     return 'bg-muted-foreground/50';
 }
 
-export default function UsersIndex({ users, filters, counts, roleOptions }: Props) {
+export default function UsersIndex({ users, filters, counts, roleOptions, departmentOptions, exportColumns }: Props) {
     const { auth, flash } = usePage<SharedData>().props;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Performance', href: '/performance/dashboard' },
@@ -46,6 +78,7 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
     ];
     const canCreateUsers = auth.permissions.includes('access.users.create');
     const canImportUsers = auth.permissions.includes('access.users.import');
+    const canExportUsers = auth.permissions.includes('access.users.view');
     const canImpersonateUsers = auth.permissions.includes('access.users.impersonate');
     const canApproveUsers = auth.permissions.includes('access.users.approve');
     const canDeleteUsers = auth.permissions.includes('access.users.delete');
@@ -58,6 +91,11 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
     const [approvalRoleIds, setApprovalRoleIds] = useState<number[]>([]);
     const [deleteTarget, setDeleteTarget] = useState<AccessUserRecord | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [exportModalOpen, setExportModalOpen] = useState(false);
+    const safeExportColumns = exportColumns ?? [];
+    const [selectedExportColumns, setSelectedExportColumns] = useState<string[]>(
+        safeExportColumns.filter((column) => column.default || column.required).map((column) => column.key),
+    );
 
     const safeUsers: Paginated<AccessUserRecord> = {
         data: users?.data ?? [],
@@ -76,14 +114,70 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
         sort_by: filters?.sort_by ?? 'name',
         sort_dir: filters?.sort_dir ?? 'asc',
         approval_status: approvalStatus,
+        role_id: filters?.role_id ? String(filters.role_id) : '',
+        department_id: filters?.department_id ? String(filters.department_id) : '',
+        employee_link: filters?.employee_link ?? '',
+        has_direct_permissions: filters?.has_direct_permissions ?? '',
     });
 
     const safeRoleOptions = roleOptions ?? [];
+    const safeDepartmentOptions = departmentOptions ?? [];
     const pendingSelection = useMemo(
         () => safeUsers.data.find((user) => user.id === pendingSelectionId) ?? null,
         [pendingSelectionId, safeUsers.data],
     );
     const canOpenActivateModal = approvalStatus === 'pending' && !!pendingSelection && canApproveUsers;
+    const exportColumnsBySection = useMemo(() => {
+        return safeExportColumns.reduce<Record<string, UserExportColumn[]>>((groups, column) => {
+            groups[column.section] = groups[column.section] ?? [];
+            groups[column.section].push(column);
+
+            return groups;
+        }, {});
+    }, [safeExportColumns]);
+
+    const activeFilterCount = useMemo(
+        () =>
+            [
+                searchForm.data.search,
+                searchForm.data.role_id,
+                searchForm.data.department_id,
+                searchForm.data.employee_link,
+                searchForm.data.has_direct_permissions,
+            ].filter(Boolean).length,
+        [
+            searchForm.data.search,
+            searchForm.data.role_id,
+            searchForm.data.department_id,
+            searchForm.data.employee_link,
+            searchForm.data.has_direct_permissions,
+        ],
+    );
+
+    const buildFilterParams = (overrides: Record<string, string | undefined> = {}) => ({
+        search: searchForm.data.search || undefined,
+        sort_by: searchForm.data.sort_by,
+        sort_dir: searchForm.data.sort_dir,
+        approval_status: searchForm.data.approval_status,
+        role_id: searchForm.data.role_id || undefined,
+        department_id: searchForm.data.department_id || undefined,
+        employee_link: searchForm.data.employee_link || undefined,
+        has_direct_permissions: searchForm.data.has_direct_permissions || undefined,
+        ...overrides,
+    });
+
+    const applyFilters = (overrides: Record<string, string | undefined> = {}) => {
+        router.get(route('access.users.index'), buildFilterParams(overrides), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    const clearFilter = (key: 'search' | 'role_id' | 'department_id' | 'employee_link' | 'has_direct_permissions') => {
+        searchForm.setData(key, '');
+        applyFilters({ [key]: undefined });
+    };
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -96,6 +190,7 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
     };
 
     const usersOnPage = safeUsers.data.length;
+    const totalMatchingUsers = safeUsers.total ?? usersOnPage;
     const linkedProfiles = safeUsers.data.filter((user) => user.employee_profile).length;
     const usersWithRoles = safeUsers.data.filter((user) => (user.roles?.length ?? 0) > 0).length;
     const totalDirectPermissions = safeUsers.data.reduce((sum, user) => sum + (user.permissions?.length ?? 0), 0);
@@ -107,20 +202,11 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
         searchForm.setData('sort_by', column);
         searchForm.setData('sort_dir', nextDirection);
 
-        router.get(
-            route('access.users.index'),
-            {
-                search: searchForm.data.search,
-                sort_by: column,
-                sort_dir: nextDirection,
-                approval_status: searchForm.data.approval_status,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
+        router.get(route('access.users.index'), buildFilterParams({ sort_by: column, sort_dir: nextDirection }), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
     };
 
     const SortIcon = ({ column }: { column: 'name' | 'email' | 'employee_number' | 'created_at' }) => {
@@ -148,20 +234,30 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
     const switchApprovalTab = (tab: 'active' | 'pending') => {
         searchForm.setData('approval_status', tab);
 
-        router.get(
-            route('access.users.index'),
-            {
-                search: searchForm.data.search,
-                sort_by: searchForm.data.sort_by,
-                sort_dir: searchForm.data.sort_dir,
-                approval_status: tab,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            },
-        );
+        router.get(route('access.users.index'), buildFilterParams({ approval_status: tab }), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    const resetFilters = () => {
+        searchForm.setData({
+            search: '',
+            sort_by: 'name',
+            sort_dir: 'asc',
+            approval_status: approvalStatus,
+            role_id: '',
+            department_id: '',
+            employee_link: '',
+            has_direct_permissions: '',
+        });
+
+        router.get(route('access.users.index'), { approval_status: approvalStatus }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
     };
 
     const openActivationModal = () => {
@@ -197,6 +293,38 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
         );
     };
 
+    const toggleExportColumn = (column: UserExportColumn, checked: boolean) => {
+        if (column.required) return;
+
+        setSelectedExportColumns((current) => {
+            if (checked) {
+                return [...new Set([...current, column.key])];
+            }
+
+            return current.filter((key) => key !== column.key);
+        });
+    };
+
+    const handleExport = (format: 'xlsx' | 'pdf') => {
+        const url = new URL(route('access.users.export'), window.location.origin);
+        const params = buildFilterParams();
+
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined) {
+                url.searchParams.set(key, value);
+            }
+        });
+
+        url.searchParams.set('format', format);
+
+        selectedExportColumns.forEach((column) => {
+            url.searchParams.append('columns[]', column);
+        });
+
+        window.location.assign(url.toString());
+        setExportModalOpen(false);
+    };
+
     return (
         <PerformancePage
             title="Users"
@@ -222,6 +350,13 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
                             </div>
 
                             <div className="flex flex-wrap gap-2">
+                                {canExportUsers ? (
+                                    <Button type="button" variant="outline" onClick={() => setExportModalOpen(true)}>
+                                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                        Export Users
+                                    </Button>
+                                ) : null}
+
                                 {canImportUsers ? (
                                     <Button asChild type="button" variant="info">
                                         <Link href={route('access.users.import.create')}>
@@ -295,36 +430,171 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
                 </Card>
 
                 <Card>
-                    <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-                        <form onSubmit={submitSearch} className="flex w-full flex-col gap-3 sm:flex-row lg:max-w-2xl">
-                            <div className="relative flex-1">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    value={searchForm.data.search}
-                                    onChange={(event) => searchForm.setData('search', event.target.value)}
-                                    placeholder="Search users by name, email, or employee number"
-                                    className="h-11 pl-10"
+                    <CardHeader className="border-b bg-muted/20">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <CardDescription className="text-[11px] font-medium uppercase tracking-[0.18em]">
+                                    Search & Filter
+                                </CardDescription>
+                                <CardTitle className="text-lg">Find users</CardTitle>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                <SlidersHorizontal className="h-4 w-4" />
+                                <span>
+                                    {activeFilterCount} active filter{activeFilterCount === 1 ? '' : 's'}
+                                </span>
+                                <Badge variant="outline">{totalMatchingUsers} matching</Badge>
+                            </div>
+                        </div>
+                    </CardHeader>
+
+                    <CardContent className="p-6">
+                        <form onSubmit={submitSearch} className="space-y-4">
+                            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                                <div className="space-y-2 xl:col-span-2">
+                                    <label className="block text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                        Search
+                                    </label>
+                                    <div className="relative">
+                                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                        <Input
+                                            value={searchForm.data.search}
+                                            onChange={(event) => searchForm.setData('search', event.target.value)}
+                                            placeholder="Name, email, or employee number"
+                                            className="h-11 pl-10"
+                                        />
+                                    </div>
+                                </div>
+
+                                <FilterSelect
+                                    label="Role"
+                                    placeholder="All roles"
+                                    value={searchForm.data.role_id}
+                                    options={safeRoleOptions.map((role) => ({
+                                        value: String(role.value),
+                                        label: role.label,
+                                    }))}
+                                    onValueChange={(value) => searchForm.setData('role_id', value)}
+                                />
+
+                                <FilterSelect
+                                    label="Department"
+                                    placeholder="All departments"
+                                    value={searchForm.data.department_id}
+                                    options={safeDepartmentOptions.map((department) => ({
+                                        value: String(department.value),
+                                        label: department.label,
+                                    }))}
+                                    onValueChange={(value) => searchForm.setData('department_id', value)}
+                                />
+
+                                <FilterSelect
+                                    label="Employee Profile"
+                                    placeholder="All profile states"
+                                    value={searchForm.data.employee_link}
+                                    options={[...employeeLinkFilterOptions]}
+                                    onValueChange={(value) => searchForm.setData('employee_link', value)}
+                                />
+
+                                <FilterSelect
+                                    label="Direct Permissions"
+                                    placeholder="All permission states"
+                                    value={searchForm.data.has_direct_permissions}
+                                    options={[...directPermissionFilterOptions]}
+                                    onValueChange={(value) => searchForm.setData('has_direct_permissions', value)}
                                 />
                             </div>
 
-                            <Button type="submit" variant="info" disabled={searchForm.processing}>
-                                <Filter className="mr-2 h-4 w-4" />
-                                Filter
-                            </Button>
+                            <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex flex-wrap gap-2">
+                                    {searchForm.data.search ? (
+                                        <Badge variant="secondary" className="gap-1">
+                                            Search: {searchForm.data.search}
+                                            <button
+                                                type="button"
+                                                onClick={() => clearFilter('search')}
+                                                className="rounded-sm hover:text-foreground"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    ) : null}
+                                    {searchForm.data.role_id ? (
+                                        <Badge variant="secondary" className="gap-1">
+                                            Role: {safeRoleOptions.find((role) => String(role.value) === searchForm.data.role_id)?.label}
+                                            <button
+                                                type="button"
+                                                onClick={() => clearFilter('role_id')}
+                                                className="rounded-sm hover:text-foreground"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    ) : null}
+                                    {searchForm.data.department_id ? (
+                                        <Badge variant="secondary" className="gap-1">
+                                            Department:{' '}
+                                            {
+                                                safeDepartmentOptions.find(
+                                                    (department) => String(department.value) === searchForm.data.department_id,
+                                                )?.label
+                                            }
+                                            <button
+                                                type="button"
+                                                onClick={() => clearFilter('department_id')}
+                                                className="rounded-sm hover:text-foreground"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    ) : null}
+                                    {searchForm.data.employee_link ? (
+                                        <Badge variant="secondary" className="gap-1">
+                                            Profile: {searchForm.data.employee_link === 'linked' ? 'Linked' : 'Not linked'}
+                                            <button
+                                                type="button"
+                                                onClick={() => clearFilter('employee_link')}
+                                                className="rounded-sm hover:text-foreground"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    ) : null}
+                                    {searchForm.data.has_direct_permissions ? (
+                                        <Badge variant="secondary" className="gap-1">
+                                            Permissions: {searchForm.data.has_direct_permissions === 'yes' ? 'Has direct' : 'None'}
+                                            <button
+                                                type="button"
+                                                onClick={() => clearFilter('has_direct_permissions')}
+                                                className="rounded-sm hover:text-foreground"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    ) : null}
+                                </div>
 
-                            <Button asChild variant="soft">
-                                <Link href={route('access.users.index', { approval_status: approvalStatus })}>
-                                    <RotateCcw className="mr-2 h-4 w-4" />
-                                    Reset
-                                </Link>
-                            </Button>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button type="submit" variant="info" disabled={searchForm.processing}>
+                                        <Filter className="mr-2 h-4 w-4" />
+                                        Apply Filters
+                                    </Button>
+
+                                    <Button type="button" variant="outline" onClick={resetFilters}>
+                                        <RotateCcw className="mr-2 h-4 w-4" />
+                                        Reset
+                                    </Button>
+
+                                    {canExportUsers ? (
+                                        <Button type="button" variant="outline" onClick={() => setExportModalOpen(true)}>
+                                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                            Export
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            </div>
                         </form>
-
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Users className="h-4 w-4" />
-                            Users on this page:
-                            <span className="font-medium text-foreground">{usersOnPage}</span>
-                        </div>
                     </CardContent>
                 </Card>
 
@@ -522,8 +792,8 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
                         {safeUsers.links.length > 0 && (
                             <div className="flex flex-col gap-4 border-t px-6 py-4 md:flex-row md:items-center md:justify-between">
                                 <div className="text-xs text-muted-foreground">
-                                    Directory results for the current page:
-                                    <span className="ml-1 font-medium text-foreground">{usersOnPage}</span>
+                                    Showing {safeUsers.from ?? 0} to {safeUsers.to ?? usersOnPage} of{' '}
+                                    <span className="font-medium text-foreground">{totalMatchingUsers}</span> matching users
                                 </div>
 
                                 <PaginationLinks paginated={safeUsers} />
@@ -608,6 +878,79 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
 
             <DeleteUserDialog user={deleteTarget} open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} />
 
+            <Dialog open={exportModalOpen} onOpenChange={setExportModalOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                            § Export
+                        </div>
+                        <DialogTitle className="font-display flex items-center gap-2 text-2xl font-light tracking-tight">
+                            <FileSpreadsheet className="h-5 w-5" />
+                            IT User Access List
+                        </DialogTitle>
+                        <DialogDescription className="text-[13px]">
+                            Download the IT User Access List with your selected columns. The export respects your current search, filters, approval tab, and sort order.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="max-h-[55vh] space-y-5 overflow-y-auto pr-1">
+                        {Object.entries(exportColumnsBySection).map(([section, columns]) => (
+                            <section key={section} className="space-y-3">
+                                <h3 className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                    {labelize(section)}
+                                </h3>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    {columns.map((column) => {
+                                        const checked = selectedExportColumns.includes(column.key);
+
+                                        return (
+                                            <label
+                                                key={column.key}
+                                                className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2 text-sm"
+                                            >
+                                                <Checkbox
+                                                    checked={checked}
+                                                    disabled={column.required}
+                                                    onCheckedChange={(value) => toggleExportColumn(column, value === true)}
+                                                />
+                                                <span className="flex-1 font-medium text-foreground">{column.label}</span>
+                                                {column.required ? <Badge variant="outline">Required</Badge> : null}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        ))}
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:justify-between">
+                        <Button type="button" variant="outline" onClick={() => setExportModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => handleExport('xlsx')}
+                                disabled={selectedExportColumns.length === 0}
+                            >
+                                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                Download Excel
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={() => handleExport('pdf')}
+                                disabled={selectedExportColumns.length === 0}
+                            >
+                                <FileText className="mr-2 h-4 w-4" />
+                                Download PDF
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={approvalModalOpen} onOpenChange={setApprovalModalOpen}>
                 <DialogContent>
                     <DialogHeader>
@@ -660,5 +1003,45 @@ export default function UsersIndex({ users, filters, counts, roleOptions }: Prop
                 </DialogContent>
             </Dialog>
         </PerformancePage>
+    );
+}
+
+function labelize(value: string) {
+    return value.replace(/[_-]/g, ' ');
+}
+
+function FilterSelect({
+    label,
+    placeholder,
+    value,
+    options,
+    onValueChange,
+}: {
+    label: string;
+    placeholder: string;
+    value: string;
+    options: Array<{ value: string; label: string }>;
+    onValueChange: (value: string) => void;
+}) {
+    return (
+        <div className="space-y-2">
+            <label className="block text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">{label}</label>
+            <Select
+                value={value || ALL_FILTER_VALUE}
+                onValueChange={(next) => onValueChange(next === ALL_FILTER_VALUE ? '' : next)}
+            >
+                <SelectTrigger className="h-11">
+                    <SelectValue placeholder={placeholder} />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value={ALL_FILTER_VALUE}>{placeholder}</SelectItem>
+                    {options.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
     );
 }

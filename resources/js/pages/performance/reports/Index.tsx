@@ -1,4 +1,5 @@
 import PerformancePage from '@/components/performance/PerformancePage';
+import ReportExportButtons from '@/components/performance/ReportExportButtons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -467,13 +468,13 @@ export default function ReportsIndex({ reviewCycleOptions, filters, reports }: P
 
                 <section className="grid gap-6 xl:grid-cols-3">
                     {[
-                        ['Cycle Summary', 'performance.reports.cycle_summary', 'Cycle-level totals, completion, and effective score movement.', BarChart3],
-                        ['Department Summary', 'performance.reports.department_summary', 'Department-level completion and effective score detail.', Building2],
-                        ['Employee Summary', 'performance.reports.employee_summary', 'Per-employee appraisal outcomes and effective scores.', UserRound],
-                        ['Completion Status', 'performance.reports.completion_status', 'Workflow status counts and completion position.', CheckCircle2],
-                        ['Rating Distribution', 'performance.reports.rating_distribution', 'Effective rating mix and rating spread.', TrendingUp],
-                        ['Overdue Reviews', 'performance.reports.overdue_reviews', 'Deadline misses with manager and approver context.', Clock3],
-                    ].map(([title, routeName, description, Icon]) => {
+                        ['Cycle Summary', 'performance.reports.cycle_summary', 'Cycle-level totals, completion, and effective score movement.', BarChart3, 'cycle-summary'],
+                        ['Department Summary', 'performance.reports.department_summary', 'Department-level completion and effective score detail.', Building2, 'department-summary'],
+                        ['Employee Summary', 'performance.reports.employee_summary', 'Per-employee appraisal outcomes and effective scores.', UserRound, 'employee-summary'],
+                        ['Completion Status', 'performance.reports.completion_status', 'Workflow status counts and completion position.', CheckCircle2, 'completion-status'],
+                        ['Rating Distribution', 'performance.reports.rating_distribution', 'Effective rating mix and rating spread.', TrendingUp, 'rating-distribution'],
+                        ['Overdue Reviews', 'performance.reports.overdue_reviews', 'Deadline misses with manager and approver context.', Clock3, 'overdue-reviews'],
+                    ].map(([title, routeName, description, Icon, exportKey]) => {
                         const ReportIcon = Icon as typeof BarChart3;
                         return (
                             <Card key={String(title)} className="shadow-sm">
@@ -490,6 +491,13 @@ export default function ReportsIndex({ reviewCycleOptions, filters, reports }: P
                                                 <ArrowRight className="ml-1 h-4 w-4" />
                                             </Link>
                                         </Button>
+                                        <ReportExportButtons
+                                            exportKey={String(exportKey)}
+                                            reportTitle={String(title)}
+                                            reviewCycleId={filters.review_cycle_id ?? null}
+                                            className="mt-4 flex flex-wrap gap-2"
+                                            size="sm"
+                                        />
                                     </div>
                                 </CardContent>
                             </Card>

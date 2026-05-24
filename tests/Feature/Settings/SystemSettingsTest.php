@@ -9,6 +9,7 @@ use App\Services\Settings\MailSettingsService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
 use Inertia\Testing\AssertableInertia as Assert;
 use OpenSpout\Reader\XLSX\Reader;
@@ -163,6 +164,36 @@ test('employee export includes configured company identity above headings', func
         ->and($rows[2])->toBe(['Employee Name', 'Employee Number'])
         ->and($rows[3][1])->toBe('EMP-SET-001')
         ->and($rows[4][0])->toBe('Confidential performance report.');
+});
+
+test('authorized users can upload and reset the company logo from settings', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+    grantSystemSettingsPermission($user);
+
+    $logo = UploadedFile::fake()->image('company-logo.png', 240, 80);
+
+    $this->actingAs($user)
+        ->post(route('settings.logo.update'), ['logo' => $logo])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect(glob(public_path('branding/system-logo.*')) ?: [])->not->toBeEmpty();
+
+    $this->actingAs($user)
+        ->delete(route('settings.logo.destroy'))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect(glob(public_path('branding/system-logo.*')) ?: [])->toBeEmpty();
+});
+
+test('users without settings permission cannot upload company logo', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+    $logo = UploadedFile::fake()->image('company-logo.png');
+
+    $this->actingAs($user)
+        ->post(route('settings.logo.update'), ['logo' => $logo])
+        ->assertForbidden();
 });
 
 function grantSystemSettingsPermission(User $user): void

@@ -1,4 +1,5 @@
 import HeadingSmall from '@/components/heading-small';
+import BrandingLogoDropzone from '@/components/settings/branding-logo-dropzone';
 import OperationsPanel, { type OperationsSnapshot } from '@/components/settings/operations-panel';
 import SettingsTabs, { type SettingsTab } from '@/components/settings/settings-tabs';
 import InputError from '@/components/input-error';
@@ -11,23 +12,9 @@ import { Label } from '@/components/ui/label';
 import { DEFAULT_PALETTE, type Palette, usePalette } from '@/hooks/use-palette';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
-import {
-    Building2,
-    CircleOff,
-    Droplets,
-    ImagePlus,
-    Mail,
-    Palette as PaletteIcon,
-    RotateCcw,
-    Save,
-    Send,
-    Settings2,
-    ShieldCheck,
-    UploadCloud,
-} from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { Building2, Mail, Palette as PaletteIcon, RotateCcw, Save, Send, Settings2 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
-import { useDropzone } from 'react-dropzone';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Settings', href: route('settings.index') }];
 
@@ -115,12 +102,9 @@ function resolveTabFromUrl(): SettingsTab {
 }
 
 export default function SettingsIndex({ settings, operations }: Props) {
-    const logoUrl = (usePage().props as { branding?: { logoUrl?: string | null } }).branding?.logoUrl ?? null;
     const [activeTab, setActiveTab] = useState<SettingsTab>(resolveTabFromUrl);
     const { palette, updateColor, resetPalette, previewColors } = usePalette();
     const [drafts, setDrafts] = useState<Palette>(palette);
-    const [logoError, setLogoError] = useState<string | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
     const [testEmail, setTestEmail] = useState('');
     const [testEmailError, setTestEmailError] = useState<string | null>(null);
 
@@ -193,34 +177,6 @@ export default function SettingsIndex({ settings, operations }: Props) {
 
         updateColor(key, normalized);
     };
-
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        accept: {
-            'image/png': ['.png'],
-            'image/jpeg': ['.jpg', '.jpeg'],
-            'image/webp': ['.webp'],
-            'image/svg+xml': ['.svg'],
-        },
-        multiple: false,
-        onDrop: (acceptedFiles) => {
-            const file = acceptedFiles[0];
-            if (!file) return;
-
-            setIsUploading(true);
-            setLogoError(null);
-
-            router.post(
-                route('settings.logo.update'),
-                { logo: file },
-                {
-                    forceFormData: true,
-                    preserveScroll: true,
-                    onError: (formErrors) => setLogoError(typeof formErrors.logo === 'string' ? formErrors.logo : 'Logo upload failed.'),
-                    onFinish: () => setIsUploading(false),
-                },
-            );
-        },
-    });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -318,62 +274,7 @@ export default function SettingsIndex({ settings, operations }: Props) {
                     </Card>
 
                     <div className="space-y-6">
-                        <Card className="border shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <ImagePlus className="h-5 w-5 text-primary" />
-                                    Branding Logo
-                                </CardTitle>
-                                <CardDescription>Displayed in the app shell and available to generated report outputs.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div
-                                    {...getRootProps()}
-                                    className={`rounded-lg border border-dashed p-6 text-center transition-colors ${
-                                        isDragActive ? 'border-primary bg-primary/5' : 'border-border bg-muted/20'
-                                    }`}
-                                >
-                                    <input {...getInputProps()} />
-                                    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border bg-background">
-                                        <UploadCloud className="h-5 w-5 text-muted-foreground" />
-                                    </div>
-                                    <p className="text-sm font-medium text-foreground">
-                                        {isDragActive ? 'Drop the logo here...' : 'Drag and drop logo here, or click to upload'}
-                                    </p>
-                                    <p className="mt-1 text-xs text-muted-foreground">PNG, JPG, WEBP or SVG. Max 3MB.</p>
-                                    {isUploading ? <p className="mt-2 text-xs text-primary">Uploading...</p> : null}
-                                </div>
-
-                                {logoError ? <p className="text-sm text-destructive">{logoError}</p> : null}
-
-                                <div className="rounded-lg border bg-muted/10 p-4">
-                                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
-                                        <ShieldCheck className="h-4 w-4 text-primary" />
-                                        Current Logo
-                                    </div>
-                                    {logoUrl ? (
-                                        <div className="flex h-20 items-center justify-center rounded-md border bg-background">
-                                            <img src={logoUrl} alt="Current system logo" className="max-h-14 max-w-full object-contain" />
-                                        </div>
-                                    ) : (
-                                        <div className="flex h-20 items-center justify-center rounded-md border bg-background text-sm text-muted-foreground">
-                                            Default logo is active.
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="grid gap-2 sm:grid-cols-2">
-                                    <Button type="button" variant="outline" onClick={() => window.location.reload()}>
-                                        <Droplets className="mr-2 h-4 w-4" />
-                                        Refresh Preview
-                                    </Button>
-                                    <Button type="button" variant="outline" disabled={!logoUrl} onClick={() => router.delete(route('settings.logo.destroy'), { preserveScroll: true })}>
-                                        <CircleOff className="mr-2 h-4 w-4" />
-                                        Reset Logo
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <BrandingLogoDropzone />
 
                         <Card className="border shadow-sm">
                             <CardHeader>

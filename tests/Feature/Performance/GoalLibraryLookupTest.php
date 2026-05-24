@@ -17,7 +17,10 @@ uses(RefreshDatabase::class);
 
 test('goal library lookup returns goals for employee department and job title', function () {
     $user = User::factory()->create(['is_approved' => true]);
-    $user->givePermissionTo(Permission::findOrCreate('performance.appraisals.plan_own', 'web'));
+    $user->givePermissionTo([
+        Permission::findOrCreate('performance.appraisals.plan_own', 'web'),
+        Permission::findOrCreate('performance.appraisals.view_own', 'web'),
+    ]);
 
     $department = Department::factory()->create(['name' => 'Finance']);
     $jobTitle = JobTitle::factory()->create(['name' => 'Analyst']);
@@ -80,4 +83,56 @@ test('goal library lookup returns goals for employee department and job title', 
         ->assertJsonFragment(['label' => 'Analyst accuracy goal'])
         ->assertJsonPath('results.0.perspective_id', $perspective->id)
         ->assertJsonPath('results.0.default_weight', 25);
+});
+
+test('goal library lookup excludes already selected goals on the plan', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+    $user->givePermissionTo([
+        Permission::findOrCreate('performance.appraisals.plan_own', 'web'),
+        Permission::findOrCreate('performance.appraisals.view_own', 'web'),
+    ]);
+
+    $department = Department::factory()->create(['name' => 'Finance']);
+    $jobTitle = JobTitle::factory()->create(['name' => 'Analyst']);
+    $perspective = Perspective::factory()->create();
+
+    $profile = EmployeeProfile::factory()
+        ->for($user)
+        ->for($department)
+        ->for($jobTitle)
+        ->create();
+
+    $cycle = ReviewCycle::factory()->create(['status' => ReviewCycleStatus::Open]);
+
+    $appraisal = Appraisal::factory()
+        ->for($cycle, 'reviewCycle')
+        ->for($profile, 'employeeProfile')
+        ->create([
+            'employee_user_id' => $user->id,
+            'status' => AppraisalStatus::GoalSetting,
+        ]);
+
+    $selectedGoal = GoalLibraryItem::factory()
+        ->for($department)
+        ->for($jobTitle)
+        ->for($perspective)
+        ->create(['title' => 'Selected analyst goal']);
+
+    $availableGoal = GoalLibraryItem::factory()
+        ->for($department)
+        ->for($perspective)
+        ->create([
+            'job_title_id' => null,
+            'title' => 'Department revenue goal',
+        ]);
+
+    $this->actingAs($user)
+        ->getJson(route('performance.appraisals.plan.goal_library', [
+            'appraisal' => $appraisal,
+            'exclude' => (string) $selectedGoal->id,
+        ]))
+        ->assertOk()
+        ->assertJsonCount(1, 'results')
+        ->assertJsonFragment(['label' => 'Department revenue goal'])
+        ->assertJsonMissing(['label' => 'Selected analyst goal']);
 });

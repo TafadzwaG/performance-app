@@ -120,27 +120,41 @@ class PerformanceSetupSeeder extends Seeder
 
         $competencies = collect([
             [
-                'name' => 'Guest Obsession',
-                'code' => 'guest_obsession',
+                'name' => 'We love to win',
+                'code' => 'we_love_to_win',
                 'category' => CompetencyCategory::Value,
-                'description' => 'Anticipates guest needs, responds with care, and uses feedback to improve service.',
+                'description' => 'Demonstrates drive for results and a shared commitment to success.',
             ],
             [
-                'name' => 'Ownership',
-                'code' => 'ownership',
+                'name' => 'We relate with empathy',
+                'code' => 'we_relate_with_empathy',
                 'category' => CompetencyCategory::Value,
-                'description' => 'Accepts accountability, follows through on commitments, and resolves issues promptly.',
+                'description' => 'Shows understanding, respect, and care in every interaction.',
             ],
-        ])->map(fn (array $data) => Competency::query()->updateOrCreate(
+            [
+                'name' => 'We are agile',
+                'code' => 'we_are_agile',
+                'category' => CompetencyCategory::Value,
+                'description' => 'Adapts quickly, embraces change, and responds effectively to new challenges.',
+            ],
+            [
+                'name' => 'We work better together',
+                'code' => 'we_work_better_together',
+                'category' => CompetencyCategory::Value,
+                'description' => 'Collaborates openly and builds trust across teams to achieve shared goals.',
+            ],
+        ])->map(fn (array $data) => Competency::withTrashed()->updateOrCreate(
             ['code' => $data['code']],
-            $data + ['is_active' => true],
+            $data + ['is_active' => true, 'deleted_at' => null],
         ));
 
-        $legacyCompetencies = collect([
+        collect([
+            ['name' => 'Guest Obsession', 'code' => 'guest_obsession', 'description' => 'Anticipates guest needs, responds with care, and uses feedback to improve service.'],
+            ['name' => 'Ownership', 'code' => 'ownership', 'description' => 'Accepts accountability, follows through on commitments, and resolves issues promptly.'],
             ['name' => 'Integrity', 'code' => 'integrity', 'description' => 'Demonstrates honesty, confidentiality, and ethical judgement.'],
             ['name' => 'Collaboration', 'code' => 'collaboration', 'description' => 'Works constructively with peers and stakeholders.'],
             ['name' => 'Customer Focus', 'code' => 'customer_focus', 'description' => 'Keeps customer needs central to service delivery.'],
-        ])->map(fn (array $legacyCompetency) => Competency::query()->updateOrCreate(
+        ])->each(fn (array $legacyCompetency) => Competency::withTrashed()->updateOrCreate(
             ['code' => $legacyCompetency['code']],
             $legacyCompetency + [
                 'category' => CompetencyCategory::Value,
@@ -203,11 +217,11 @@ class PerformanceSetupSeeder extends Seeder
             ]);
         }
 
-        foreach ($competencies->merge($legacyCompetencies) as $offset => $competency) {
+        foreach ($competencies as $offset => $competency) {
             $template->items()->create([
                 'item_type' => TemplateItemType::Competency,
                 'competency_id' => $competency->id,
-                'title' => 'Demonstrate '.$competency->name,
+                'title' => $competency->name,
                 'description' => $competency->description,
                 'sort_order' => 100 + $offset,
                 'is_required' => true,

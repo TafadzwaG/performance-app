@@ -1,10 +1,12 @@
 <?php
 
+use App\Models\EmployeeProfile;
 use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -20,7 +22,7 @@ test('browse lists all files in a storage zone recursively', function () {
     $this->actingAs($user)
         ->get(route('access.storage.index', ['zone' => 'imports', 'list' => 'all']))
         ->assertOk()
-        ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+        ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('files.list_all', true)
             ->where('files.entries', function ($entries) {
                 $paths = collect($entries)->pluck('path')->all();
@@ -85,6 +87,7 @@ test('system settings manager can access storage without dedicated storage permi
 
 test('users without storage or settings permission cannot access storage management', function () {
     $user = User::factory()->create(['is_approved' => true]);
+    EmployeeProfile::factory()->for($user)->create();
 
     $this->actingAs($user)
         ->get(route('access.storage.index'))

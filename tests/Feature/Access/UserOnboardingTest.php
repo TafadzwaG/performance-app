@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\EmployeeProfile;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -9,10 +10,10 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 
 test('authorized admin can create a user and send onboarding credentials', function () {
-    $admin = User::factory()->create();
+    $admin = User::factory()->create(['is_approved' => true]);
     $employeeRole = Role::findOrCreate('Employee', 'web');
 
-    grantUserAccessPermissions($admin, ['access.users.create']);
+    grantUserAccessPermissions($admin, ['access.users.create', 'access.roles.assign_users']);
 
     Notification::fake();
 
@@ -42,11 +43,15 @@ test('authorized admin can create a user and send onboarding credentials', funct
 });
 
 test('authorized admin can bulk create users with shared access assignments', function () {
-    $admin = User::factory()->create();
+    $admin = User::factory()->create(['is_approved' => true]);
     $employeeRole = Role::findOrCreate('Employee', 'web');
     $reportPermission = Permission::findOrCreate('performance.reports.view', 'web');
 
-    grantUserAccessPermissions($admin, ['access.users.create']);
+    grantUserAccessPermissions($admin, [
+        'access.users.create',
+        'access.roles.assign_users',
+        'access.roles.assign_permissions',
+    ]);
 
     $response = $this->actingAs($admin)->post(route('access.users.bulk_store'), [
         'default_role_ids' => [$employeeRole->id],
@@ -71,7 +76,7 @@ test('authorized admin can bulk create users with shared access assignments', fu
 
     $response
         ->assertRedirect(route('access.users.index'))
-        ->assertSessionHas('generated_credentials');
+        ->assertSessionHas('success');
 
     $tatenda = User::query()->where('email', 'tatenda.muchengeti@example.com')->firstOrFail();
     $nyasha = User::query()->where('email', 'nyasha.makoni@example.com')->firstOrFail();
@@ -81,12 +86,15 @@ test('authorized admin can bulk create users with shared access assignments', fu
 });
 
 test('authorized admin can import users from a csv file', function () {
-    $admin = User::factory()->create();
+    $admin = User::factory()->create(['is_approved' => true]);
     $employeeRole = Role::findOrCreate('Employee', 'web');
     $managerRole = Role::findOrCreate('Manager', 'web');
     $reportPermission = Permission::findOrCreate('performance.reports.view', 'web');
 
-    grantUserAccessPermissions($admin, ['access.users.import']);
+    grantUserAccessPermissions($admin, [
+        'access.users.import',
+        'access.roles.assign_users',
+    ]);
 
     $csv = implode("\n", [
         'name,email,password,force_password_change,send_credentials_email,role_names,permission_names',
@@ -120,9 +128,13 @@ test('user with forced password change is redirected until the password is updat
         'force_password_change' => true,
         'password_changed_at' => null,
     ]);
+    $profile = EmployeeProfile::factory()->for($user)->create([
+        'employee_number' => 'EMP-PWD-001',
+    ]);
 
     $this->post('/login', [
-        'email' => $user->email,
+        'login_method' => 'employee_number',
+        'employee_number' => $profile->employee_number,
         'password' => 'Welcome@1234',
     ])->assertRedirect(route('password.edit'));
 
@@ -136,7 +148,7 @@ test('user with forced password change is redirected until the password is updat
             'password' => 'NewWelcome@1234',
             'password_confirmation' => 'NewWelcome@1234',
         ])
-        ->assertRedirect(route('employee-profile.complete'));
+        ->assertRedirect(route('dashboard'));
 
     $user->refresh();
 

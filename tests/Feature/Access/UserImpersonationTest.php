@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\EmployeeProfile;
 use App\Models\Permission;
 use App\Models\User;
 use Lab404\Impersonate\Services\ImpersonateManager;
@@ -28,8 +29,11 @@ test('authorized user can impersonate another user and leave impersonation', fun
 });
 
 test('user without impersonation permission cannot impersonate another user', function () {
-    $user = User::factory()->create();
-    $target = User::factory()->create();
+    $user = User::factory()->create(['is_approved' => true]);
+    EmployeeProfile::factory()->for($user)->create();
+    $target = User::factory()->create(['is_approved' => true]);
+
+    grantAccessPermissions($user, ['access.users.view']);
 
     $this->actingAs($user)
         ->post(route('access.users.impersonate.store', $target))
@@ -37,9 +41,11 @@ test('user without impersonation permission cannot impersonate another user', fu
 });
 
 test('user cannot impersonate themselves', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->create(['is_approved' => true]);
+    EmployeeProfile::factory()->for($user)->create();
 
     grantAccessPermissions($user, [
+        'access.users.view',
         'access.users.impersonate',
     ]);
 

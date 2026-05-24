@@ -9,15 +9,43 @@ use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
-test('user without employee profile is redirected to complete profile after login and when opening dashboard', function () {
+test('user without employee profile can sign in with email and is redirected to complete profile', function () {
     $user = User::factory()->create([
         'password' => Hash::make('Welcome@1234'),
     ]);
 
     $this->post('/login', [
+        'login_method' => 'email',
         'email' => $user->email,
         'password' => 'Welcome@1234',
     ])->assertRedirect(route('employee-profile.complete'));
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertRedirect(route('employee-profile.complete'));
+});
+
+test('user without employee profile cannot sign in with unknown employee number', function () {
+    User::factory()->create([
+        'password' => Hash::make('Welcome@1234'),
+    ]);
+
+    $this->from('/login')
+        ->post('/login', [
+            'login_method' => 'employee_number',
+            'employee_number' => 'EMP-SELF-1001',
+            'password' => 'Welcome@1234',
+        ])
+        ->assertRedirect('/login')
+        ->assertSessionHasErrors('employee_number');
+
+    $this->assertGuest();
+});
+
+test('user without employee profile is redirected to complete profile when opening dashboard', function () {
+    $user = User::factory()->create([
+        'password' => Hash::make('Welcome@1234'),
+    ]);
 
     $this->actingAs($user)
         ->get(route('dashboard'))
@@ -71,8 +99,6 @@ test('user can complete their employee profile and then reach the dashboard', fu
     $this->assertDatabaseHas('employee_profiles', [
         'user_id' => $user->id,
         'employee_number' => 'EMP-SELF-1001',
-        'city' => 'Harare',
-        'country' => 'Zimbabwe',
     ]);
 
     $this->actingAs($user->fresh())

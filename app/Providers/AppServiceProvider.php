@@ -12,6 +12,7 @@ use App\Models\Department;
 use App\Models\DevelopmentPlan;
 use App\Models\EmployeeProfile;
 use App\Models\GoalLibraryItem;
+use App\Models\IssueReport;
 use App\Models\JobTitle;
 use App\Models\Perspective;
 use App\Models\RatingScale;
@@ -25,6 +26,7 @@ use App\Policies\DepartmentPolicy;
 use App\Policies\DevelopmentPlanPolicy;
 use App\Policies\EmployeeProfilePolicy;
 use App\Policies\GoalLibraryItemPolicy;
+use App\Policies\IssueReportPolicy;
 use App\Policies\JobTitlePolicy;
 use App\Policies\PerspectivePolicy;
 use App\Policies\RatingScalePolicy;
@@ -35,6 +37,7 @@ use App\Services\Settings\MailSettingsService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -51,7 +54,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Password::defaults(function () {
+            return Password::min(8)
+                ->mixedCase()
+                ->numbers()
+                ->symbols();
+        });
+
         Gate::policy(Department::class, DepartmentPolicy::class);
+        Gate::policy(IssueReport::class, IssueReportPolicy::class);
         Gate::policy(JobTitle::class, JobTitlePolicy::class);
         Gate::policy(Perspective::class, PerspectivePolicy::class);
         Gate::policy(Competency::class, CompetencyPolicy::class);

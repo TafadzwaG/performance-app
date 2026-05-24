@@ -6,6 +6,7 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use App\Support\Branding;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -15,7 +16,7 @@ use Illuminate\Queue\SerializesModels;
  * Sent to a user once a Super Admin approves their account, giving them
  * confirmation and a direct sign-in link.
  */
-class UserApprovedNotification extends Mailable
+class UserApprovedNotification extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

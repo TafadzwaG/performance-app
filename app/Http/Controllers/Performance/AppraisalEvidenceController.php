@@ -5,9 +5,10 @@ namespace App\Http\Controllers\Performance;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Performance\StoreObjectiveEvidenceRequest;
 use App\Models\Appraisal;
-use App\Models\AppraisalObjectiveEvidence;
 use App\Models\AppraisalObjective;
+use App\Models\AppraisalObjectiveEvidence;
 use App\Services\Performance\EvidenceStorageService;
+use App\Support\Security\SafeExternalUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -16,18 +17,17 @@ class AppraisalEvidenceController extends Controller
 {
     public function __construct(
         private readonly EvidenceStorageService $evidenceStorageService,
-    ) {
-    }
+    ) {}
 
     public function store(StoreObjectiveEvidenceRequest $request, Appraisal $appraisal, AppraisalObjective $objective): RedirectResponse
     {
         $this->authorize('uploadEvidence', $appraisal);
         abort_unless($objective->appraisal_id === $appraisal->id, 404);
 
-        if ($request->input('evidence_type') === 'file') {
-            $this->evidenceStorageService->storeFile($objective, $request->file('file'), $request->user(), $request->input('notes'));
+        if ($request->validated('evidence_type') === 'file') {
+            $this->evidenceStorageService->storeFile($objective, $request->file('file'), $request->user(), $request->validated('notes'));
         } else {
-            $this->evidenceStorageService->storeLink($objective, $request->input('url'), $request->user(), $request->input('notes'));
+            $this->evidenceStorageService->storeLink($objective, $request->validated('url'), $request->user(), $request->validated('notes'));
         }
 
         return back();
@@ -43,12 +43,12 @@ class AppraisalEvidenceController extends Controller
         abort_unless($evidence->appraisal_objective_id === $objective->id, 404);
 
         if ($evidence->evidence_type->value === 'link') {
-            abort_unless(filled($evidence->url), 404);
+            abort_unless(SafeExternalUrl::isAllowed($evidence->url), 404);
 
             return redirect()->away($evidence->url);
         }
 
-        $diskName = $evidence->disk ?: 'public';
+        $diskName = $evidence->disk ?: EvidenceStorageService::DISK;
         abort_unless(filled($evidence->path), 404);
 
         $disk = Storage::disk($diskName);
@@ -65,10 +65,15 @@ class AppraisalEvidenceController extends Controller
                     fclose($stream);
                 }
             },
-            $evidence->original_name ?: basename($evidence->path),
+            $this->sanitizeDownloadFilename($evidence->original_name ?: basename($evidence->path)),
             array_filter([
                 'Content-Type' => $evidence->mime_type,
             ]),
         );
+    }
+
+    private function sanitizeDownloadFilename(string $filename): string
+    {
+        return preg_replace('/[\r\n"\\\\]/', '', basename($filename)) ?: 'download';
     }
 }

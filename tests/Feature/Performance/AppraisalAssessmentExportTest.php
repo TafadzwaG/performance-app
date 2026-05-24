@@ -60,15 +60,19 @@ test('appraisal pdf download services use the shared assessment form view', func
 
     $viewPath = resource_path('views/pdf/performance/appraisal-assessment-form.blade.php');
     $view = file_get_contents($viewPath);
+    $layoutPath = resource_path('views/pdf/layouts/studio-export.blade.php');
+    $layout = file_get_contents($layoutPath);
 
-    expect($view)->toContain('INDIVIDUAL PERFORMANCE ASSESSMENT FORM')
+    expect($view)->toContain("@extends('pdf.layouts.studio-export')")
+        ->and($view)->toContain('Individual Performance Assessment Form')
+        ->and($layout)->toContain('studio-export-styles')
         ->and($view)->toContain('Objective (The Goal)')
         ->and($view)->toContain('KPI / Measure (How Measured)')
         ->and($view)->toContain('Target (Success Definition)')
         ->and($view)->toContain('Performance Achieved')
         ->and($view)->toContain('Manager&rsquo;s Rating')
-        ->and($view)->toContain('BUSINESS OBJECTIVES RATING SCALE')
-        ->and($view)->toContain('VALUES OBJECTIVES RATING SCALE')
+        ->and($view)->toContain('Business Objectives Rating Scale')
+        ->and($view)->toContain('Values Objectives Rating Scale')
         ->and($view)->toContain('$level->description');
 });
 

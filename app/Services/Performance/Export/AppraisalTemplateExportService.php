@@ -3,12 +3,12 @@
 namespace App\Services\Performance\Export;
 
 use App\Models\AppraisalTemplate;
-use App\Models\SystemSetting;
 use App\Models\User;
 use App\Support\Branding;
+use App\Support\Pdf\StudioExportPdf;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\File;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Border;
 use OpenSpout\Common\Entity\Style\BorderPart;
@@ -20,6 +20,7 @@ use OpenSpout\Writer\XLSX\Options\PageSetup;
 use OpenSpout\Writer\XLSX\Options\PaperSize;
 use OpenSpout\Writer\XLSX\Writer;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response as BaseResponse;
 
 /**
  * Branded export pipeline for an AppraisalTemplate — mirrors the
@@ -31,24 +32,54 @@ class AppraisalTemplateExportService
 
     public function pdf(AppraisalTemplate $template, User $actor): BinaryFileResponse
     {
+        [$fileName, $filePath] = $this->renderPdfToFile($template, $actor);
+
+        return response()->download($filePath, $fileName, [
+            'Content-Type' => 'application/pdf',
+        ])->deleteFileAfterSend(true);
+    }
+
+    public function streamPdf(AppraisalTemplate $template, User $actor): Response
+    {
+        [$fileName, $filePath] = $this->renderPdfToFile($template, $actor);
+        $contents = file_get_contents($filePath);
+        @unlink($filePath);
+
+        return response($contents, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$fileName.'"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+        ]);
+    }
+
+    public function htmlPreview(AppraisalTemplate $template, User $actor): BaseResponse
+    {
+        return response()
+            ->view(
+                'pdf.performance.template-export',
+                $this->buildContext($this->loadTemplate($template), $actor, previewHtml: true),
+            )
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
+    }
+
+    /**
+     * @return array{0:string,1:string}
+     */
+    private function renderPdfToFile(AppraisalTemplate $template, User $actor): array
+    {
         $context = $this->buildContext($this->loadTemplate($template), $actor);
 
         $fileName = $this->fileName($context['template'], 'pdf');
         $tempPath = storage_path('app/exports/'.$fileName);
         $this->ensureDirectory(dirname($tempPath));
 
-        Pdf::loadView('pdf.performance.template-export', $context)
-            ->setPaper('a4', 'landscape')
-            ->setOptions([
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled' => true,
-                'defaultFont' => 'DejaVu Sans',
-            ])
-            ->save($tempPath);
+        StudioExportPdf::configure(
+            Pdf::loadView('pdf.performance.template-export', $context)
+        )->save($tempPath);
 
-        return response()->download($tempPath, $fileName, [
-            'Content-Type' => 'application/pdf',
-        ])->deleteFileAfterSend(true);
+        return [$fileName, $tempPath];
     }
 
     /* ============================================================ EXCEL */
@@ -105,32 +136,23 @@ class AppraisalTemplateExportService
         ]);
     }
 
-    private function buildContext(AppraisalTemplate $template, User $actor): array
+    private function buildContext(AppraisalTemplate $template, User $actor, bool $previewHtml = false): array
     {
-        $settings = SystemSetting::query()->first();
-        $logoPath = $this->logoAbsolutePath();
-        $poweredByPath = Branding::poweredByPath();
-
         $items = $template->items;
         $objectiveItems = $items->filter(fn ($i) => $this->itemType($i) === 'objective')->values();
         $valueItems = $items->filter(fn ($i) => $this->itemType($i) === 'competency')->values();
 
         return [
+            ...Branding::exportHeaderContext(),
             'template' => $template,
             'objectiveItems' => $objectiveItems,
             'valueItems' => $valueItems,
             'totalWeight' => (float) $objectiveItems->sum(fn ($i) => (float) ($i->default_weight ?? 0)),
-            'settings' => $settings,
-            'logoPath' => $logoPath,
-            'logoExists' => $logoPath !== null && File::exists($logoPath),
-            'poweredByPath' => $poweredByPath,
-            'poweredByExists' => $poweredByPath !== null,
-            'companyName' => $settings?->company_name ?? 'Performance Appraisal Studio',
-            'companyAddress' => $settings?->formattedAddress(),
-            'reportFooter' => $settings?->report_footer,
+            'previewHtml' => $previewHtml,
             'exportedBy' => $actor->name,
             'exportedByEmail' => $actor->email,
             'exportedAt' => Carbon::now(),
+            'headerReportLabel' => 'Appraisal Template',
         ];
     }
 
@@ -142,13 +164,6 @@ class AppraisalTemplateExportService
         }
 
         return (string) $type;
-    }
-
-    private function logoAbsolutePath(): ?string
-    {
-        $files = glob(public_path('branding/system-logo.*')) ?: [];
-
-        return $files[0] ?? null;
     }
 
     private function fileName(AppraisalTemplate $template, string $extension): string
@@ -302,7 +317,7 @@ class AppraisalTemplateExportService
             foreach ($context['valueItems'] as $i => $item) {
                 $this->writeTableRow($writer, [
                     $i + 1,
-                    $item->competency?->name ?? '—',
+                    $item->displayValueName(),
                     $item->title ?? '—',
                     $item->description ?? '—',
                     $item->is_required ? 'Yes' : 'No',

@@ -6,12 +6,13 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use App\Support\Branding;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class LoginOtpMail extends Mailable
+class LoginOtpMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

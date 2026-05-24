@@ -12,15 +12,17 @@ use Illuminate\Support\Facades\Storage;
 
 class EvidenceStorageService
 {
+    public const DISK = 'local';
+
     public function storeFile(AppraisalObjective $objective, UploadedFile $file, User $user, ?string $notes = null): AppraisalObjectiveEvidence
     {
-        $path = $file->store("performance/evidence/{$objective->id}", 'public');
+        $path = $file->store("performance/evidence/{$objective->id}", self::DISK);
 
         return AppraisalObjectiveEvidence::create([
             'appraisal_objective_id' => $objective->id,
             'uploaded_by_user_id' => $user->id,
             'evidence_type' => 'file',
-            'disk' => 'public',
+            'disk' => self::DISK,
             'path' => $path,
             'original_name' => $file->getClientOriginalName(),
             'mime_type' => $file->getMimeType(),
@@ -55,13 +57,13 @@ class EvidenceStorageService
         User $user,
         ?string $notes = null,
     ): AppraisalCalibrationEvidence {
-        $path = $file->store("performance/calibration-evidence/{$calibration->id}", 'public');
+        $path = $file->store("performance/calibration-evidence/{$calibration->id}", self::DISK);
 
         return AppraisalCalibrationEvidence::create([
             'appraisal_calibration_id' => $calibration->id,
             'uploaded_by_user_id' => $user->id,
             'evidence_type' => 'file',
-            'disk' => 'public',
+            'disk' => self::DISK,
             'path' => $path,
             'original_name' => $file->getClientOriginalName(),
             'mime_type' => $file->getMimeType(),

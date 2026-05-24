@@ -12,6 +12,7 @@ class PerformancePermissions
             ],
             'System Settings' => [
                 'system.settings.manage',
+                'system.disaster_recovery.manage',
             ],
             'Departments' => [
                 'performance.setup.departments.view',
@@ -117,6 +118,14 @@ class PerformancePermissions
             'Storage Management' => [
                 'access.storage.manage',
             ],
+            'Issues' => [
+                'issues.view_own',
+                'issues.view_all',
+                'issues.create',
+                'issues.assign',
+                'issues.update_status',
+                'issues.comment',
+            ],
         ];
     }
 
@@ -197,6 +206,10 @@ class PerformancePermissions
                 'access.users.update',
                 'access.users.import',
                 'access.audit_trails.view',
+                'issues.view_all',
+                'issues.assign',
+                'issues.update_status',
+                'issues.comment',
             ],
             'Manager' => [
                 'performance.dashboard.view',
@@ -213,6 +226,8 @@ class PerformancePermissions
                 'performance.development_plans.update',
                 'performance.reports.view',
                 'performance.reports.print',
+                'issues.view_own',
+                'issues.create',
             ],
             'Approving Manager' => [
                 'performance.dashboard.view',
@@ -224,6 +239,8 @@ class PerformancePermissions
                 'performance.development_plans.view',
                 'performance.reports.view',
                 'performance.reports.print',
+                'issues.view_own',
+                'issues.create',
             ],
             'Calibration Committee' => [
                 'performance.dashboard.view',
@@ -236,6 +253,8 @@ class PerformancePermissions
             ],
             'Employee' => [
                 'performance.dashboard.view',
+                'performance.goal_library.view',
+                'performance.goal_library.create',
                 'performance.appraisals.view_own',
                 'performance.appraisals.plan_own',
                 'performance.appraisals.self_assess',
@@ -243,6 +262,8 @@ class PerformancePermissions
                 'performance.appraisals.upload_evidence',
                 'performance.development_plans.view',
                 'performance.reports.print',
+                'issues.view_own',
+                'issues.create',
             ],
         ];
     }

@@ -34,9 +34,9 @@ test('upload preview shows department and job title matching step', function () 
     $jobTitle = JobTitle::factory()->create(['name' => 'Analyst']);
 
     $csv = implode("\n", [
-        'user_email,employee_number,department_name,job_title_name',
-        "preview.employee@example.com,EMP-PRE-001,{$department->name},{$jobTitle->name}",
-        'preview.employee@example.com,EMP-PRE-002,Unknown Dept,Unknown Title',
+        'employee_number,user_email,department_name,job_title_name',
+        "EMP-PRE-001,preview.employee@example.com,{$department->name},{$jobTitle->name}",
+        'EMP-PRE-002,preview.employee@example.com,Unknown Dept,Unknown Title',
     ]);
 
     $file = UploadedFile::fake()->createWithContent('employees.csv', $csv);
@@ -63,13 +63,16 @@ test('authorized users can import employees after mapping departments and job ti
         'email' => 'import.manager@example.com',
         'is_approved' => true,
     ]);
+    EmployeeProfile::factory()->for($manager)->create([
+        'employee_number' => 'MGR-UP-001',
+    ]);
 
     $department = Department::factory()->create(['name' => 'Operations']);
     $jobTitle = JobTitle::factory()->create(['name' => 'Analyst']);
 
     $csv = implode("\n", [
-        'user_email,employee_number,department_name,job_title_name,line_manager_email',
-        "import.employee@example.com,EMP-UP-001,{$department->name},{$jobTitle->name},{$manager->email}",
+        'employee_number,user_email,department_name,job_title_name,line_manager_employee_number',
+        "EMP-UP-001,import.employee@example.com,{$department->name},{$jobTitle->name},MGR-UP-001",
     ]);
 
     $file = UploadedFile::fake()->createWithContent('employees.csv', $csv);
@@ -111,8 +114,8 @@ test('users can map unknown spreadsheet labels to existing setup records', funct
     $jobTitle = JobTitle::factory()->create(['name' => 'HR Officer']);
 
     $csv = implode("\n", [
-        'user_email,employee_number,department_name,job_title_name',
-        'mapped.employee@example.com,EMP-MAP-001,HR Dept Spreadsheet,HR Role Spreadsheet',
+        'employee_number,user_email,department_name,job_title_name',
+        'EMP-MAP-001,mapped.employee@example.com,HR Dept Spreadsheet,HR Role Spreadsheet',
     ]);
 
     $file = UploadedFile::fake()->createWithContent('employees.csv', $csv);
@@ -143,8 +146,54 @@ test('users can map unknown spreadsheet labels to existing setup records', funct
         ->and($profile->job_title_id)->toBe($jobTitle->id);
 });
 
+test('import rejects duplicate employee numbers already in the system', function () {
+    $admin = User::factory()->create(['is_approved' => true]);
+    grantEmployeeImportPermissions($admin);
+
+    $existingUser = User::factory()->create([
+        'email' => 'existing.employee@example.com',
+        'is_approved' => true,
+    ]);
+    EmployeeProfile::factory()->for($existingUser)->create([
+        'employee_number' => 'EMP-DUP-001',
+    ]);
+
+    $newUser = User::factory()->create([
+        'email' => 'new.employee@example.com',
+        'is_approved' => true,
+    ]);
+
+    $department = Department::factory()->create(['name' => 'Operations']);
+    $jobTitle = JobTitle::factory()->create(['name' => 'Analyst']);
+
+    $csv = implode("\n", [
+        'employee_number,user_email,department_name,job_title_name',
+        "EMP-DUP-001,{$newUser->email},{$department->name},{$jobTitle->name}",
+    ]);
+
+    $file = UploadedFile::fake()->createWithContent('employees.csv', $csv);
+
+    $this->actingAs($admin)
+        ->post(route('performance.employees.upload.preview'), ['file' => $file])
+        ->assertOk();
+
+    $this->actingAs($admin)
+        ->from(route('performance.employees.upload.preview'))
+        ->post(route('performance.employees.upload.store'), [
+            'department_mappings' => [
+                ['source' => $department->name, 'department_id' => $department->id],
+            ],
+            'job_title_mappings' => [
+                ['source' => $jobTitle->name, 'job_title_id' => $jobTitle->id],
+            ],
+        ])
+        ->assertRedirect(route('performance.employees.upload.preview'))
+        ->assertSessionHasErrors('file');
+});
+
 function grantEmployeeImportPermissions(User $user): void
 {
     Permission::findOrCreate('performance.employees.create', 'web');
     $user->givePermissionTo('performance.employees.create');
+    EmployeeProfile::factory()->for($user)->create();
 }

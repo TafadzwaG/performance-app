@@ -3,10 +3,11 @@
 namespace App\Notifications\Access;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class UserOnboardingNotification extends Notification
+class UserOnboardingNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -14,8 +15,7 @@ class UserOnboardingNotification extends Notification
         public readonly string $plainPassword,
         public readonly bool $forcePasswordChange,
         public readonly ?string $createdByName = null,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -24,7 +24,7 @@ class UserOnboardingNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $mail = (new MailMessage())
+        $mail = (new MailMessage)
             ->subject('Your account has been created')
             ->greeting("Hello {$notifiable->name},")
             ->line('An account has been created for you in the Performance Management System.')

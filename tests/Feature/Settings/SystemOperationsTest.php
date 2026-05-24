@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -87,13 +88,14 @@ test('authorized user can purge export storage from storage management route', f
 
     $this->actingAs($user)
         ->delete(route('access.storage.purge', ['zone' => 'exports']))
-        ->assertRedirect(route('access.storage.index', ['zone' => 'exports']));
+        ->assertRedirect(route('access.storage.index', ['zone' => 'exports', 'list' => 'all']));
 
     expect(File::exists($directory.'/sample.xlsx'))->toBeFalse();
 });
 
 test('users without system settings permission cannot manage operations', function () {
     $user = User::factory()->create(['is_approved' => true]);
+    EmployeeProfile::factory()->for($user)->create();
 
     $this->actingAs($user)
         ->delete(route('access.storage.files.destroy'), [

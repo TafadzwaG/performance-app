@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BreadcrumbItem } from '@/types';
-import type { GoalImportMappingItem, GoalImportPreview, Option } from '@/types/performance';
+import type { GoalImportMappingItem, GoalImportPreview, GoalLibraryScope, Option } from '@/types/performance';
 import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Briefcase, Building2, CheckCheck, Layers3, ShieldCheck } from 'lucide-react';
 import { useMemo } from 'react';
@@ -14,6 +14,7 @@ interface Props {
     perspectiveOptions: Option[];
     departmentOptions: Option[];
     jobTitleOptions: Option[];
+    scope: GoalLibraryScope;
 }
 
 type PerspectiveMappingRow = { source: string; perspective_id: string };
@@ -34,7 +35,7 @@ function initialMappings(items: GoalImportMappingItem[], idKey: 'perspective_id'
     }));
 }
 
-export default function GoalLibraryUploadPreview({ preview, perspectiveOptions, departmentOptions, jobTitleOptions }: Props) {
+export default function GoalLibraryUploadPreview({ preview, perspectiveOptions, departmentOptions, jobTitleOptions, scope }: Props) {
     const { data, setData, post, processing, errors } = useForm<{
         perspective_mappings: PerspectiveMappingRow[];
         department_mappings: DepartmentMappingRow[];
@@ -53,8 +54,7 @@ export default function GoalLibraryUploadPreview({ preview, perspectiveOptions, 
         preview.row_count > 0 &&
         preview.row_errors.length === 0 &&
         unmappedPerspectives === 0 &&
-        unmappedDepartments === 0 &&
-        unmappedJobTitles === 0;
+        (scope.locked || (unmappedDepartments === 0 && unmappedJobTitles === 0));
 
     const submitImport = () => {
         post(route('performance.goal_library.upload.store'));
@@ -76,17 +76,22 @@ export default function GoalLibraryUploadPreview({ preview, perspectiveOptions, 
                         <Badge variant="secondary">{preview.perspectives.length} perspective values</Badge>
                         <Badge variant="secondary">{preview.departments.length} department values</Badge>
                         <Badge variant="secondary">{preview.job_titles.length} job title values</Badge>
+                        {scope.locked ? (
+                            <Badge variant="outline">
+                                Imports use {scope.department_label ?? 'your department'} / {scope.job_title_label ?? 'your job title'}
+                            </Badge>
+                        ) : null}
                         {unmappedPerspectives > 0 ? (
                             <Badge variant="destructive">{unmappedPerspectives} perspectives need mapping</Badge>
                         ) : (
                             <Badge variant="outline">All perspectives mapped</Badge>
                         )}
-                        {unmappedDepartments > 0 ? (
+                        {scope.locked ? null : unmappedDepartments > 0 ? (
                             <Badge variant="destructive">{unmappedDepartments} departments need mapping</Badge>
                         ) : (
                             <Badge variant="outline">All departments mapped</Badge>
                         )}
-                        {unmappedJobTitles > 0 ? (
+                        {scope.locked ? null : unmappedJobTitles > 0 ? (
                             <Badge variant="destructive">{unmappedJobTitles} job titles need mapping</Badge>
                         ) : (
                             <Badge variant="outline">All job titles mapped</Badge>
@@ -110,7 +115,7 @@ export default function GoalLibraryUploadPreview({ preview, perspectiveOptions, 
                     </Card>
                 ) : null}
 
-                <div className="grid gap-6 xl:grid-cols-3">
+                <div className={`grid gap-6 ${scope.locked ? 'xl:grid-cols-1' : 'xl:grid-cols-3'}`}>
                     <MappingCard
                         title="Perspectives"
                         description="Match each perspective value to a setup perspective."
@@ -126,36 +131,40 @@ export default function GoalLibraryUploadPreview({ preview, perspectiveOptions, 
                         }}
                         error={errors.perspective_mappings as string | undefined}
                     />
-                    <MappingCard
-                        title="Departments"
-                        description="Match optional department values to setup departments."
-                        icon={Building2}
-                        items={preview.departments}
-                        mappings={data.department_mappings}
-                        options={departmentOptions}
-                        idKey="department_id"
-                        onChange={(index, value) => {
-                            const next = [...data.department_mappings];
-                            next[index] = { ...next[index], department_id: value };
-                            setData('department_mappings', next);
-                        }}
-                        error={errors.department_mappings as string | undefined}
-                    />
-                    <MappingCard
-                        title="Job Titles"
-                        description="Match optional role values to setup job titles."
-                        icon={Briefcase}
-                        items={preview.job_titles}
-                        mappings={data.job_title_mappings}
-                        options={jobTitleOptions}
-                        idKey="job_title_id"
-                        onChange={(index, value) => {
-                            const next = [...data.job_title_mappings];
-                            next[index] = { ...next[index], job_title_id: value };
-                            setData('job_title_mappings', next);
-                        }}
-                        error={errors.job_title_mappings as string | undefined}
-                    />
+                    {!scope.locked ? (
+                        <>
+                            <MappingCard
+                                title="Departments"
+                                description="Match optional department values to setup departments."
+                                icon={Building2}
+                                items={preview.departments}
+                                mappings={data.department_mappings}
+                                options={departmentOptions}
+                                idKey="department_id"
+                                onChange={(index, value) => {
+                                    const next = [...data.department_mappings];
+                                    next[index] = { ...next[index], department_id: value };
+                                    setData('department_mappings', next);
+                                }}
+                                error={errors.department_mappings as string | undefined}
+                            />
+                            <MappingCard
+                                title="Job Titles"
+                                description="Match optional role values to setup job titles."
+                                icon={Briefcase}
+                                items={preview.job_titles}
+                                mappings={data.job_title_mappings}
+                                options={jobTitleOptions}
+                                idKey="job_title_id"
+                                onChange={(index, value) => {
+                                    const next = [...data.job_title_mappings];
+                                    next[index] = { ...next[index], job_title_id: value };
+                                    setData('job_title_mappings', next);
+                                }}
+                                error={errors.job_title_mappings as string | undefined}
+                            />
+                        </>
+                    ) : null}
                 </div>
 
                 {preview.sample_rows.length > 0 ? (

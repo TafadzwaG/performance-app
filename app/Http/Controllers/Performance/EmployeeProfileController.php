@@ -7,6 +7,7 @@ use App\Exports\Performance\EmployeeProfilesExport;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Performance\ConfirmEmployeeImportRequest;
+use App\Http\Requests\Performance\DeleteEmployeeProfileRequest;
 use App\Http\Requests\Performance\PreviewEmployeeImportRequest;
 use App\Http\Requests\Performance\StoreEmployeeProfileRequest;
 use App\Http\Requests\Performance\UpdateEmployeeLineManagerRequest;
@@ -15,8 +16,11 @@ use App\Models\EmployeeProfile;
 use App\Models\Role;
 use App\Services\Performance\EmployeeFieldConfigService;
 use App\Services\Performance\EmployeeImportService;
+use App\Services\Performance\EmployeeProfileDeletionService;
 use App\Support\Performance\EmployeeExportColumnRegistry;
 use App\Support\Performance\EmployeeFieldRegistry;
+use App\Support\Security\SensitiveValueMasker;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -55,6 +59,7 @@ class EmployeeProfileController extends Controller
                 'create' => $request->user()->can('performance.employees.create'),
                 'import' => $request->user()->can('create', EmployeeProfile::class),
                 'export' => $request->user()->can('performance.employees.view'),
+                'delete' => $request->user()->can('performance.employees.update'),
             ],
         ]);
     }
@@ -211,6 +216,11 @@ class EmployeeProfileController extends Controller
             'appraisals.overallRatingLevel',
         ]);
 
+        $employeeProfile->setAttribute(
+            'national_id',
+            SensitiveValueMasker::maskNationalId($employeeProfile->national_id),
+        );
+
         return Inertia::render('performance/employees/Show', [
             'employeeProfile' => $employeeProfile,
             'managerOptions' => $this->managerUserOptions(),
@@ -274,6 +284,26 @@ class EmployeeProfileController extends Controller
 
         return to_route('performance.employees.show', $employeeProfile)
             ->with('success', 'Line manager updated successfully.');
+    }
+
+    public function deletionImpact(EmployeeProfile $employeeProfile, EmployeeProfileDeletionService $deletionService): JsonResponse
+    {
+        $this->authorize('delete', $employeeProfile);
+
+        return response()->json($deletionService->impact($employeeProfile));
+    }
+
+    public function destroy(
+        DeleteEmployeeProfileRequest $request,
+        EmployeeProfile $employeeProfile,
+        EmployeeProfileDeletionService $deletionService,
+    ): RedirectResponse {
+        $label = $employeeProfile->user?->name ?? $employeeProfile->employee_number;
+
+        $deletionService->delete($employeeProfile, $request->user());
+
+        return to_route('performance.employees.index')
+            ->with('success', "{$label} and all associated records were deleted permanently.");
     }
 
     private function employeeFormPageData(Request $request): array

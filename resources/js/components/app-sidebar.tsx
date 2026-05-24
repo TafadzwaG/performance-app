@@ -31,6 +31,7 @@ import {
     HardDrive,
     History,
     LayoutGrid,
+    LifeBuoy,
     LogOut,
     RefreshCw,
     Settings2,
@@ -44,7 +45,11 @@ import AppLogo from './app-logo';
 export function AppSidebar() {
     const { auth, nav } = usePage<SharedData>().props;
     const permissions = auth.permissions ?? [];
+    const roles = auth.roles ?? [];
     const can = (...required: string[]) => required.some((permission) => permissions.includes(permission));
+    const isSuperAdminRole = roles.some((role) => role.toLowerCase() === 'super admin');
+    const isEmployeeRole = roles.some((role) => role.toLowerCase() === 'employee');
+    const showMyKpisNav = nav?.showMyKpis === true;
     const impersonation = auth.impersonation;
     const employeesCount = typeof nav?.employeesCount === 'number' ? nav.employeesCount : null;
     const pendingAppraisalsCount =
@@ -159,6 +164,15 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
+        ...(can('system.disaster_recovery.manage')
+            ? [
+                  {
+                      title: 'Disaster Recovery',
+                      url: route('settings.disaster_recovery.index'),
+                      icon: HardDrive,
+                  } satisfies NavItem,
+              ]
+            : []),
         ...(can('system.settings.manage')
             ? [
                   {
@@ -176,6 +190,15 @@ export function AppSidebar() {
             url: '/dashboard',
             icon: LayoutGrid,
         },
+        ...(isSuperAdminRole || can('issues.view_own', 'issues.view_all', 'issues.create')
+            ? [
+                  {
+                      title: 'Issues',
+                      url: '/issues',
+                      icon: LifeBuoy,
+                  } satisfies NavItem,
+              ]
+            : []),
         ...(can('performance.employees.view', 'performance.employees.create', 'performance.employees.update')
             ? [
                   {
@@ -204,7 +227,16 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('performance.goal_library.view', 'performance.goal_library.create', 'performance.goal_library.update')
+        ...(showMyKpisNav
+            ? [
+                  {
+                      title: 'My KPIs',
+                      url: '/performance/my-kpis',
+                      icon: Target,
+                  } satisfies NavItem,
+              ]
+            : []),
+        ...(can('performance.goal_library.view', 'performance.goal_library.create', 'performance.goal_library.update') && !isEmployeeRole
             ? [
                   {
                       title: 'Goal Library',
@@ -240,7 +272,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('performance.reports.view', 'performance.reports.export', 'performance.reports.print')
+        ...(!isEmployeeRole && can('performance.reports.view', 'performance.reports.export', 'performance.reports.print')
             ? [
                   {
                       title: 'Reports',
@@ -265,7 +297,7 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="pt-4">
                 {impersonation?.isImpersonating && (
                     <SidebarGroup className="pb-0">
                         <SidebarGroupLabel>Impersonation</SidebarGroupLabel>

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Option } from '@/types/performance';
 import { Link } from '@inertiajs/react';
-import { ArrowLeft, BarChart3, CheckCheck, Eraser, KeyRound, LayoutGrid, Save, Search, Settings2, Shield, UserCog, Users } from 'lucide-react';
+import { ArrowLeft, BarChart3, CheckCheck, Eraser, KeyRound, LayoutGrid, Save, Search, Settings2, Shield, UserCog, Users, X } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 
@@ -89,6 +89,7 @@ export default function RoleForm({
     onSubmit,
 }: RoleFormProps) {
     const [userSearch, setUserSearch] = useState('');
+    const [permissionSearch, setPermissionSearch] = useState('');
 
     const filteredUsers = useMemo(() => {
         const term = userSearch.trim().toLowerCase();
@@ -104,6 +105,40 @@ export default function RoleForm({
             return label.includes(term) || email.includes(term);
         });
     }, [userOptions, userSearch]);
+
+    const filteredPermissionGroups = useMemo(() => {
+        const term = permissionSearch.trim().toLowerCase();
+
+        if (!term) {
+            return permissionGroups;
+        }
+
+        return permissionGroups
+            .map((group) => {
+                const groupMatches = group.group.toLowerCase().includes(term);
+
+                const permissions = group.permissions.filter((permission) => {
+                    const formatted = formatPermissionName(permission.name).toLowerCase();
+
+                    return (
+                        groupMatches ||
+                        permission.name.toLowerCase().includes(term) ||
+                        formatted.includes(term)
+                    );
+                });
+
+                return {
+                    ...group,
+                    permissions,
+                };
+            })
+            .filter((group) => group.permissions.length > 0);
+    }, [permissionGroups, permissionSearch]);
+
+    const filteredPermissionCount = useMemo(
+        () => filteredPermissionGroups.reduce((total, group) => total + group.permissions.length, 0),
+        [filteredPermissionGroups],
+    );
 
     const selectedUsers = useMemo(
         () => userOptions.filter((option) => data.user_ids.includes(Number(option.value))),
@@ -230,7 +265,39 @@ export default function RoleForm({
                         </CardHeader>
 
                         <CardContent className="space-y-4">
-                            {permissionGroups.map((group) => {
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="relative w-full sm:max-w-md">
+                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        value={permissionSearch}
+                                        onChange={(event) => setPermissionSearch(event.target.value)}
+                                        placeholder="Search permissions by name or group"
+                                        className="pl-9 pr-9"
+                                    />
+                                    {permissionSearch ? (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+                                            onClick={() => setPermissionSearch('')}
+                                            title="Clear permission search"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    ) : null}
+                                </div>
+
+                                {permissionSearch ? (
+                                    <div className="text-xs text-muted-foreground">
+                                        Showing {filteredPermissionCount} matching permission
+                                        {filteredPermissionCount === 1 ? '' : 's'}
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            {filteredPermissionGroups.length > 0 ? (
+                                filteredPermissionGroups.map((group) => {
                                 const Icon = getGroupIcon(group.group);
                                 const selectedCount = group.permissions.filter((permission) =>
                                     data.permission_ids.includes(permission.id),
@@ -290,7 +357,27 @@ export default function RoleForm({
                                         </div>
                                     </div>
                                 );
-                            })}
+                            })
+                            ) : (
+                                <div className="rounded-lg border border-dashed px-4 py-10 text-center">
+                                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border bg-muted/30">
+                                        <Search className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <p className="mt-3 text-sm font-medium text-foreground">No permissions match your search</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Try a different keyword, group name, or permission slug.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="mt-4"
+                                        onClick={() => setPermissionSearch('')}
+                                    >
+                                        Clear search
+                                    </Button>
+                                </div>
+                            )}
 
                             <InputError message={errors.permission_ids} />
                         </CardContent>

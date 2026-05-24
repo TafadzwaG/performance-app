@@ -21,10 +21,12 @@ class EmployeeImportTemplateExport
         $writer = new Writer;
         $writer->openToFile($path);
         $writer->addRow(Row::fromValues([
-            'user_email',
             'employee_number',
+            'user_email',
             'department_name',
             'job_title_name',
+            'line_manager_employee_number',
+            'approving_manager_employee_number',
             'line_manager_email',
             'approving_manager_email',
             'national_id',
@@ -41,10 +43,12 @@ class EmployeeImportTemplateExport
             'role_names',
         ]));
         $writer->addRow(Row::fromValues([
-            'rutendo.moyo@example.com',
             'EMP-1001',
+            'rutendo.moyo@example.com',
             'Human Resources',
             'HR Officer',
+            'MGR-2001',
+            'APR-3001',
             'manager@example.com',
             'approver@example.com',
             'ID-1001',

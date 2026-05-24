@@ -47,6 +47,7 @@ class ReviewCycleController extends Controller
             'can' => [
                 'create' => $request->user()->can('performance.review_cycles.create'),
                 'assignEmployees' => $request->user()->can('performance.review_cycles.assign_employees'),
+                'delete' => $request->user()->can('performance.review_cycles.update'),
             ],
         ]);
     }
@@ -58,8 +59,8 @@ class ReviewCycleController extends Controller
 
     public function store(StoreReviewCycleRequest $request): RedirectResponse
     {
-        $reviewCycle = ReviewCycle::create($request->validated() + [
-            'status' => $request->input('status', ReviewCycleStatus::Draft->value),
+        $reviewCycle = ReviewCycle::create($request->safe()->except(['status']) + [
+            'status' => ReviewCycleStatus::Draft->value,
         ]);
 
         return to_route('performance.review_cycles.show', $reviewCycle);
@@ -103,19 +104,29 @@ class ReviewCycleController extends Controller
 
     public function update(UpdateReviewCycleRequest $request, ReviewCycle $reviewCycle): RedirectResponse
     {
-        $attributes = $request->validated();
-
-        if (($attributes['status'] ?? null) === ReviewCycleStatus::Open->value && !$reviewCycle->opened_at) {
-            $attributes['opened_at'] = now();
-        }
-
-        if (($attributes['status'] ?? null) === ReviewCycleStatus::Closed->value) {
-            $attributes['closed_at'] = now();
-        }
+        $attributes = collect($request->safe()->except(['status']))->all();
 
         $reviewCycle->update($attributes);
 
         return to_route('performance.review_cycles.show', $reviewCycle);
+    }
+
+    public function destroy(ReviewCycle $reviewCycle): RedirectResponse
+    {
+        $appraisalCount = $reviewCycle->appraisals()->withTrashed()->count();
+
+        DB::transaction(function () use ($reviewCycle): void {
+            $reviewCycle->delete();
+        });
+
+        return to_route('performance.review_cycles.index')->with(
+            'success',
+            sprintf(
+                'Review cycle deleted along with %d appraisal%s.',
+                $appraisalCount,
+                $appraisalCount === 1 ? '' : 's',
+            ),
+        );
     }
 
     public function open(Request $request, ReviewCycle $reviewCycle): RedirectResponse

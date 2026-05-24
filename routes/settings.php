@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BrandingController;
+use App\Http\Controllers\Settings\DisasterRecoveryController;
 use App\Http\Controllers\Settings\EmailMfaController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -20,6 +21,16 @@ Route::middleware(['auth', 'approved', 'password.change'])->group(function () {
         Route::delete('settings/operations/failed-jobs/{job}', [SystemOperationsController::class, 'forgetFailedJob'])->name('settings.operations.failed_jobs.forget');
         Route::delete('settings/operations/failed-jobs', [SystemOperationsController::class, 'flushFailedJobs'])->name('settings.operations.failed_jobs.flush');
         Route::delete('settings/operations/pending-jobs/{job}', [SystemOperationsController::class, 'deletePendingJob'])->name('settings.operations.pending_jobs.destroy');
+    });
+
+    Route::middleware('can:system.disaster_recovery.manage')->group(function () {
+        Route::get('settings/disaster-recovery', [DisasterRecoveryController::class, 'index'])->name('settings.disaster_recovery.index');
+        Route::post('settings/disaster-recovery/backups', [DisasterRecoveryController::class, 'storeBackup'])->name('settings.disaster_recovery.backups.store');
+        Route::get('settings/disaster-recovery/backups/{backup}', [DisasterRecoveryController::class, 'showBackup'])->name('settings.disaster_recovery.backups.show');
+        Route::post('settings/disaster-recovery/restores', [DisasterRecoveryController::class, 'storeRestore'])->name('settings.disaster_recovery.restores.store');
+        Route::post('settings/disaster-recovery/restores/{restore}/approve', [DisasterRecoveryController::class, 'approveRestore'])->name('settings.disaster_recovery.restores.approve');
+        Route::post('settings/disaster-recovery/restores/{restore}/reject', [DisasterRecoveryController::class, 'rejectRestore'])->name('settings.disaster_recovery.restores.reject');
+        Route::get('settings/disaster-recovery/restore-tests', [DisasterRecoveryController::class, 'restoreTests'])->name('settings.disaster_recovery.restore_tests.index');
     });
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');

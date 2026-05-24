@@ -16,8 +16,7 @@ class AuditTrailRecorder
 {
     public function __construct(
         protected ImpersonateManager $impersonateManager,
-    ) {
-    }
+    ) {}
 
     public function record(Request $request, ?Response $response = null, ?Throwable $exception = null): void
     {
@@ -111,6 +110,9 @@ class AuditTrailRecorder
             'current_password',
             'new_password',
             'new_password_confirmation',
+            'code',
+            'otp',
+            'token',
             '_token',
         ]);
 
@@ -164,7 +166,9 @@ class AuditTrailRecorder
             }
 
             return collect($value)
-                ->map(fn (mixed $item) => $this->normalizeValue($item))
+                ->map(fn (mixed $item, mixed $key) => $this->isSensitiveKey($key)
+                    ? '[redacted]'
+                    : $this->normalizeValue($item))
                 ->all();
         }
 
@@ -173,5 +177,23 @@ class AuditTrailRecorder
         }
 
         return $value;
+    }
+
+    protected function isSensitiveKey(mixed $key): bool
+    {
+        if (! is_string($key)) {
+            return false;
+        }
+
+        return in_array(strtolower($key), [
+            'password',
+            'password_confirmation',
+            'current_password',
+            'new_password',
+            'new_password_confirmation',
+            'code',
+            'otp',
+            'token',
+        ], true);
     }
 }

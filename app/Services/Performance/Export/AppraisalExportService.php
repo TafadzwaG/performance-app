@@ -4,12 +4,11 @@ namespace App\Services\Performance\Export;
 
 use App\Enums\CommentType;
 use App\Models\Appraisal;
-use App\Models\SystemSetting;
 use App\Models\User;
 use App\Support\Branding;
+use App\Support\Pdf\StudioExportPdf;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Border;
@@ -41,14 +40,9 @@ class AppraisalExportService
         $tempPath = storage_path('app/exports/'.$fileName);
         $this->ensureDirectory(dirname($tempPath));
 
-        Pdf::loadView('pdf.performance.appraisal-assessment-form', $context)
-            ->setPaper('a4', 'portrait')
-            ->setOptions([
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled' => true,
-                'defaultFont' => 'DejaVu Sans',
-            ])
-            ->save($tempPath);
+        StudioExportPdf::configure(
+            Pdf::loadView('pdf.performance.appraisal-assessment-form', $context)
+        )->save($tempPath);
 
         return response()->download($tempPath, $fileName, [
             'Content-Type' => 'application/pdf',
@@ -132,25 +126,14 @@ class AppraisalExportService
 
     private function buildContext(Appraisal $appraisal, User $actor): array
     {
-        $settings = SystemSetting::query()->first();
-        $logoPath = $this->logoAbsolutePath();
         $effectiveScore = $appraisal->calibrated_overall_score ?? $appraisal->overall_score;
         $effectiveRating = $appraisal->calibratedOverallRatingLevel?->label
             ?? $appraisal->overallRatingLevel?->label
             ?? 'Unrated';
 
-        $poweredByPath = Branding::poweredByPath();
-
         return [
+            ...Branding::exportHeaderContext(),
             'appraisal' => $appraisal,
-            'settings' => $settings,
-            'logoPath' => $logoPath,
-            'logoExists' => $logoPath !== null && File::exists($logoPath),
-            'poweredByPath' => $poweredByPath,
-            'poweredByExists' => $poweredByPath !== null,
-            'companyName' => $settings?->company_name ?? 'Performance Appraisal Studio',
-            'companyAddress' => $settings?->formattedAddress(),
-            'reportFooter' => $settings?->report_footer,
             'exportedBy' => $actor->name,
             'exportedByEmail' => $actor->email,
             'exportedAt' => Carbon::now(),
@@ -158,13 +141,6 @@ class AppraisalExportService
             'effectiveRating' => $effectiveRating,
             'statusLabel' => Str::of((string) ($appraisal->status?->value ?? $appraisal->status))->replace('_', ' ')->title(),
         ];
-    }
-
-    private function logoAbsolutePath(): ?string
-    {
-        $files = glob(public_path('branding/system-logo.*')) ?: [];
-
-        return $files[0] ?? null;
     }
 
     private function fileName(Appraisal $appraisal, string $extension): string
@@ -191,14 +167,32 @@ class AppraisalExportService
         $titleStyle = (new Style)
             ->setFontSize(16)
             ->setFontBold()
-            ->setFontColor('111827');
+            ->setFontColor('252627');
 
         $subtitleStyle = (new Style)
             ->setFontSize(10)
-            ->setFontColor('4B5563');
+            ->setFontColor('5F5A4A');
 
-        $writer->addRow(Row::fromValues(['INDIVIDUAL PERFORMANCE ASSESSMENT FORM'], $titleStyle));
-        $writer->addRow(Row::fromValues([$context['companyName']], $subtitleStyle));
+        $eyebrowStyle = (new Style)
+            ->setFontSize(9)
+            ->setFontBold()
+            ->setFontColor('8A8268');
+
+        $writer->addRow(Row::fromValues([$context['companyName']], $titleStyle));
+
+        if ($context['companyAddress']) {
+            $writer->addRow(Row::fromValues([$context['companyAddress']], $subtitleStyle));
+        }
+
+        $writer->addRow(Row::fromValues(['§ INDIVIDUAL PERFORMANCE ASSESSMENT FORM'], $eyebrowStyle));
+        $writer->addRow(Row::fromValues([
+            sprintf(
+                'Exported by %s (%s) at %s',
+                $context['exportedBy'],
+                $context['exportedByEmail'],
+                $context['exportedAt']->format('d M Y H:i'),
+            ),
+        ], $subtitleStyle));
         $writer->addRow(Row::fromValues(['']));
     }
 
@@ -615,7 +609,7 @@ class AppraisalExportService
     {
         $style = (new Style)
             ->setFontBold()
-            ->setFontSize(12)
+            ->setFontSize(10)
             ->setFontColor('252627')
             ->setBackgroundColor('F3EEDD');
 

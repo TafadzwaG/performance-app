@@ -1,161 +1,52 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Appraisal Summary</title>
-    <style>
-        @page {
-            margin: 24px 28px 32px 28px;
-        }
+@php
+    $effectiveOverallScore = $appraisal->calibrated_overall_score ?? $appraisal->overall_score;
+    $effectiveOverallRating = $appraisal->calibratedOverallRatingLevel?->label ?? $appraisal->overallRatingLevel?->label ?? 'Unrated';
+    $headerReportLabel = 'Appraisal Summary';
+@endphp
+@extends('pdf.layouts.studio-export')
 
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            color: #111827;
-            font-size: 9px;
-            line-height: 1.4;
-        }
+@section('title', 'Appraisal Summary — '.$appraisal->employee_name_snapshot)
 
-        h1 {
-            font-size: 16px;
-            margin: 0 0 4px;
-        }
-
-        h2 {
-            font-size: 11.5px;
-            margin: 0 0 6px;
-        }
-
-        h3 {
-            font-size: 10px;
-            margin: 0 0 4px;
-        }
-
-        .section {
-            margin-bottom: 12px;
-            page-break-inside: avoid;
-        }
-
-        .muted {
-            color: #6b7280;
-            font-size: 8.5px;
-        }
-
-        .grid {
-            width: 100%;
-        }
-
-        .grid td {
-            vertical-align: top;
-            padding: 4px 6px 4px 0;
-        }
-
-        .score-table,
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .score-table th,
-        .score-table td,
-        .data-table th,
-        .data-table td {
-            border: 1px solid #d1d5db;
-            padding: 4px 6px;
-            text-align: left;
-            vertical-align: top;
-            font-size: 9px;
-        }
-
-        .score-table th,
-        .data-table th {
-            background: #f3f4f6;
-            font-size: 8.5px;
-        }
-
-        .pill {
-            display: inline-block;
-            padding: 2px 6px;
-            border: 1px solid #d1d5db;
-            border-radius: 999px;
-            font-size: 8.5px;
-        }
-
-        .pdf-footer {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: -16px;
-            padding-top: 4px;
-            border-top: 1px solid #e5e7eb;
-            color: #6b7280;
-            font-size: 8px;
-        }
-
-        .pdf-footer table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .pdf-footer td {
-            vertical-align: middle;
-        }
-
-        .pdf-footer .right {
-            text-align: right;
-            white-space: nowrap;
-        }
-
-        .pdf-footer .label {
-            font-size: 7px;
-            letter-spacing: 0.22em;
-            text-transform: uppercase;
-            color: #9ca3af;
-            margin-right: 4px;
-        }
-
-        .pdf-footer img {
-            height: 16px;
-            vertical-align: middle;
-        }
-    </style>
-</head>
-<body>
-    @php
-        $effectiveOverallScore = $appraisal->calibrated_overall_score ?? $appraisal->overall_score;
-        $effectiveOverallRating = $appraisal->calibratedOverallRatingLevel?->label ?? $appraisal->overallRatingLevel?->label ?? 'Unrated';
-    @endphp
-    <div class="section">
-        <h1>Employee Performance Appraisal</h1>
-        <div class="muted">{{ $appraisal->cycle_name_snapshot }} | {{ $appraisal->template_name_snapshot }}</div>
+@section('content')
+    <div class="title-block">
+        <div class="eyebrow">§ Performance Appraisal</div>
+        <div class="title">{{ $appraisal->employee_name_snapshot }}</div>
+        <div class="meta">{{ $appraisal->cycle_name_snapshot }} · {{ $appraisal->template_name_snapshot }}</div>
     </div>
 
     <div class="section">
-        <table class="grid">
+        <h2>§ Employee &amp; Workflow</h2>
+        <table style="width:100%; border-collapse:collapse;">
             <tr>
-                <td width="50%">
-                    <h3>Employee</h3>
-                    <div><strong>Name:</strong> {{ $appraisal->employee_name_snapshot }}</div>
-                    <div><strong>Email:</strong> {{ $appraisal->employee_email_snapshot }}</div>
-                    <div><strong>Employee No:</strong> {{ $appraisal->employee_number_snapshot }}</div>
-                    <div><strong>Department:</strong> {{ $appraisal->department_name_snapshot ?: ($appraisal->employeeProfile?->department?->name ?? 'N/A') }}</div>
-                    <div><strong>Job Title:</strong> {{ $appraisal->job_title_name_snapshot ?: ($appraisal->employeeProfile?->jobTitle?->name ?? 'N/A') }}</div>
+                <td style="width:50%; vertical-align:top; padding-right:8px;">
+                    <table class="kv-table">
+                        <tr><td class="label">Name</td><td>{{ $appraisal->employee_name_snapshot }}</td></tr>
+                        <tr><td class="label">Email</td><td>{{ $appraisal->employee_email_snapshot }}</td></tr>
+                        <tr><td class="label">Employee No</td><td>{{ $appraisal->employee_number_snapshot }}</td></tr>
+                        <tr><td class="label">Department</td><td>{{ $appraisal->department_name_snapshot ?: ($appraisal->employeeProfile?->department?->name ?? 'N/A') }}</td></tr>
+                        <tr><td class="label">Job Title</td><td>{{ $appraisal->job_title_name_snapshot ?: ($appraisal->employeeProfile?->jobTitle?->name ?? 'N/A') }}</td></tr>
+                    </table>
                 </td>
-                <td width="50%">
-                    <h3>Workflow</h3>
-                    <div><strong>Status:</strong> <span class="pill">{{ str((string) ($appraisal->status?->value ?? $appraisal->status))->replace('_', ' ')->title() }}</span></div>
-                    <div><strong>Line Manager:</strong> {{ $appraisal->lineManager?->name ?? 'N/A' }}</div>
-                    <div><strong>Approving Manager:</strong> {{ $appraisal->approvingManager?->name ?? 'N/A' }}</div>
-                    <div><strong>Approved At:</strong> {{ $appraisal->approved_at ?? 'N/A' }}</div>
-                    <div><strong>Calibrated At:</strong> {{ $appraisal->calibrated_at ?? 'N/A' }}</div>
-                    <div><strong>Finalized At:</strong> {{ $appraisal->finalized_at ?? 'N/A' }}</div>
+                <td style="width:50%; vertical-align:top;">
+                    <table class="kv-table">
+                        <tr>
+                            <td class="label">Status</td>
+                            <td><span class="pill">{{ str((string) ($appraisal->status?->value ?? $appraisal->status))->replace('_', ' ')->title() }}</span></td>
+                        </tr>
+                        <tr><td class="label">Line Manager</td><td>{{ $appraisal->lineManager?->name ?? 'N/A' }}</td></tr>
+                        <tr><td class="label">Approving Manager</td><td>{{ $appraisal->approvingManager?->name ?? 'N/A' }}</td></tr>
+                        <tr><td class="label">Approved At</td><td>{{ $appraisal->approved_at ?? 'N/A' }}</td></tr>
+                        <tr><td class="label">Calibrated At</td><td>{{ $appraisal->calibrated_at ?? 'N/A' }}</td></tr>
+                        <tr><td class="label">Finalized At</td><td>{{ $appraisal->finalized_at ?? 'N/A' }}</td></tr>
+                    </table>
                 </td>
             </tr>
         </table>
     </div>
 
     <div class="section">
-        <h2>Score Summary</h2>
-        <table class="score-table">
+        <h2>§ Score Summary</h2>
+        <table class="data-table">
             <thead>
                 <tr>
                     <th>Business Score</th>
@@ -177,7 +68,7 @@
 
     @if($appraisal->latestCalibration)
         <div class="section">
-            <h2>Calibration Summary</h2>
+            <h2>§ Calibration Summary</h2>
             <table class="data-table">
                 <thead>
                     <tr>
@@ -214,7 +105,7 @@
     @endif
 
     <div class="section">
-        <h2>Objectives</h2>
+        <h2>§ Objectives</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -244,16 +135,14 @@
                         <td>{{ $objective->managerRatingLevel?->label ?? $objective->manager_rating_score ?? 'N/A' }}</td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="8">No objectives captured.</td>
-                    </tr>
+                    <tr><td colspan="8" class="muted">No objectives captured.</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 
     <div class="section">
-        <h2>Values</h2>
+        <h2>§ Values</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -274,16 +163,14 @@
                         <td>{{ $rating->manager_comment ?? 'N/A' }}</td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="5">No competency ratings captured.</td>
-                    </tr>
+                    <tr><td colspan="5" class="muted">No competency ratings captured.</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 
     <div class="section">
-        <h2>Comments</h2>
+        <h2>§ Comments</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -300,16 +187,14 @@
                         <td>{{ $comment->body }}</td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="3">No comments captured.</td>
-                    </tr>
+                    <tr><td colspan="3" class="muted">No comments captured.</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 
     <div class="section">
-        <h2>Approvals and History</h2>
+        <h2>§ Approvals and History</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -330,21 +215,21 @@
                         <td>{{ $approval->comments ?? 'N/A' }}</td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="5">No approval actions captured.</td>
-                    </tr>
+                    <tr><td colspan="5" class="muted">No approval actions captured.</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 
     <div class="section">
-        <h2>Development Plan</h2>
-        <div><strong>Strengths:</strong> {{ $appraisal->developmentPlan?->strengths ?? 'N/A' }}</div>
-        <div><strong>Improvement Areas:</strong> {{ $appraisal->developmentPlan?->improvement_areas ?? 'N/A' }}</div>
-        <div><strong>Follow Up Notes:</strong> {{ $appraisal->developmentPlan?->follow_up_notes ?? 'N/A' }}</div>
+        <h2>§ Development Plan</h2>
+        <table class="kv-table">
+            <tr><td class="label">Strengths</td><td>{{ $appraisal->developmentPlan?->strengths ?? 'N/A' }}</td></tr>
+            <tr><td class="label">Improvement Areas</td><td>{{ $appraisal->developmentPlan?->improvement_areas ?? 'N/A' }}</td></tr>
+            <tr><td class="label">Follow Up Notes</td><td>{{ $appraisal->developmentPlan?->follow_up_notes ?? 'N/A' }}</td></tr>
+        </table>
 
-        <table class="data-table" style="margin-top: 10px;">
+        <table class="data-table" style="margin-top: 8px;">
             <thead>
                 <tr>
                     <th>Action</th>
@@ -364,26 +249,9 @@
                         <td>{{ $action->follow_up_status ?? 'N/A' }}</td>
                     </tr>
                 @empty
-                    <tr>
-                        <td colspan="5">No development actions captured.</td>
-                    </tr>
+                    <tr><td colspan="5" class="muted">No development actions captured.</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
-
-    <div class="pdf-footer">
-        <table>
-            <tr>
-                <td>{{ $appraisal->cycle_name_snapshot }} · {{ $appraisal->employee_name_snapshot }}</td>
-                <td class="right">
-                    @if(!empty($poweredByExists))
-                        <span class="label">Powered by</span>
-                        <img src="{{ $poweredByPath }}" alt="TJT">
-                    @endif
-                </td>
-            </tr>
-        </table>
-    </div>
-</body>
-</html>
+@endsection

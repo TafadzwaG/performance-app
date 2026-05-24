@@ -1,10 +1,11 @@
 <?php
 
-use App\Http\Middleware\RequirePasswordChange;
-use App\Http\Middleware\RequireApprovedUser;
-use App\Http\Middleware\RequireEmployeeProfileCompletion;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RecordAuditTrail;
+use App\Http\Middleware\RequireApprovedUser;
+use App\Http\Middleware\RequireEmployeeProfileCompletion;
+use App\Http\Middleware\RequirePasswordChange;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             RecordAuditTrail::class,
+            SecurityHeaders::class,
         ]);
 
         $middleware->alias([

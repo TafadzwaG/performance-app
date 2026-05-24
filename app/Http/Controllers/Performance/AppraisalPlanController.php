@@ -41,10 +41,18 @@ class AppraisalPlanController extends Controller
     {
         $this->authorize('viewPlan', $appraisal);
 
+        $excludeIds = collect(preg_split('/\s*,\s*/', (string) $request->string('exclude'), -1, PREG_SPLIT_NO_EMPTY) ?: [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
         return response()->json([
             'results' => $this->goalLibraryLookupService->searchForAppraisal(
                 $appraisal,
                 (string) $request->string('q'),
+                excludeIds: $excludeIds,
             ),
         ]);
     }

@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import type { BreadcrumbItem } from '@/types';
-import type { GoalLibraryItem, Option } from '@/types/performance';
+import type { GoalLibraryItem, GoalLibraryScope, Option } from '@/types/performance';
 import { useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
+import { useEffect } from 'react';
 import {
     Activity,
     Briefcase,
@@ -25,6 +26,11 @@ interface Props {
     departmentOptions: Option[];
     jobTitleOptions: Option[];
     perspectiveOptions: Option[];
+    scope?: GoalLibraryScope;
+    formAction?: string;
+    indexHref?: string;
+    pageTitle?: string;
+    pageDescription?: string;
 }
 
 export default function GoalLibraryEdit({
@@ -32,17 +38,22 @@ export default function GoalLibraryEdit({
     departmentOptions,
     jobTitleOptions,
     perspectiveOptions,
+    scope,
+    formAction = route('performance.goal_library.update', goalLibraryItem.id),
+    indexHref = route('performance.goal_library.index'),
+    pageTitle = 'Edit Goal Library Item',
+    pageDescription = 'Update a reusable SMART objective.',
 }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Performance', href: '/performance/dashboard' },
-        { title: 'Goal Library', href: route('performance.goal_library.index') },
-        { title: goalLibraryItem.title, href: route('performance.goal_library.show', goalLibraryItem.id) },
-        { title: 'Edit', href: route('performance.goal_library.edit', goalLibraryItem.id) },
+        { title: pageTitle === 'Edit KPI' ? 'My KPIs' : 'Goal Library', href: indexHref },
+        { title: goalLibraryItem.title, href: pageTitle === 'Edit KPI' ? indexHref : route('performance.goal_library.show', goalLibraryItem.id) },
+        { title: 'Edit', href: pageTitle === 'Edit KPI' ? route('performance.my_kpis.edit', goalLibraryItem.id) : route('performance.goal_library.edit', goalLibraryItem.id) },
     ];
 
     const { data, setData, put, processing } = useForm({
-        department_id: goalLibraryItem.department_id ? String(goalLibraryItem.department_id) : '',
-        job_title_id: goalLibraryItem.job_title_id ? String(goalLibraryItem.job_title_id) : '',
+        department_id: scope?.locked && scope.department_id ? String(scope.department_id) : goalLibraryItem.department_id ? String(goalLibraryItem.department_id) : '',
+        job_title_id: scope?.locked && scope.job_title_id ? String(scope.job_title_id) : goalLibraryItem.job_title_id ? String(goalLibraryItem.job_title_id) : '',
         perspective_id: goalLibraryItem.perspective_id ? String(goalLibraryItem.perspective_id) : '',
         title: goalLibraryItem.title ?? '',
         description: goalLibraryItem.description ?? '',
@@ -54,9 +65,19 @@ export default function GoalLibraryEdit({
         is_active: goalLibraryItem.is_active,
     });
 
+    useEffect(() => {
+        if (scope?.locked && scope.department_id) {
+            setData('department_id', String(scope.department_id));
+        }
+
+        if (scope?.locked && scope.job_title_id) {
+            setData('job_title_id', String(scope.job_title_id));
+        }
+    }, [scope?.department_id, scope?.job_title_id, scope?.locked, setData]);
+
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        put(route('performance.goal_library.update', goalLibraryItem.id));
+        put(formAction);
     };
 
     const selectedDepartment =
@@ -71,8 +92,8 @@ export default function GoalLibraryEdit({
 
     return (
         <PerformancePage
-            title="Edit Goal Library Item"
-            description="Update a reusable SMART objective."
+            title={pageTitle}
+            description={pageDescription}
             breadcrumbs={breadcrumbs}
         >
             <div className="space-y-6">
@@ -85,11 +106,10 @@ export default function GoalLibraryEdit({
 
                             <div>
                                 <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                                    Edit Goal Library Item
+                                    {pageTitle}
                                 </h1>
                                 <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                                    Update strategic alignment, measurement details, target definitions, and reusable
-                                    goal metadata without changing the current edit workflow.
+                                    {pageDescription}
                                 </p>
                             </div>
                         </div>
@@ -183,18 +203,18 @@ export default function GoalLibraryEdit({
                                     <div className="grid gap-6 md:grid-cols-2">
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                Goal Title
+                                                Objective (The Goal)
                                             </label>
                                             <Input
                                                 value={data.title}
                                                 onChange={(event) => setData('title', event.target.value)}
-                                                placeholder="e.g. Quarterly Revenue Expansion"
+                                                placeholder="e.g. Improve quarterly revenue performance"
                                             />
                                         </div>
 
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                Strategic Perspective
+                                                Perspective
                                             </label>
                                             <select
                                                 className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -215,9 +235,10 @@ export default function GoalLibraryEdit({
                                                 Department
                                             </label>
                                             <select
-                                                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
                                                 value={data.department_id}
                                                 onChange={(event) => setData('department_id', event.target.value)}
+                                                disabled={scope?.locked}
                                             >
                                                 <option value="">Select department</option>
                                                 {departmentOptions.map((option) => (
@@ -233,11 +254,12 @@ export default function GoalLibraryEdit({
                                                 Job Title Alignment
                                             </label>
                                             <select
-                                                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
                                                 value={data.job_title_id}
                                                 onChange={(event) => setData('job_title_id', event.target.value)}
+                                                disabled={scope?.locked}
                                             >
-                                                <option value="">Any job title</option>
+                                                <option value="">{scope?.locked ? 'Select job title' : 'Any job title'}</option>
                                                 {jobTitleOptions.map((option) => (
                                                     <option key={option.value} value={option.value}>
                                                         {option.label}
@@ -261,7 +283,7 @@ export default function GoalLibraryEdit({
                                     <div className="grid gap-6 md:grid-cols-2">
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                KPI / Measure
+                                                KPI / Measure (How Measured)
                                             </label>
                                             <Input
                                                 value={data.kpi_measure}
@@ -283,7 +305,7 @@ export default function GoalLibraryEdit({
 
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                Default Weight (%)
+                                                Weight
                                             </label>
                                             <Input
                                                 type="number"
@@ -330,7 +352,7 @@ export default function GoalLibraryEdit({
 
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                                Target Definition
+                                                Target (Success Definition)
                                             </label>
                                             <textarea
                                                 className="min-h-28 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

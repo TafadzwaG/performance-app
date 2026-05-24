@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Performance;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreReviewCycleRequest extends FormRequest
@@ -25,7 +24,7 @@ class StoreReviewCycleRequest extends FormRequest
             'self_assessment_deadline' => ['nullable', 'date'],
             'manager_review_deadline' => ['nullable', 'date'],
             'approval_deadline' => ['nullable', 'date'],
-            'status' => ['nullable', Rule::in(['draft', 'open', 'closed'])],
+            'status' => ['prohibited'],
         ];
     }
 

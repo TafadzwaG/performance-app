@@ -22,6 +22,10 @@ class EmployeeImportService
 {
     public const SESSION_KEY = 'employee_import_upload';
 
+    public function __construct(
+        private readonly EmployeeIdentityService $employeeIdentity,
+    ) {}
+
     /**
      * @return array{
      *     row_count: int,
@@ -54,10 +58,9 @@ class EmployeeImportService
 
         foreach ($rows as $index => $row) {
             $line = $index + 2;
-            $userEmail = Str::lower(trim((string) ($row['user_email'] ?? '')));
-            $employeeNumber = trim((string) ($row['employee_number'] ?? ''));
+            $employeeNumber = $this->employeeIdentity->normalizeEmployeeNumber((string) ($row['employee_number'] ?? ''));
 
-            if ($userEmail === '' && $employeeNumber === '') {
+            if ($employeeNumber === '') {
                 continue;
             }
 
@@ -125,7 +128,9 @@ class EmployeeImportService
         $userEmailMap = User::query()->pluck('id', 'email')
             ->mapWithKeys(fn ($id, $email) => [Str::lower((string) $email) => $id])
             ->all();
+        $employeeNumberUserMap = $this->employeeIdentity->userIdsByEmployeeNumber();
         $usersWithProfiles = EmployeeProfile::query()->pluck('user_id')->all();
+        $seenEmployeeNumbers = [];
         $roleMap = Role::query()->pluck('id', 'name')
             ->mapWithKeys(fn ($id, $name) => [Str::lower((string) $name) => $id])
             ->all();
@@ -135,21 +140,28 @@ class EmployeeImportService
 
         foreach ($rows as $index => $row) {
             $line = $index + 2;
-            $userEmail = Str::lower(trim((string) ($row['user_email'] ?? '')));
-            $employeeNumber = trim((string) ($row['employee_number'] ?? ''));
+            $employeeNumber = $this->employeeIdentity->normalizeEmployeeNumber((string) ($row['employee_number'] ?? ''));
 
-            if ($userEmail === '' && $employeeNumber === '') {
+            if ($employeeNumber === '') {
                 continue;
             }
+
+            if (isset($seenEmployeeNumbers[$employeeNumber])) {
+                $errors[] = "Row {$line} duplicates employee_number: {$employeeNumber}.";
+
+                continue;
+            }
+
+            if ($this->employeeIdentity->employeeNumberExists($employeeNumber)) {
+                $errors[] = "Row {$line} employee_number already exists: {$employeeNumber}.";
+
+                continue;
+            }
+
+            $userEmail = Str::lower(trim((string) ($row['user_email'] ?? '')));
 
             if ($userEmail === '') {
                 $errors[] = "Row {$line} is missing user_email.";
-
-                continue;
-            }
-
-            if ($employeeNumber === '') {
-                $errors[] = "Row {$line} is missing employee_number.";
 
                 continue;
             }
@@ -191,8 +203,24 @@ class EmployeeImportService
                 continue;
             }
 
-            $lineManagerId = $this->resolveUserEmail($row['line_manager_email'] ?? '', $userEmailMap, $line, 'line_manager_email', $errors);
-            $approvingManagerId = $this->resolveUserEmail($row['approving_manager_email'] ?? '', $userEmailMap, $line, 'approving_manager_email', $errors);
+            $lineManagerId = $this->resolveManagerUserId(
+                $row,
+                'line_manager_employee_number',
+                'line_manager_email',
+                $employeeNumberUserMap,
+                $userEmailMap,
+                $line,
+                $errors,
+            );
+            $approvingManagerId = $this->resolveManagerUserId(
+                $row,
+                'approving_manager_employee_number',
+                'approving_manager_email',
+                $employeeNumberUserMap,
+                $userEmailMap,
+                $line,
+                $errors,
+            );
 
             if ($lineManagerId === false || $approvingManagerId === false) {
                 continue;
@@ -234,6 +262,7 @@ class EmployeeImportService
             ];
 
             $usersWithProfiles[] = $userId;
+            $seenEmployeeNumbers[$employeeNumber] = true;
         }
 
         if ($errors !== []) {
@@ -463,25 +492,45 @@ class EmployeeImportService
     }
 
     /**
+     * @param  array<string, int>  $employeeNumberUserMap
      * @param  array<string, int>  $userEmailMap
      */
-    private function resolveUserEmail(string $raw, array $userEmailMap, int $line, string $label, array &$errors): int|null|false
-    {
-        $value = Str::lower(trim($raw));
+    private function resolveManagerUserId(
+        array $row,
+        string $employeeNumberColumn,
+        string $emailColumn,
+        array $employeeNumberUserMap,
+        array $userEmailMap,
+        int $line,
+        array &$errors,
+    ): int|null|false {
+        $employeeNumber = $this->employeeIdentity->normalizeEmployeeNumber((string) ($row[$employeeNumberColumn] ?? ''));
 
-        if ($value === '') {
+        if ($employeeNumber !== '') {
+            return $this->employeeIdentity->resolveUserIdByEmployeeNumber(
+                $employeeNumber,
+                $employeeNumberUserMap,
+                $line,
+                $employeeNumberColumn,
+                $errors,
+            );
+        }
+
+        $email = Str::lower(trim((string) ($row[$emailColumn] ?? '')));
+
+        if ($email === '') {
             return null;
         }
 
-        $id = $userEmailMap[$value] ?? null;
+        $userId = $userEmailMap[$email] ?? null;
 
-        if (! $id) {
-            $errors[] = "Row {$line} has unknown {$label}: {$value}.";
+        if (! $userId) {
+            $errors[] = "Row {$line} has unknown {$emailColumn}: {$email}.";
 
             return false;
         }
 
-        return $id;
+        return $userId;
     }
 
     /**

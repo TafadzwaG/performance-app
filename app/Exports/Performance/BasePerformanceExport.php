@@ -18,6 +18,30 @@ abstract class BasePerformanceExport
 
     abstract protected function mapRow(mixed $row): array;
 
+    /**
+     * @return array<int, string>
+     */
+    public function headingLabels(): array
+    {
+        return $this->headings();
+    }
+
+    /**
+     * @return array<int, array<int, mixed>>
+     */
+    public function dataRows(): array
+    {
+        return $this->rows
+            ->map(fn (mixed $row) => $this->mapRow($row))
+            ->values()
+            ->all();
+    }
+
+    public function rowCount(): int
+    {
+        return $this->rows->count();
+    }
+
     public function download(string $filename): BinaryFileResponse
     {
         $directory = storage_path('app/exports');

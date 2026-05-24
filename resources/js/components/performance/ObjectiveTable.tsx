@@ -18,6 +18,10 @@ interface ObjectiveTableProps {
 }
 
 export default function ObjectiveTable(props: ObjectiveTableProps) {
+    const selectedGoalLibraryItemIds = props.objectives
+        .map((objective) => objective.goal_library_item_id)
+        .filter((goalLibraryItemId): goalLibraryItemId is number => goalLibraryItemId != null);
+
     return (
         <div className="space-y-5">
             {props.objectives.map((objective, index) => (
@@ -30,6 +34,7 @@ export default function ObjectiveTable(props: ObjectiveTableProps) {
                     perspectiveOptions={props.perspectiveOptions}
                     ratingLevels={props.ratingLevels}
                     goalLibrarySearchEndpoint={props.goalLibrarySearchEndpoint}
+                    selectedGoalLibraryItemIds={selectedGoalLibraryItemIds}
                     allowStructuralEditing={props.allowStructuralEditing}
                     onChange={props.onChange}
                     onApplyGoalLibrary={props.onApplyGoalLibrary}

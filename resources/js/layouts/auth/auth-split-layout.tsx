@@ -1,4 +1,4 @@
-import BrandLogo from '@/components/brand-logo';
+import LandingBrandMark from '@/components/landing-brand-mark';
 import ThemedToaster from '@/components/ui/themed-toaster';
 import tjtLogo from '@/assets/tjtlogo.png';
 import { type SharedData } from '@/types';
@@ -19,7 +19,7 @@ const cyclePillars = [
 ];
 
 export default function AuthLayout({ children, title, description }: AuthLayoutProps) {
-    const { name, quote } = usePage<SharedData>().props;
+    const { quote } = usePage<SharedData>().props;
 
     return (
         <div className="bg-background text-foreground relative grid h-dvh flex-col items-stretch justify-center px-0 sm:px-0 lg:max-w-none lg:grid-cols-[1.05fr_1fr]">
@@ -63,22 +63,9 @@ export default function AuthLayout({ children, title, description }: AuthLayoutP
 
                 {/* Marginalia top — system metadata */}
                 <div className="relative z-10 flex items-start justify-between">
-                    <Link href={route('home')} className="group flex items-center gap-3">
-                        <div className="bg-brand-sand text-brand-ink relative flex h-10 w-10 items-center justify-center rounded-md shadow-lg shadow-black/30">
-                            <BrandLogo
-                                className="size-6 object-contain"
-                                iconClassName="size-6 fill-current text-brand-ink"
-                            />
-                        </div>
-                        <div className="flex flex-col leading-none">
-                            <span className="font-display text-brand-cream text-[17px] font-medium tracking-tight">
-                                {name ?? 'Performance'}
-                            </span>
-                            <span className="font-mono-brand text-brand-cream/55 mt-1 text-[9px] tracking-[0.22em] uppercase">
-                                Appraisal Studio
-                            </span>
-                        </div>
-                    </Link>
+                    <LandingBrandMark
+                        imgClassName="h-14 w-auto max-w-[min(300px,55vw)] object-contain transition-opacity group-hover:opacity-90 lg:h-16 lg:max-w-[340px]"
+                    />
 
                     {/* Rotating seal */}
                     <div className="relative h-20 w-20">
@@ -192,21 +179,10 @@ export default function AuthLayout({ children, title, description }: AuthLayoutP
 
                 <div className="relative z-10 mx-auto flex w-full max-w-[440px] flex-col gap-8">
                     {/* Mobile brand mark */}
-                    <Link
-                        href={route('home')}
-                        className="relative z-20 flex items-center justify-center gap-3 lg:hidden"
-                    >
-                        <div className="bg-brand-ink relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-md shadow-lg">
-                            <div className="bg-brand-sand absolute inset-1.5 rounded-[3px]" />
-                            <BrandLogo
-                                className="relative size-5 object-contain"
-                                iconClassName="relative size-5 fill-current text-brand-ink"
-                            />
-                        </div>
-                        <span className="font-display text-foreground text-lg tracking-tight">
-                            {name ?? 'Performance Studio'}
-                        </span>
-                    </Link>
+                    <LandingBrandMark
+                        className="relative z-20 flex items-center justify-center lg:hidden"
+                        imgClassName="h-12 w-auto max-w-[min(280px,80vw)] object-contain"
+                    />
 
                     {/* Eyebrow */}
                     <div className="font-mono-brand text-foreground/55 flex items-center gap-3 text-[10px] tracking-[0.22em] uppercase">

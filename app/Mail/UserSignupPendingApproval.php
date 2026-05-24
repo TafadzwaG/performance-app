@@ -6,6 +6,7 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use App\Support\Branding;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -15,7 +16,7 @@ use Illuminate\Queue\SerializesModels;
  * Sent to every Super Admin when a new user submits a registration request.
  * The applicant themselves is added as a CC so they have a paper trail too.
  */
-class UserSignupPendingApproval extends Mailable
+class UserSignupPendingApproval extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

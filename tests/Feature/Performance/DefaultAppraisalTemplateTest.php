@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\TemplateItemType;
 use App\Models\AppraisalTemplate;
 use App\Models\Permission;
 use App\Models\RatingScale;
@@ -28,7 +29,20 @@ test('performance setup seeder creates one protected monomotapa default template
         ->and($defaultTemplate->is_active)->toBeTrue()
         ->and($defaultTemplate->business_weight_percent)->toBe(80)
         ->and($defaultTemplate->values_weight_percent)->toBe(20)
-        ->and($defaultTemplate->items()->count())->toBeGreaterThanOrEqual(5);
+        ->and($defaultTemplate->items()->count())->toBeGreaterThanOrEqual(9)
+        ->and(
+            $defaultTemplate->items()
+                ->where('item_type', TemplateItemType::Competency)
+                ->with('competency')
+                ->get()
+                ->pluck('competency.name')
+                ->all()
+        )->toBe([
+            'We love to win',
+            'We relate with empathy',
+            'We are agile',
+            'We work better together',
+        ]);
 
     expect(AppraisalTemplate::query()->whereNull('deleted_at')->count())->toBe(1);
 

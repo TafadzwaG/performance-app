@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Appraisal;
 use App\Models\AppraisalCalibration;
 use App\Models\AppraisalCalibrationEvidence;
+use App\Services\Performance\EvidenceStorageService;
+use App\Support\Security\SafeExternalUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -22,12 +24,12 @@ class AppraisalCalibrationEvidenceController extends Controller
         abort_unless($evidence->appraisal_calibration_id === $calibration->id, 404);
 
         if ($evidence->evidence_type->value === 'link') {
-            abort_unless(filled($evidence->url), 404);
+            abort_unless(SafeExternalUrl::isAllowed($evidence->url), 404);
 
             return redirect()->away($evidence->url);
         }
 
-        $diskName = $evidence->disk ?: 'public';
+        $diskName = $evidence->disk ?: EvidenceStorageService::DISK;
         abort_unless(filled($evidence->path), 404);
 
         $disk = Storage::disk($diskName);
@@ -44,7 +46,7 @@ class AppraisalCalibrationEvidenceController extends Controller
                     fclose($stream);
                 }
             },
-            $evidence->original_name ?: basename($evidence->path),
+            preg_replace('/[\r\n"\\\\]/', '', basename($evidence->original_name ?: basename($evidence->path))) ?: 'download',
             array_filter([
                 'Content-Type' => $evidence->mime_type,
             ]),

@@ -1,13 +1,23 @@
 import PaginationLinks from '@/components/performance/PaginationLinks';
 import PerformancePage from '@/components/performance/PerformancePage';
 import AssignEmployeesModal from '@/components/performance/review-cycles/AssignEmployeesModal';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
 import type { Option, Paginated, ReviewCycle } from '@/types/performance';
-import { Link } from '@inertiajs/react';
-import { CalendarRange, Clock3, Eye, History, PencilLine, Plus, RefreshCcw, UserPlus, Users } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { CalendarRange, Clock3, Eye, History, PencilLine, Plus, RefreshCcw, Trash2, UserPlus, Users } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
 
@@ -59,12 +69,14 @@ interface Props {
     can?: {
         create?: boolean;
         assignEmployees?: boolean;
+        delete?: boolean;
     };
 }
 
 export default function ReviewCyclesIndex({ reviewCycles, employeeProfileOptions, templateOptions, can }: Props) {
     const [assignModalOpen, setAssignModalOpen] = useState(false);
     const [selectedCycle, setSelectedCycle] = useState<ReviewCycle | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<ReviewCycle | null>(null);
 
     const totalCycles = reviewCycles.total ?? reviewCycles.data.length;
     const from = reviewCycles.from ?? 0;
@@ -79,6 +91,17 @@ export default function ReviewCyclesIndex({ reviewCycles, employeeProfileOptions
     const openAssignModal = (cycle: ReviewCycle) => {
         setSelectedCycle(cycle);
         setAssignModalOpen(true);
+    };
+
+    const deleteCycle = () => {
+        if (!deleteTarget) {
+            return;
+        }
+
+        router.delete(route('performance.review_cycles.destroy', deleteTarget.id), {
+            preserveScroll: true,
+            onFinish: () => setDeleteTarget(null),
+        });
     };
 
     return (
@@ -200,6 +223,9 @@ export default function ReviewCyclesIndex({ reviewCycles, employeeProfileOptions
                                                 <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Assigned
                                                 </th>
+                                                <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
+                                                    Created
+                                                </th>
                                                 <th className="text-muted-foreground px-6 py-4 text-right text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Actions
                                                 </th>
@@ -253,6 +279,17 @@ export default function ReviewCyclesIndex({ reviewCycles, employeeProfileOptions
                                                     </td>
 
                                                     <td className="px-6 py-5">
+                                                        <div className="text-foreground font-medium">
+                                                            {cycle.created_at ? moment(cycle.created_at).format('MMM Do YYYY') : '—'}
+                                                        </div>
+                                                        {cycle.created_at ? (
+                                                            <div className="text-muted-foreground mt-1 text-[11px]">
+                                                                {moment(cycle.created_at).format('h:mm A')}
+                                                            </div>
+                                                        ) : null}
+                                                    </td>
+
+                                                    <td className="px-6 py-5">
                                                         <div className="flex justify-end gap-2">
                                                             {can?.assignEmployees ? (
                                                                 <Button
@@ -277,6 +314,18 @@ export default function ReviewCyclesIndex({ reviewCycles, employeeProfileOptions
                                                                     <PencilLine className="h-4 w-4" />
                                                                 </Link>
                                                             </Button>
+
+                                                            {can?.delete ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => setDeleteTarget(cycle)}
+                                                                    title="Delete cycle"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            ) : null}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -305,6 +354,37 @@ export default function ReviewCyclesIndex({ reviewCycles, employeeProfileOptions
                 employeeProfileOptions={employeeProfileOptions}
                 templateOptions={templateOptions}
             />
+
+            <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete review cycle?</AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-3 text-sm text-muted-foreground">
+                                <p>
+                                    This will permanently delete{' '}
+                                    <span className="font-medium text-foreground">{deleteTarget?.name ?? 'this review cycle'}</span> and cannot be
+                                    undone.
+                                </p>
+                                <p>
+                                    <span className="font-medium text-foreground">{deleteTarget?.appraisals_count ?? 0}</span>{' '}
+                                    {(deleteTarget?.appraisals_count ?? 0) === 1 ? 'appraisal' : 'appraisals'} attached to this cycle will also be
+                                    deleted, including objectives, ratings, comments, approvals, and development plans.
+                                </p>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={deleteCycle}
+                        >
+                            Delete cycle
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PerformancePage>
     );
 }

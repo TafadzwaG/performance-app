@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\GoalLibraryItem;
 use App\Models\JobTitle;
 use App\Models\Perspective;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -106,7 +107,7 @@ class GoalLibraryImportService
         ];
     }
 
-    public function parse(UploadedFile $file, array $perspectiveMappings = [], array $departmentMappings = [], array $jobTitleMappings = []): array
+    public function parse(UploadedFile $file, array $perspectiveMappings = [], array $departmentMappings = [], array $jobTitleMappings = [], ?User $user = null): array
     {
         $rows = $this->readGoalRows($file);
 
@@ -115,6 +116,11 @@ class GoalLibraryImportService
                 'file' => ['The upload file does not contain any goal rows.'],
             ]);
         }
+
+        $scopeService = app(GoalLibraryScopeService::class);
+        $scopedWriteAttributes = ($user !== null && $scopeService->appliesTo($user))
+            ? $scopeService->enforcedWriteAttributes($user)
+            : null;
 
         $perspectiveMap = $this->nameMap(Perspective::query()->get(['id', 'name', 'code']));
         $departmentMap = $this->nameMap(Department::query()->get(['id', 'name', 'code']));
@@ -148,18 +154,23 @@ class GoalLibraryImportService
                 continue;
             }
 
-            [$departmentId, $departmentError] = $this->resolveOptionalReference($row['department_name'] ?? '', $departmentMap, $normalizedDepartmentMappings, 'department_name');
-            if ($departmentError) {
-                $errors[] = "Row {$line} {$departmentError}";
+            if ($scopedWriteAttributes !== null) {
+                $departmentId = $scopedWriteAttributes['department_id'];
+                $jobTitleId = $scopedWriteAttributes['job_title_id'];
+            } else {
+                [$departmentId, $departmentError] = $this->resolveOptionalReference($row['department_name'] ?? '', $departmentMap, $normalizedDepartmentMappings, 'department_name');
+                if ($departmentError) {
+                    $errors[] = "Row {$line} {$departmentError}";
 
-                continue;
-            }
+                    continue;
+                }
 
-            [$jobTitleId, $jobTitleError] = $this->resolveOptionalReference($row['job_title_name'] ?? '', $jobTitleMap, $normalizedJobTitleMappings, 'job_title_name');
-            if ($jobTitleError) {
-                $errors[] = "Row {$line} {$jobTitleError}";
+                [$jobTitleId, $jobTitleError] = $this->resolveOptionalReference($row['job_title_name'] ?? '', $jobTitleMap, $normalizedJobTitleMappings, 'job_title_name');
+                if ($jobTitleError) {
+                    $errors[] = "Row {$line} {$jobTitleError}";
 
-                continue;
+                    continue;
+                }
             }
 
             $normalized[] = [

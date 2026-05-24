@@ -7,17 +7,23 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Access\BulkStoreUsersRequest;
 use App\Http\Requests\Access\DeleteUserRequest;
+use App\Http\Requests\Access\ExportUsersRequest;
 use App\Http\Requests\Access\ImportUsersRequest;
 use App\Http\Requests\Access\StoreUserRequest;
 use App\Http\Requests\Access\UpdateUserRequest;
 use App\Mail\UserApprovedNotification;
+use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Access\Export\UserExportService;
 use App\Services\Access\UserDeletionService;
 use App\Services\Access\UserImportService;
 use App\Services\Access\UserOnboardingService;
+use App\Support\Access\AccessAssignmentGuard;
+use App\Support\Access\UserExportColumnRegistry;
 use App\Support\Access\UserProvisionRules;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +33,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class UserController extends Controller
 {
@@ -39,59 +46,56 @@ class UserController extends Controller
 
     public function index(Request $request): Response
     {
-        $search = (string) $request->string('search');
-        $sortBy = (string) $request->string('sort_by', 'name');
-        $sortDirection = strtolower((string) $request->string('sort_dir', 'asc')) === 'desc' ? 'desc' : 'asc';
-        $approvalStatus = (string) $request->string('approval_status', 'active');
-
-        if (! in_array($approvalStatus, ['active', 'pending'], true)) {
-            $approvalStatus = 'active';
-        }
-
-        if (! in_array($sortBy, ['name', 'email', 'employee_number', 'created_at', 'updated_at'], true)) {
-            $sortBy = 'name';
-        }
+        $filters = $this->resolveUserIndexFilters($request);
 
         $pendingCount = User::query()->where('is_approved', false)->count();
         $activeCount = User::query()->where('is_approved', true)->count();
 
-        $query = User::query()
-            ->with(['roles:id,name', 'permissions:id,name', 'employeeProfile:id,user_id,employee_number'])
-            ->where('is_approved', $approvalStatus === 'active')
-            ->when($search, function ($query) use ($search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhereHas('employeeProfile', fn ($profileQuery) => $profileQuery->where('employee_number', 'like', "%{$search}%"));
-            });
-
-        if ($sortBy === 'employee_number') {
-            $query->orderBy(
-                EmployeeProfile::query()
-                    ->select('employee_number')
-                    ->whereColumn('employee_profiles.user_id', 'users.id')
-                    ->limit(1),
-                $sortDirection,
-            )->orderBy('name');
-        } else {
-            $query->orderBy($sortBy, $sortDirection)->orderBy('id');
-        }
-
-        $users = $query->paginate(10)->withQueryString();
+        $users = $this->usersIndexQuery($filters)
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('access/users/Index', [
             'users' => $users,
             'roleOptions' => $this->roleOptions(),
-            'filters' => [
-                'search' => $search,
-                'sort_by' => $sortBy,
-                'sort_dir' => $sortDirection,
-                'approval_status' => $approvalStatus,
-            ],
+            'departmentOptions' => $this->departmentOptions(),
+            'exportColumns' => UserExportColumnRegistry::columns()->all(),
+            'filters' => $filters,
             'counts' => [
                 'active' => $activeCount,
                 'pending' => $pendingCount,
             ],
         ]);
+    }
+
+    public function export(ExportUsersRequest $request, UserExportService $userExportService): BinaryFileResponse
+    {
+        $validated = $request->validated();
+        $filters = $this->resolveUserIndexFilters($request);
+
+        $requestedColumns = $validated['columns'] ?? UserExportColumnRegistry::defaultKeys();
+        $columns = collect($requestedColumns)
+            ->prepend('name')
+            ->unique()
+            ->values()
+            ->all();
+
+        $users = $this->usersIndexQuery($filters)
+            ->with([
+                'roles:id,name',
+                'permissions:id,name',
+                'employeeProfile.department:id,name',
+                'employeeProfile.jobTitle:id,name',
+            ])
+            ->get();
+
+        $format = $validated['format'] ?? 'xlsx';
+        $filterSummary = $this->exportFilterSummary($filters);
+
+        return match ($format) {
+            'pdf' => $userExportService->pdf($users, $request->user(), $columns, $filterSummary),
+            default => $userExportService->excel($users, $request->user(), $columns, $filterSummary),
+        };
     }
 
     public function create(): Response
@@ -106,15 +110,22 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request, UserOnboardingService $userOnboardingService): RedirectResponse
     {
-        $result = $userOnboardingService->createUser($request->validated(), $request->user());
+        $validated = $request->validated();
+
+        if (! empty($validated['role_ids'] ?? [])) {
+            AccessAssignmentGuard::authorizeRoleAssignment($request->user());
+        }
+
+        if (! empty($validated['permission_ids'] ?? [])) {
+            AccessAssignmentGuard::authorizePermissionAssignment($request->user());
+        }
+
+        $result = $userOnboardingService->createUser($validated, $request->user());
 
         return to_route('access.users.show', $result['user'])
-            ->with('success', 'User account created successfully.')
-            ->with('generated_credentials', $result['send_credentials_email'] ? [] : [[
-                'name' => $result['user']->name,
-                'email' => $result['user']->email,
-                'password' => $result['plain_password'],
-            ]]);
+            ->with('success', $result['send_credentials_email']
+                ? 'User account created successfully. Login credentials were emailed to the user.'
+                : 'User account created successfully. Ask the user to sign in with the generated password shown during onboarding, or send a password reset.');
     }
 
     public function show(User $user): Response
@@ -166,10 +177,16 @@ class UserController extends Controller
 
         $user->update($attributes);
 
-        $roles = Role::query()->whereIn('id', $request->validated('role_ids', []))->get();
+        if ($request->has('role_ids')) {
+            AccessAssignmentGuard::authorizeRoleAssignment($request->user());
+            $roles = Role::query()->whereIn('id', $request->validated('role_ids', []))->get();
+            $user->syncRoles($roles);
+        }
 
-        $user->syncRoles($roles);
-        $user->syncPermissions($request->validated('permission_ids', []));
+        if ($request->has('permission_ids')) {
+            AccessAssignmentGuard::authorizePermissionAssignment($request->user());
+            $user->syncPermissions($request->validated('permission_ids', []));
+        }
 
         return to_route('access.users.show', $user);
     }
@@ -186,6 +203,14 @@ class UserController extends Controller
 
     public function bulkStore(BulkStoreUsersRequest $request, UserOnboardingService $userOnboardingService): RedirectResponse
     {
+        if (! empty($request->validated('default_role_ids', []))) {
+            AccessAssignmentGuard::authorizeRoleAssignment($request->user());
+        }
+
+        if (! empty($request->validated('default_permission_ids', []))) {
+            AccessAssignmentGuard::authorizePermissionAssignment($request->user());
+        }
+
         $results = $userOnboardingService->createUsers(
             $request->validated('users'),
             $request->user(),
@@ -195,19 +220,8 @@ class UserController extends Controller
             ],
         );
 
-        $generatedCredentials = collect($results)
-            ->filter(fn (array $result) => ! $result['send_credentials_email'])
-            ->map(fn (array $result) => [
-                'name' => $result['user']->name,
-                'email' => $result['user']->email,
-                'password' => $result['plain_password'],
-            ])
-            ->values()
-            ->all();
-
         return to_route('access.users.index')
-            ->with('success', count($results).' users created successfully.')
-            ->with('generated_credentials', $generatedCredentials);
+            ->with('success', count($results).' users created successfully. Credentials were not stored in the session; use password reset or credential email options for each account.');
     }
 
     public function importCreate(): Response
@@ -226,6 +240,14 @@ class UserController extends Controller
         UserOnboardingService $userOnboardingService,
     ): RedirectResponse {
         $this->authorize('import', User::class);
+
+        if (! empty($request->validated('default_role_ids', []))) {
+            AccessAssignmentGuard::authorizeRoleAssignment($request->user());
+        }
+
+        if (! empty($request->validated('default_permission_ids', []))) {
+            AccessAssignmentGuard::authorizePermissionAssignment($request->user());
+        }
 
         $rows = $userImportService->parse(
             $request->file('file'),
@@ -250,19 +272,8 @@ class UserController extends Controller
 
         $results = $userOnboardingService->createUsers($rows, $request->user());
 
-        $generatedCredentials = collect($results)
-            ->filter(fn (array $result) => ! $result['send_credentials_email'])
-            ->map(fn (array $result) => [
-                'name' => $result['user']->name,
-                'email' => $result['user']->email,
-                'password' => $result['plain_password'],
-            ])
-            ->values()
-            ->all();
-
         return to_route('access.users.index')
-            ->with('success', count($results).' users imported successfully.')
-            ->with('generated_credentials', $generatedCredentials);
+            ->with('success', count($results).' users imported successfully. Credentials were not stored in the session; use password reset or credential email options for each account.');
     }
 
     public function downloadImportTemplate(UserImportTemplateExport $export)
@@ -296,6 +307,8 @@ class UserController extends Controller
             'role_ids.*' => ['integer', 'exists:roles,id'],
         ]);
 
+        AccessAssignmentGuard::authorizeRoleAssignment($request->user());
+
         $roles = Role::query()
             ->whereIn('id', $validated['role_ids'])
             ->get();
@@ -311,6 +324,156 @@ class UserController extends Controller
         return to_route('access.users.index', [
             'approval_status' => 'pending',
         ])->with('success', "{$user->name} has been approved and can now sign in.");
+    }
+
+    /**
+     * @return array{
+     *     search: string,
+     *     sort_by: string,
+     *     sort_dir: string,
+     *     approval_status: string,
+     *     role_id: ?int,
+     *     department_id: ?int,
+     *     employee_link: ?string,
+     *     has_direct_permissions: ?string,
+     * }
+     */
+    private function resolveUserIndexFilters(Request $request): array
+    {
+        $search = (string) $request->string('search');
+        $sortBy = (string) $request->string('sort_by', 'name');
+        $sortDirection = strtolower((string) $request->string('sort_dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+        $approvalStatus = (string) $request->string('approval_status', 'active');
+        $roleId = $request->filled('role_id') ? (int) $request->input('role_id') : null;
+        $departmentId = $request->filled('department_id') ? (int) $request->input('department_id') : null;
+        $employeeLink = (string) $request->string('employee_link');
+        $hasDirectPermissions = (string) $request->string('has_direct_permissions');
+
+        if (! in_array($approvalStatus, ['active', 'pending'], true)) {
+            $approvalStatus = 'active';
+        }
+
+        if (! in_array($sortBy, ['name', 'email', 'employee_number', 'created_at', 'updated_at'], true)) {
+            $sortBy = 'name';
+        }
+
+        if (! in_array($employeeLink, ['linked', 'unlinked'], true)) {
+            $employeeLink = '';
+        }
+
+        if (! in_array($hasDirectPermissions, ['yes', 'no'], true)) {
+            $hasDirectPermissions = '';
+        }
+
+        return [
+            'search' => $search,
+            'sort_by' => $sortBy,
+            'sort_dir' => $sortDirection,
+            'approval_status' => $approvalStatus,
+            'role_id' => $roleId,
+            'department_id' => $departmentId,
+            'employee_link' => $employeeLink !== '' ? $employeeLink : null,
+            'has_direct_permissions' => $hasDirectPermissions !== '' ? $hasDirectPermissions : null,
+        ];
+    }
+
+    /**
+     * @param  array{
+     *     search: string,
+     *     sort_by: string,
+     *     sort_dir: string,
+     *     approval_status: string,
+     *     role_id: ?int,
+     *     department_id: ?int,
+     *     employee_link: ?string,
+     *     has_direct_permissions: ?string,
+     * }  $filters
+     */
+    private function usersIndexQuery(array $filters): Builder
+    {
+        $query = User::query()
+            ->with(['roles:id,name', 'permissions:id,name', 'employeeProfile:id,user_id,employee_number,department_id'])
+            ->where('is_approved', $filters['approval_status'] === 'active')
+            ->when($filters['search'], function ($query) use ($filters) {
+                $search = $filters['search'];
+
+                $query->where(function ($searchQuery) use ($search) {
+                    $searchQuery->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereHas('employeeProfile', fn ($profileQuery) => $profileQuery->where('employee_number', 'like', "%{$search}%"));
+                });
+            })
+            ->when($filters['role_id'], fn ($query) => $query->whereHas(
+                'roles',
+                fn ($roleQuery) => $roleQuery->where('roles.id', $filters['role_id']),
+            ))
+            ->when($filters['department_id'], fn ($query) => $query->whereHas(
+                'employeeProfile',
+                fn ($profileQuery) => $profileQuery->where('department_id', $filters['department_id']),
+            ))
+            ->when($filters['employee_link'] === 'linked', fn ($query) => $query->whereHas('employeeProfile'))
+            ->when($filters['employee_link'] === 'unlinked', fn ($query) => $query->whereDoesntHave('employeeProfile'))
+            ->when($filters['has_direct_permissions'] === 'yes', fn ($query) => $query->whereHas('permissions'))
+            ->when($filters['has_direct_permissions'] === 'no', fn ($query) => $query->whereDoesntHave('permissions'));
+
+        $sortBy = $filters['sort_by'];
+        $sortDirection = $filters['sort_dir'];
+
+        if ($sortBy === 'employee_number') {
+            $query->orderBy(
+                EmployeeProfile::query()
+                    ->select('employee_number')
+                    ->whereColumn('employee_profiles.user_id', 'users.id')
+                    ->limit(1),
+                $sortDirection,
+            )->orderBy('name');
+        } else {
+            $query->orderBy($sortBy, $sortDirection)->orderBy('id');
+        }
+
+        return $query;
+    }
+
+    /**
+     * @param  array{
+     *     search: string,
+     *     sort_by: string,
+     *     sort_dir: string,
+     *     approval_status: string,
+     *     role_id: ?int,
+     *     department_id: ?int,
+     *     employee_link: ?string,
+     *     has_direct_permissions: ?string,
+     * }  $filters
+     * @return array<string, mixed>
+     */
+    private function exportFilterSummary(array $filters): array
+    {
+        $roleName = $filters['role_id']
+            ? Role::query()->whereKey($filters['role_id'])->value('name')
+            : null;
+        $departmentName = $filters['department_id']
+            ? Department::query()->whereKey($filters['department_id'])->value('name')
+            : null;
+
+        return [
+            'search' => $filters['search'],
+            'approval_status' => $filters['approval_status'],
+            'sort_by' => $filters['sort_by'],
+            'sort_dir' => $filters['sort_dir'],
+            'role' => $roleName,
+            'department' => $departmentName,
+            'employee_link' => match ($filters['employee_link']) {
+                'linked' => 'Linked to employee profile',
+                'unlinked' => 'Not linked to employee profile',
+                default => null,
+            },
+            'has_direct_permissions' => match ($filters['has_direct_permissions']) {
+                'yes' => 'Has direct permissions',
+                'no' => 'No direct permissions',
+                default => null,
+            },
+        ];
     }
 
     /**

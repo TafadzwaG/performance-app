@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Performance;
 
-use App\Enums\AppraisalStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Models\Appraisal;
 use App\Models\AppraisalTemplate;
 use App\Models\ReviewCycle;
-use App\Services\Performance\AppraisalNavigationService;
 use App\Services\Performance\PendingAppraisalNavService;
 use App\Services\Performance\ReviewCycleAssignmentService;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +22,6 @@ class AppraisalController extends Controller
     public function __construct(
         private readonly ReviewCycleAssignmentService $assignmentService,
         private readonly PendingAppraisalNavService $pendingAppraisalNav,
-        private readonly AppraisalNavigationService $appraisalNavigation,
     ) {}
 
     public function index(Request $request): Response
@@ -62,7 +59,8 @@ class AppraisalController extends Controller
                 'needs_action' => $needsAction,
             ],
             'can' => [
-                'create' => $request->user()->can('performance.review_cycles.assign_employees') || $request->user()->can('performance.appraisals.view_all'),
+                'create' => $request->user()->can('create', Appraisal::class),
+                'delete' => $request->user()->can('create', Appraisal::class),
             ],
         ]);
     }
@@ -93,7 +91,8 @@ class AppraisalController extends Controller
             ->assign($cycle, [$validated['employee_profile_id']], $template, $request->user())
             ->first();
 
-        return to_route('performance.appraisals.show', $appraisal);
+        return to_route('performance.appraisals.index')
+            ->with('success', 'Appraisal assigned successfully.');
     }
 
     /**
@@ -125,22 +124,11 @@ class AppraisalController extends Controller
             ->with('success', "Assigned {$assigned->count()} appraisal".($assigned->count() === 1 ? '' : 's').' successfully.');
     }
 
-    public function show(Appraisal $appraisal): Response|RedirectResponse
+    public function show(Appraisal $appraisal): Response
     {
         $this->authorize('view', $appraisal);
 
         $appraisal = $this->loadAppraisal($appraisal);
-
-        if (
-            ! request()->boolean('overview')
-            && $appraisal->status !== AppraisalStatus::Finalized
-        ) {
-            $continueRoute = $this->appraisalNavigation->continueRoute($appraisal, request()->user());
-
-            if ($continueRoute) {
-                return redirect($continueRoute);
-            }
-        }
 
         return Inertia::render('performance/appraisals/Show', [
             'appraisal' => $appraisal,
@@ -153,5 +141,17 @@ class AppraisalController extends Controller
         $this->authorize('view', $appraisal);
 
         return to_route('performance.appraisals.plan', $appraisal);
+    }
+
+    public function destroy(Appraisal $appraisal): RedirectResponse
+    {
+        $this->authorize('delete', $appraisal);
+
+        $label = $appraisal->employee_name_snapshot ?? 'Appraisal';
+
+        $appraisal->forceDelete();
+
+        return to_route('performance.appraisals.index')
+            ->with('success', "{$label} appraisal deleted permanently.");
     }
 }

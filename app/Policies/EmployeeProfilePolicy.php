@@ -33,6 +33,10 @@ class EmployeeProfilePolicy
 
     public function delete(User $user, EmployeeProfile $employeeProfile): bool
     {
+        if ($employeeProfile->user_id === $user->id) {
+            return false;
+        }
+
         return $user->can('performance.employees.update');
     }
 

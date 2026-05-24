@@ -46,7 +46,12 @@ class AppraisalTemplateItem extends Model
 
     public function competency(): BelongsTo
     {
-        return $this->belongsTo(Competency::class);
+        return $this->belongsTo(Competency::class)->withTrashed();
+    }
+
+    public function displayValueName(): string
+    {
+        return $this->competency?->name ?: ($this->title ?: '—');
     }
 
     public function appraisalObjectives(): HasMany

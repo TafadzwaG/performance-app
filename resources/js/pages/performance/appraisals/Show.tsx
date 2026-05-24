@@ -1,4 +1,8 @@
-import AppraisalSteps, { getAppraisalContinueAction } from '@/components/performance/AppraisalSteps';
+import AppraisalSteps, {
+    AppraisalHeaderAction,
+    getAppraisalContinueAction,
+    getAppraisalWaitingAction,
+} from '@/components/performance/AppraisalSteps';
 import ApprovalTimeline from '@/components/performance/ApprovalTimeline';
 import CommentPanel from '@/components/performance/CommentPanel';
 import PerformancePage from '@/components/performance/PerformancePage';
@@ -52,6 +56,7 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
     const canOpenDevelopmentPlan =
         auth.permissions.includes('performance.development_plans.view') || auth.permissions.includes('performance.development_plans.update');
     const continueAction = getAppraisalContinueAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
+    const waitingAction = getAppraisalWaitingAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
 
     const effectiveOverallScore = appraisal.calibrated_overall_score ?? appraisal.overall_score;
     const overallRating = appraisal.calibrated_overall_rating_level?.label ?? appraisal.overall_rating_level?.label ?? 'Not rated yet';
@@ -65,14 +70,11 @@ export default function AppraisalShow({ appraisal, abilities }: Props) {
             breadcrumbs={breadcrumbs(appraisal)}
             secondaryActions={
                 <>
-                    {continueAction ? (
-                        <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                            <Link href={continueAction.href}>
-                                <ArrowRight className="mr-2 h-4 w-4" />
-                                {continueAction.label}
-                            </Link>
-                        </Button>
-                    ) : null}
+                    <AppraisalHeaderAction
+                        continueAction={continueAction}
+                        waitingAction={waitingAction}
+                        size="lg"
+                    />
                     {abilities.print ? (
                         <>
                             <Button asChild variant="outline">

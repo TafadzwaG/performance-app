@@ -14,9 +14,13 @@ test('login redirects to email verification when mfa is enabled', function () {
     Mail::fake();
 
     $user = User::factory()->withEmailMfa()->create();
+    $profile = EmployeeProfile::factory()->for($user)->create([
+        'employee_number' => 'EMP-MFA-001',
+    ]);
 
     $this->post('/login', [
-        'email' => $user->email,
+        'login_method' => 'employee_number',
+        'employee_number' => $profile->employee_number,
         'password' => 'password',
     ])
         ->assertRedirect(route('two-factor.login'));
@@ -24,15 +28,18 @@ test('login redirects to email verification when mfa is enabled', function () {
     $this->assertGuest();
     expect(session('login.id'))->toBe($user->id);
 
-    Mail::assertSent(LoginOtpMail::class, fn (LoginOtpMail $mail) => $mail->hasTo($user->email));
+    Mail::assertQueued(LoginOtpMail::class, fn (LoginOtpMail $mail) => $mail->hasTo($user->email));
 });
 
 test('user can complete login with a valid email verification code', function () {
     $user = User::factory()->withEmailMfa()->create();
-    EmployeeProfile::factory()->for($user)->create();
+    $profile = EmployeeProfile::factory()->for($user)->create([
+        'employee_number' => 'EMP-MFA-002',
+    ]);
 
     $this->post('/login', [
-        'email' => $user->email,
+        'login_method' => 'employee_number',
+        'employee_number' => $profile->employee_number,
         'password' => 'password',
     ])->assertRedirect(route('two-factor.login'));
 
@@ -48,9 +55,13 @@ test('user can complete login with a valid email verification code', function ()
 
 test('invalid verification code is rejected', function () {
     $user = User::factory()->withEmailMfa()->create();
+    $profile = EmployeeProfile::factory()->for($user)->create([
+        'employee_number' => 'EMP-MFA-003',
+    ]);
 
     $this->post('/login', [
-        'email' => $user->email,
+        'login_method' => 'employee_number',
+        'employee_number' => $profile->employee_number,
         'password' => 'password',
     ]);
 
@@ -99,10 +110,13 @@ test('enabling email verification requires the current password', function () {
 
 test('users without mfa can still log in normally', function () {
     $user = User::factory()->create();
-    EmployeeProfile::factory()->for($user)->create();
+    $profile = EmployeeProfile::factory()->for($user)->create([
+        'employee_number' => 'EMP-MFA-004',
+    ]);
 
     $this->post('/login', [
-        'email' => $user->email,
+        'login_method' => 'employee_number',
+        'employee_number' => $profile->employee_number,
         'password' => 'password',
     ])
         ->assertRedirect(route('dashboard', absolute: false));

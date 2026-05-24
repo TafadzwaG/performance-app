@@ -6,6 +6,14 @@ export interface Option {
     [key: string]: unknown;
 }
 
+export interface GoalLibraryScope {
+    locked: boolean;
+    department_id: number | null;
+    job_title_id: number | null;
+    department_label: string | null;
+    job_title_label: string | null;
+}
+
 export interface Paginated<T> {
     data: T[];
     current_page: number;
@@ -196,6 +204,7 @@ export interface GoalImportPreview {
 export interface CurrentGoalView {
     appraisal_id: number;
     status: string;
+    is_current?: boolean;
     employee: {
         name: string;
         email?: string | null;
@@ -257,6 +266,8 @@ export interface BasicUser {
     force_password_change?: boolean;
     password_changed_at?: string | null;
     welcome_notification_sent_at?: string | null;
+    created_at?: string;
+    updated_at?: string;
     roles?: Array<{ id: number; name: string }>;
     permissions?: Array<{ id: number; name: string }>;
 }
@@ -392,6 +403,7 @@ export interface ReviewCycle {
     status: string;
     opened_at?: string | null;
     closed_at?: string | null;
+    created_at?: string | null;
     appraisals_count?: number;
 }
 

@@ -1,6 +1,16 @@
 import AppraisalStatusBadge from '@/components/performance/AppraisalStatusBadge';
 import PaginationLinks from '@/components/performance/PaginationLinks';
 import PerformancePage from '@/components/performance/PerformancePage';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,13 +27,14 @@ import {
     Plus,
     Search,
     SlidersHorizontal,
+    Trash2,
     Trophy,
 } from 'lucide-react';
 
 interface Props {
     appraisals: Paginated<Appraisal>;
     filters: { search: string; status: string; needs_action?: boolean };
-    can: { create: boolean };
+    can: { create: boolean; delete: boolean };
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -43,6 +54,7 @@ function getInitials(name?: string | null) {
 export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
+    const [deleteTarget, setDeleteTarget] = useState<Appraisal | null>(null);
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -70,6 +82,17 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
 
     const from = appraisals.from ?? 0;
     const to = appraisals.to ?? totalVisible;
+
+    const deleteAppraisal = () => {
+        if (!deleteTarget) {
+            return;
+        }
+
+        router.delete(route('performance.appraisals.destroy', deleteTarget.id), {
+            preserveScroll: true,
+            onFinish: () => setDeleteTarget(null),
+        });
+    };
 
     return (
         <PerformancePage
@@ -336,12 +359,24 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
                                                     </td>
 
                                                     <td className="px-6 py-5">
-                                                        <div className="flex justify-end">
+                                                        <div className="flex justify-end gap-2">
                                                             <Button asChild size="sm" variant="outline">
                                                                 <Link href={route('performance.appraisals.show', appraisal.id)}>
                                                                     Open
                                                                 </Link>
                                                             </Button>
+
+                                                            {can.delete ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    title={`Delete ${appraisal.employee_name_snapshot ?? 'appraisal'}`}
+                                                                    onClick={() => setDeleteTarget(appraisal)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            ) : null}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -358,6 +393,42 @@ export default function AppraisalsIndex({ appraisals, filters, can }: Props) {
                     </CardContent>
                 </Card>
             </div>
+
+            <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete appraisal?</AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-3 text-sm text-muted-foreground">
+                                <p>
+                                    This will permanently delete the appraisal for{' '}
+                                    <span className="font-medium text-foreground">
+                                        {deleteTarget?.employee_name_snapshot ?? 'this employee'}
+                                    </span>{' '}
+                                    in{' '}
+                                    <span className="font-medium text-foreground">
+                                        {deleteTarget?.cycle_name_snapshot ?? 'this cycle'}
+                                    </span>
+                                    .
+                                </p>
+                                <p>
+                                    Objectives, ratings, comments, approvals, calibrations, and development plans linked
+                                    to this appraisal will also be removed. This action cannot be undone.
+                                </p>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={deleteAppraisal}
+                        >
+                            Delete appraisal
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PerformancePage>
     );
 }

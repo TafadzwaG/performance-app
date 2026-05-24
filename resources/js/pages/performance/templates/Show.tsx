@@ -1,3 +1,4 @@
+import ExportDownloadDialog, { type ExportDownloadFormat } from '@/components/performance/export-download-dialog';
 import PerformancePage from '@/components/performance/PerformancePage';
 import RatingScaleLegend from '@/components/performance/RatingScaleLegend';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,7 @@ import {
     ChevronRight,
     ClipboardList,
     Edit,
+    Eye,
     FileSpreadsheet,
     FileText,
     Layers3,
@@ -23,6 +25,7 @@ import {
     TrendingUp,
     Users,
 } from 'lucide-react';
+import { useState } from 'react';
 
 const breadcrumbs = (template: Template): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -81,6 +84,13 @@ function normalizeItemType(itemType: unknown) {
 }
 
 export default function TemplateShow({ template }: { template: Template }) {
+    const [exportRequest, setExportRequest] = useState<{
+        url: string;
+        format: ExportDownloadFormat;
+        subject: string;
+        fallbackFilename: string;
+    } | null>(null);
+
     const businessWeight = template.business_weight_percent ?? 0;
     const valuesWeight = template.values_weight_percent ?? 0;
     const items = (template.items ?? []).map((item) => ({
@@ -89,6 +99,18 @@ export default function TemplateShow({ template }: { template: Template }) {
         title: typeof item.title === 'string' && item.title.trim().length > 0 ? item.title : 'Untitled section',
     }));
     const ratingLevels = template.overall_rating_scale?.levels ?? [];
+
+    const startExport = (format: ExportDownloadFormat) => {
+        setExportRequest({
+            url:
+                format === 'pdf'
+                    ? route('performance.templates.export.pdf', template.id)
+                    : route('performance.templates.export.excel', template.id),
+            format,
+            subject: template.name,
+            fallbackFilename: `appraisal-template-${template.code ?? template.id}.${format === 'pdf' ? 'pdf' : 'xlsx'}`,
+        });
+    };
 
     return (
         <PerformancePage
@@ -123,32 +145,27 @@ export default function TemplateShow({ template }: { template: Template }) {
 
                         <div className="flex flex-wrap gap-3">
                             <Button asChild variant="outline">
+                                <Link href={route('performance.templates.print', template.id)}>
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Preview Layout
+                                </Link>
+                            </Button>
+
+                            <Button asChild variant="outline">
                                 <Link href={route('performance.templates.edit', template.id)}>
                                     <Edit className="mr-2 h-4 w-4" />
                                     Edit Template
                                 </Link>
                             </Button>
 
-                            <Button asChild variant="accent">
-                                <a
-                                    href={route('performance.templates.export.pdf', template.id)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    Export PDF
-                                </a>
+                            <Button type="button" variant="accent" onClick={() => startExport('pdf')}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Export PDF
                             </Button>
 
-                            <Button asChild variant="secondary">
-                                <a
-                                    href={route('performance.templates.export.excel', template.id)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <FileSpreadsheet className="mr-2 h-4 w-4" />
-                                    Export Excel
-                                </a>
+                            <Button type="button" variant="secondary" onClick={() => startExport('excel')}>
+                                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                Export Excel
                             </Button>
 
                             <Button asChild>
@@ -387,6 +404,8 @@ export default function TemplateShow({ template }: { template: Template }) {
                     </CardContent>
                 </Card>
             </div>
+
+            <ExportDownloadDialog request={exportRequest} onClose={() => setExportRequest(null)} />
         </PerformancePage>
     );
 }

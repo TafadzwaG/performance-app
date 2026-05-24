@@ -9,8 +9,16 @@ use App\Http\Requests\Performance\ConfirmGoalLibraryImportRequest;
 use App\Http\Requests\Performance\PreviewGoalLibraryImportRequest;
 use App\Http\Requests\Performance\Setup\StoreGoalLibraryItemRequest;
 use App\Http\Requests\Performance\Setup\UpdateGoalLibraryItemRequest;
+use App\Models\Department;
 use App\Models\GoalLibraryItem;
+use App\Models\JobTitle;
+use App\Models\Perspective;
+use App\Models\User;
+use App\Services\Performance\Export\GoalLibraryExportService;
 use App\Services\Performance\GoalLibraryImportService;
+use App\Services\Performance\GoalLibraryLookupService;
+use App\Services\Performance\GoalLibraryScopeService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -22,29 +30,58 @@ class GoalLibraryController extends Controller
 {
     use BuildsPerformanceViewData;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly GoalLibraryScopeService $goalLibraryScope,
+        private readonly GoalLibraryLookupService $goalLibraryLookup,
+    ) {
         $this->authorizeResource(GoalLibraryItem::class, 'goal_library_item');
     }
 
     public function index(Request $request): Response
     {
-        $search = (string) $request->string('search');
+        [$search, $departmentId, $jobTitleId, $perspectiveId] = $this->filterValues($request);
 
-        $goalLibraryItems = GoalLibraryItem::query()
-            ->with(['department', 'jobTitle', 'perspective'])
-            ->when($search, fn ($query) => $query->where('title', 'like', "%{$search}%")->orWhere('kpi_measure', 'like', "%{$search}%"))
+        $goalLibraryItems = $this->filteredGoalLibraryQuery($request)
             ->latest()
             ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('performance/goal-library/Index', [
             'goalLibraryItems' => $goalLibraryItems,
-            'filters' => ['search' => $search],
+            'filters' => [
+                'search' => $search,
+                'department_id' => $departmentId ? (string) $departmentId : '',
+                'job_title_id' => $jobTitleId ? (string) $jobTitleId : '',
+                'perspective_id' => $perspectiveId ? (string) $perspectiveId : '',
+            ],
+            'departmentOptions' => $this->departmentOptionsFor($request->user()),
+            'jobTitleOptions' => $this->jobTitleOptionsFor($request->user()),
+            'perspectiveOptions' => $this->perspectiveOptions(),
+            'scope' => $this->goalLibraryScope->frontendContext($request->user()),
             'can' => [
                 'create' => $request->user()->can('performance.goal_library.create'),
                 'import' => $request->user()->can('create', GoalLibraryItem::class),
+                'export' => $request->user()->can('viewAny', GoalLibraryItem::class),
+                'archive' => $request->user()->can('performance.goal_library.archive'),
             ],
+        ]);
+    }
+
+    public function export(Request $request, GoalLibraryExportService $goalLibraryExportService): BinaryFileResponse
+    {
+        $this->authorize('viewAny', GoalLibraryItem::class);
+
+        [$search, $departmentId, $jobTitleId, $perspectiveId] = $this->filterValues($request);
+
+        $rows = $this->filteredGoalLibraryQuery($request)
+            ->latest()
+            ->get();
+
+        return $goalLibraryExportService->excel($rows, $request->user(), [
+            'search' => $search !== '' ? $search : null,
+            'department' => $departmentId ? Department::query()->find($departmentId)?->name : null,
+            'job_title' => $jobTitleId ? JobTitle::query()->find($jobTitleId)?->name : null,
+            'perspective' => $perspectiveId ? Perspective::query()->find($perspectiveId)?->name : null,
         ]);
     }
 
@@ -71,8 +108,9 @@ class GoalLibraryController extends Controller
         return Inertia::render('performance/goal-library/UploadPreview', [
             'preview' => $preview,
             'perspectiveOptions' => $this->perspectiveOptions(),
-            'departmentOptions' => $this->departmentOptions(),
-            'jobTitleOptions' => $this->jobTitleOptions(),
+            'departmentOptions' => $this->departmentOptionsFor($request->user()),
+            'jobTitleOptions' => $this->jobTitleOptionsFor($request->user()),
+            'scope' => $this->goalLibraryScope->frontendContext($request->user()),
         ]);
     }
 
@@ -87,7 +125,7 @@ class GoalLibraryController extends Controller
                 ->withErrors(['file' => 'Upload session expired. Please upload your file again.']);
         }
 
-        $this->assertImportMappingsComplete($session['preview'] ?? [], $request->validated());
+        $this->assertImportMappingsComplete($session['preview'] ?? [], $request->validated(), $request->user());
 
         $perspectiveMappings = collect($request->validated('perspective_mappings'))
             ->mapWithKeys(fn (array $item) => [$item['source'] => (string) $item['perspective_id']])
@@ -100,7 +138,13 @@ class GoalLibraryController extends Controller
             ->all();
 
         $file = $goalLibraryImportService->uploadedFileFromSession($session);
-        $rows = $goalLibraryImportService->parse($file, $perspectiveMappings, $departmentMappings, $jobTitleMappings);
+        $rows = $goalLibraryImportService->parse(
+            $file,
+            $perspectiveMappings,
+            $departmentMappings,
+            $jobTitleMappings,
+            $request->user(),
+        );
         $count = $goalLibraryImportService->import($rows);
 
         $goalLibraryImportService->clearSessionUpload($session);
@@ -117,12 +161,13 @@ class GoalLibraryController extends Controller
         return $export->download('goal-library-upload-template-'.now()->format('Ymd-Hi').'.xlsx');
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('performance/goal-library/Create', [
-            'departmentOptions' => $this->departmentOptions(),
-            'jobTitleOptions' => $this->jobTitleOptions(),
+            'departmentOptions' => $this->departmentOptionsFor($request->user()),
+            'jobTitleOptions' => $this->jobTitleOptionsFor($request->user()),
             'perspectiveOptions' => $this->perspectiveOptions(),
+            'scope' => $this->goalLibraryScope->frontendContext($request->user()),
         ]);
     }
 
@@ -144,15 +189,16 @@ class GoalLibraryController extends Controller
         ]);
     }
 
-    public function edit(GoalLibraryItem $goalLibraryItem): Response
+    public function edit(Request $request, GoalLibraryItem $goalLibraryItem): Response
     {
         $goalLibraryItem->load(['department', 'jobTitle', 'perspective']);
 
         return Inertia::render('performance/goal-library/Edit', [
             'goalLibraryItem' => $goalLibraryItem,
-            'departmentOptions' => $this->departmentOptions(),
-            'jobTitleOptions' => $this->jobTitleOptions(),
+            'departmentOptions' => $this->departmentOptionsFor($request->user()),
+            'jobTitleOptions' => $this->jobTitleOptionsFor($request->user()),
             'perspectiveOptions' => $this->perspectiveOptions(),
+            'scope' => $this->goalLibraryScope->frontendContext($request->user()),
         ]);
     }
 
@@ -172,7 +218,84 @@ class GoalLibraryController extends Controller
         return to_route('performance.goal_library.index');
     }
 
-    private function assertImportMappingsComplete(array $preview, array $validated): void
+    private function filterValues(Request $request): array
+    {
+        $search = (string) $request->string('search');
+        $departmentId = $request->integer('department_id') ?: null;
+        $jobTitleId = $request->integer('job_title_id') ?: null;
+        $perspectiveId = $request->integer('perspective_id') ?: null;
+
+        if ($this->goalLibraryScope->appliesTo($request->user())) {
+            $scope = $this->goalLibraryScope->profileScope($request->user());
+            $departmentId = $scope['department_id'] ?? null;
+            // Job title matching is handled inside scopeQuery (includes department-wide goals).
+            $jobTitleId = null;
+        }
+
+        return [
+            $search,
+            $departmentId,
+            $jobTitleId,
+            $perspectiveId,
+        ];
+    }
+
+    private function filteredGoalLibraryQuery(Request $request): Builder
+    {
+        [$search, $departmentId, $jobTitleId, $perspectiveId] = $this->filterValues($request);
+        $user = $request->user();
+
+        $query = GoalLibraryItem::query()
+            ->with(['department', 'jobTitle', 'perspective']);
+
+        if ($this->goalLibraryScope->appliesTo($user)) {
+            $this->goalLibraryScope->applyEmployeeCatalogScope($query, $user);
+        } else {
+            $query
+                ->when($departmentId, fn (Builder $builder) => $builder->where('department_id', $departmentId))
+                ->when($jobTitleId, fn (Builder $builder) => $builder->where('job_title_id', $jobTitleId));
+        }
+
+        return $this->goalLibraryLookup
+            ->applySearch($query, $search)
+            ->when($perspectiveId, fn (Builder $builder) => $builder->where('perspective_id', $perspectiveId));
+    }
+
+    /**
+     * @return list<array{value:int|string,label:string}>
+     */
+    private function departmentOptionsFor(User $user): array
+    {
+        $context = $this->goalLibraryScope->frontendContext($user);
+
+        if (! $context['locked'] || ! $context['department_id']) {
+            return $this->departmentOptions();
+        }
+
+        return [[
+            'value' => $context['department_id'],
+            'label' => $context['department_label'] ?? 'Department',
+        ]];
+    }
+
+    /**
+     * @return list<array{value:int|string,label:string}>
+     */
+    private function jobTitleOptionsFor(User $user): array
+    {
+        $context = $this->goalLibraryScope->frontendContext($user);
+
+        if (! $context['locked'] || ! $context['job_title_id']) {
+            return $this->jobTitleOptions();
+        }
+
+        return [[
+            'value' => $context['job_title_id'],
+            'label' => $context['job_title_label'] ?? 'Job title',
+        ]];
+    }
+
+    private function assertImportMappingsComplete(array $preview, array $validated, User $user): void
     {
         $perspectiveSources = collect($preview['perspectives'] ?? [])->pluck('source')->all();
         $departmentSources = collect($preview['departments'] ?? [])->pluck('source')->all();
@@ -183,12 +306,23 @@ class GoalLibraryController extends Controller
         $mappedJobTitles = collect($validated['job_title_mappings'] ?? [])->pluck('source')->all();
 
         $missingPerspectives = array_diff($perspectiveSources, $mappedPerspectives);
+
+        if ($missingPerspectives !== []) {
+            throw ValidationException::withMessages([
+                'perspective_mappings' => 'Complete all perspective mappings before importing.',
+            ]);
+        }
+
+        if ($this->goalLibraryScope->appliesTo($user)) {
+            return;
+        }
+
         $missingDepartments = array_diff($departmentSources, $mappedDepartments);
         $missingJobTitles = array_diff($jobTitleSources, $mappedJobTitles);
 
-        if ($missingPerspectives !== [] || $missingDepartments !== [] || $missingJobTitles !== []) {
+        if ($missingDepartments !== [] || $missingJobTitles !== []) {
             throw ValidationException::withMessages([
-                'perspective_mappings' => 'Complete all perspective, department, and job title mappings before importing.',
+                'department_mappings' => 'Complete all department and job title mappings before importing.',
             ]);
         }
     }

@@ -52,9 +52,9 @@ function NoteField({
     const hasContent = length > 0;
 
     return (
-        <div className="flex h-full flex-col rounded-2xl border bg-background shadow-sm">
+        <div className="flex h-full flex-col rounded-lg border bg-background shadow-sm">
             <div className="flex items-start gap-3 border-b bg-muted/20 px-4 py-4">
-                <span className="bg-background text-muted-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm">
+                <span className="bg-background text-muted-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-sm">
                     <Icon className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 space-y-1">
@@ -68,7 +68,7 @@ function NoteField({
                     <>
                         <textarea
                             id={id}
-                            className="min-h-36 flex-1 resize-y rounded-xl border border-input bg-muted/20 px-3 py-3 text-sm leading-relaxed focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            className="min-h-36 flex-1 resize-y rounded-lg border border-input bg-muted/20 px-3 py-3 text-sm leading-relaxed focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                             placeholder={placeholder}
                             value={value}
                             maxLength={MAX_NOTE_LENGTH}
@@ -82,7 +82,7 @@ function NoteField({
                         </div>
                     </>
                 ) : (
-                    <div className="min-h-24 rounded-xl border border-dashed bg-muted/10 px-3 py-3 text-sm leading-relaxed whitespace-pre-wrap">
+                    <div className="min-h-24 rounded-lg border border-dashed bg-muted/10 px-3 py-3 text-sm leading-relaxed whitespace-pre-wrap">
                         {hasContent ? value : <span className="text-muted-foreground italic">Nothing recorded yet.</span>}
                     </div>
                 )}
@@ -132,7 +132,7 @@ export default function SelfAssessmentNotesPanel({
             </div>
 
             {workflowComments.length > 0 ? (
-                <div className="space-y-3 rounded-2xl border bg-muted/15 p-4">
+                <div className="space-y-3 rounded-lg border bg-muted/15 p-4">
                     <div className="flex flex-wrap items-center gap-2">
                         <MessageSquare className="text-muted-foreground h-4 w-4" />
                         <h4 className="text-sm font-semibold text-foreground">Feedback on this appraisal</h4>
@@ -149,7 +149,7 @@ export default function SelfAssessmentNotesPanel({
                             const isSendBack = type === 'send_back';
 
                             return (
-                                <div key={comment.id} className="rounded-xl border bg-background p-4 shadow-sm">
+                                <div key={comment.id} className="rounded-lg border bg-background p-4 shadow-sm">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <Badge variant="outline" className="gap-1 px-2 py-0.5 text-[11px] capitalize">
                                             {isSendBack ? <CornerUpLeft className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
@@ -167,7 +167,7 @@ export default function SelfAssessmentNotesPanel({
                     </div>
                 </div>
             ) : editable ? (
-                <div className="flex items-start gap-3 rounded-xl border border-dashed bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                <div className="flex items-start gap-3 rounded-lg border border-dashed bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
                     <Sparkles className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
                     <p>
                         Both fields are optional. Add context that objective ratings alone do not capture — managers review this with your

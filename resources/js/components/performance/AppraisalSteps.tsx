@@ -3,13 +3,18 @@ import { Button } from '@/components/ui/button';
 import type { Appraisal } from '@/types/performance';
 import { Link } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
-import { ArrowRight, BadgeCheck, CheckCircle2, ClipboardCheck, FileCheck2, ListChecks, Lock, Sparkles, Target, UserCheck } from 'lucide-react';
+import { ArrowRight, BadgeCheck, CheckCircle2, ClipboardCheck, Clock, FileCheck2, ListChecks, Lock, Sparkles, Target, UserCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export type AppraisalStepKey = 'goal_setting' | 'self_assessment' | 'manager_review' | 'approval' | 'calibration' | 'final_record';
 
 export type AppraisalStartAction = {
     href: string;
+    label: string;
+    description: string;
+};
+
+export type AppraisalWaitingAction = {
     label: string;
     description: string;
 };
@@ -43,6 +48,7 @@ export default function AppraisalSteps({
     showStartButton = true,
 }: Props) {
     const continueAction = getAppraisalContinueAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
+    const waitingAction = getAppraisalWaitingAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
     const steps = buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
     const pendingStepKey = getNextPendingStepKey(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
 
@@ -62,13 +68,12 @@ export default function AppraisalSteps({
                         View appraisal summary
                     </Link>
                 </div>
-                {showStartButton && continueAction ? (
-                    <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90 w-fit">
-                        <Link href={continueAction.href}>
-                            <ArrowRight className="mr-2 h-4 w-4" />
-                            {continueAction.label}
-                        </Link>
-                    </Button>
+                {showStartButton ? (
+                    <AppraisalHeaderAction
+                        continueAction={continueAction}
+                        waitingAction={waitingAction}
+                        className="w-fit"
+                    />
                 ) : null}
             </div>
 
@@ -328,6 +333,122 @@ export function getAppraisalContinueAction(
             label: appraisal.development_plan ? 'Continue to development plan' : 'Create development plan',
             description: 'Record development actions after the appraisal is finalized.',
         };
+    }
+
+    return null;
+}
+
+export function getAppraisalWaitingAction(
+    appraisal: Appraisal,
+    abilities: Record<string, boolean>,
+    hasGoals: boolean,
+    canOpenDevelopmentPlan: boolean,
+): AppraisalWaitingAction | null {
+    if (getAppraisalContinueAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan)) {
+        return null;
+    }
+
+    const pendingStep = buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan).find((step) => !step.isComplete);
+
+    if (!pendingStep || canEditAppraisalStep(pendingStep.key, abilities)) {
+        return null;
+    }
+
+    return buildWaitingActionForStep(pendingStep.key, appraisal);
+}
+
+function buildWaitingActionForStep(stepKey: AppraisalStepKey, appraisal: Appraisal): AppraisalWaitingAction {
+    const employeeName = appraisal.employee_name_snapshot ?? appraisal.employee?.name ?? 'the employee';
+
+    switch (stepKey) {
+        case 'goal_setting':
+            return {
+                label: `Waiting for ${employeeName}'s Goal Setting`,
+                description: 'Goals must be agreed and submitted before the appraisal can continue.',
+            };
+        case 'self_assessment':
+            return {
+                label: `Waiting for ${employeeName}'s Self Assessment`,
+                description: 'The employee needs to complete and submit their self assessment.',
+            };
+        case 'manager_review':
+            return buildManagerReviewWaitingAction(appraisal);
+        case 'approval':
+            return buildApprovalWaitingAction(appraisal);
+        case 'calibration':
+            return {
+                label: 'Waiting for Calibration Review',
+                description: 'The calibration team will confirm the final outcome before the appraisal is closed.',
+            };
+        case 'final_record':
+            return {
+                label: 'Waiting for Finalization',
+                description: 'An authorized reviewer will lock the final appraisal record.',
+            };
+        default:
+            return {
+                label: 'Waiting for the next workflow step',
+                description: 'This appraisal is waiting on another participant before it can continue.',
+            };
+    }
+}
+
+function buildManagerReviewWaitingAction(appraisal: Appraisal): AppraisalWaitingAction {
+    const managerName = appraisal.line_manager?.name ?? 'Your Manager';
+
+    return {
+        label: `Waiting for ${managerName}'s Review`,
+        description: 'Your line manager will review your self assessment and provide ratings.',
+    };
+}
+
+function buildApprovalWaitingAction(appraisal: Appraisal): AppraisalWaitingAction {
+    const approverName = appraisal.approving_manager?.name ?? appraisal.line_manager?.name ?? 'Your Approving Manager';
+
+    return {
+        label: `Waiting for ${approverName}'s Approval`,
+        description: 'Your approving manager will review the completed appraisal.',
+    };
+}
+
+type AppraisalHeaderActionProps = {
+    continueAction: AppraisalStartAction | null;
+    waitingAction: AppraisalWaitingAction | null;
+    size?: 'default' | 'sm' | 'lg';
+    className?: string;
+};
+
+export function AppraisalHeaderAction({
+    continueAction,
+    waitingAction,
+    size = 'default',
+    className,
+}: AppraisalHeaderActionProps) {
+    if (continueAction) {
+        return (
+            <Button asChild size={size} className={`bg-primary text-primary-foreground hover:bg-primary/90 ${className ?? ''}`}>
+                <Link href={continueAction.href}>
+                    <ArrowRight className="mr-2 h-4 w-4" />
+                    {continueAction.label}
+                </Link>
+            </Button>
+        );
+    }
+
+    if (waitingAction) {
+        return (
+            <Button
+                type="button"
+                size={size}
+                disabled
+                aria-disabled="true"
+                title={waitingAction.description}
+                className={`bg-primary text-primary-foreground hover:bg-primary disabled:cursor-default disabled:opacity-100 ${className ?? ''}`}
+            >
+                <Clock className="mr-2 h-4 w-4" />
+                {waitingAction.label}
+            </Button>
+        );
     }
 
     return null;

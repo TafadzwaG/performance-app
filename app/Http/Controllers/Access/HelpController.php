@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Access;
 
 use App\Http\Controllers\Controller;
+use App\Support\Branding;
 use App\Support\Documentation\DocumentationLibrary;
+use App\Support\Pdf\StudioExportPdf;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -112,12 +114,20 @@ class HelpController extends Controller
         $markdown = File::get($entry['path']);
         $html = Str::markdown($markdown);
         $fileName = $entry['download_names']['pdf'] ?? "{$entry['slug']}.pdf";
+        $user = auth()->user();
 
-        return Pdf::loadView('pdf.documentation.document', [
-            'title' => $entry['title'],
-            'audience' => $entry['audience'],
-            'description' => $entry['description'],
-            'html' => $html,
-        ])->setPaper('a4')->download($fileName);
+        return StudioExportPdf::configure(
+            Pdf::loadView('pdf.documentation.document', [
+                ...Branding::exportHeaderContext(),
+                'title' => $entry['title'],
+                'audience' => $entry['audience'],
+                'description' => $entry['description'],
+                'html' => $html,
+                'headerReportLabel' => 'Documentation',
+                'exportedBy' => $user?->name ?? 'System',
+                'exportedByEmail' => $user?->email,
+                'exportedAt' => now(),
+            ])
+        )->download($fileName);
     }
 }

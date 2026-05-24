@@ -1,4 +1,6 @@
 import { GetStartedPopover, InlineHint } from '@/components/get-started-popover';
+import LandingBrandMark from '@/components/landing-brand-mark';
+import PublicSiteFooter from '@/components/public-site-footer';
 import { Reveal } from '@/components/reveal';
 import { Button } from '@/components/ui/button';
 import { type SharedData } from '@/types';
@@ -23,29 +25,78 @@ import {
 } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, XAxis } from 'recharts';
 
-/* -----------------------------------------------------------
- * Small inline data — purely illustrative for the landing infographics.
- * ----------------------------------------------------------- */
-
-const performanceTrend = [
-    { month: 'Jan', score: 62 },
-    { month: 'Feb', score: 68 },
-    { month: 'Mar', score: 71 },
-    { month: 'Apr', score: 74 },
-    { month: 'May', score: 78 },
-    { month: 'Jun', score: 81 },
-    { month: 'Jul', score: 84 },
-    { month: 'Aug', score: 87 },
-];
-
-const competencyMix = [
-    { name: 'Delivery', value: 38 },
-    { name: 'Craft', value: 26 },
-    { name: 'Collaboration', value: 22 },
-    { name: 'Leadership', value: 14 },
-];
-
 const competencyColors = ['var(--palette-sand)', 'var(--palette-pine)', 'var(--palette-rust)', 'var(--palette-stone)'];
+
+interface PlatformStats {
+    has_data: boolean;
+    company_values: Array<{
+        id: number;
+        name: string;
+        code: string | null;
+        description: string | null;
+    }>;
+    performance_trend: {
+        points: Array<{ month: string; score: number }>;
+        ytd_change: number | null;
+        sample_size: number;
+        period_label: string;
+    };
+    competency_mix: {
+        items: Array<{ name: string; value: number }>;
+        pillar_count: number;
+    };
+    snapshot: {
+        score: number | null;
+        previous_score: number | null;
+        max_score: number;
+    };
+    goals: {
+        completed: number;
+        total: number;
+        completion_rate: number;
+        cycle_label: string | null;
+    };
+    feedback_velocity: {
+        total_this_month: number;
+        weekly_counts: number[];
+        period_growth_percent: number | null;
+    };
+}
+
+interface WelcomeProps {
+    platformStats?: PlatformStats;
+}
+
+const emptyPlatformStats: PlatformStats = {
+    has_data: false,
+    company_values: [],
+    performance_trend: {
+        points: [],
+        ytd_change: null,
+        sample_size: 0,
+        period_label: '',
+    },
+    competency_mix: {
+        items: [],
+        pillar_count: 0,
+    },
+    snapshot: {
+        score: null,
+        previous_score: null,
+        max_score: 100,
+    },
+    goals: {
+        completed: 0,
+        total: 0,
+        completion_rate: 0,
+        cycle_label: null,
+    },
+    feedback_velocity: {
+        total_this_month: 0,
+        weekly_counts: Array.from({ length: 12 }, () => 0),
+        period_growth_percent: null,
+    },
+};
 
 const cycleSteps = [
     {
@@ -127,8 +178,43 @@ const tickerItems = [
     'TEAMS  ▲  HEARD',
 ];
 
-export default function Welcome() {
+export default function Welcome({ platformStats: platformStatsProp }: WelcomeProps) {
     const { auth } = usePage<SharedData>().props;
+    const platformStats = {
+        ...emptyPlatformStats,
+        ...platformStatsProp,
+        company_values: platformStatsProp?.company_values ?? [],
+        performance_trend: {
+            ...emptyPlatformStats.performance_trend,
+            ...platformStatsProp?.performance_trend,
+            points: platformStatsProp?.performance_trend?.points ?? [],
+        },
+        competency_mix: {
+            ...emptyPlatformStats.competency_mix,
+            ...platformStatsProp?.competency_mix,
+            items: platformStatsProp?.competency_mix?.items ?? [],
+        },
+        snapshot: {
+            ...emptyPlatformStats.snapshot,
+            ...platformStatsProp?.snapshot,
+        },
+        goals: {
+            ...emptyPlatformStats.goals,
+            ...platformStatsProp?.goals,
+        },
+        feedback_velocity: {
+            ...emptyPlatformStats.feedback_velocity,
+            ...platformStatsProp?.feedback_velocity,
+            weekly_counts: platformStatsProp?.feedback_velocity?.weekly_counts ?? emptyPlatformStats.feedback_velocity.weekly_counts,
+        },
+    };
+    const companyValues = platformStats.company_values;
+    const performanceTrend = platformStats.performance_trend.points;
+    const competencyMix = platformStats.competency_mix.items;
+    const maxWeeklyFeedback = Math.max(...platformStats.feedback_velocity.weekly_counts, 1);
+    const goalBlocksFilled = platformStats.goals.total > 0
+        ? Math.round((platformStats.goals.completed / platformStats.goals.total) * 24)
+        : 0;
 
     return (
         <>
@@ -150,18 +236,7 @@ export default function Welcome() {
                 {/* ============================================================ NAV */}
                 <header className="relative z-20">
                     <div className="mx-auto flex max-w-7xl items-center justify-between px-6 pt-6 lg:px-10 lg:pt-8">
-                        <Link href="/" className="group flex items-center gap-3">
-                            <div className="bg-brand-ink relative grid h-9 w-9 place-items-center overflow-hidden rounded-sm">
-                                <div className="bg-brand-sand absolute inset-1 rounded-[2px]" />
-                                <span className="text-brand-ink relative font-display text-[15px] font-bold">P</span>
-                            </div>
-                            <div className="flex flex-col leading-none">
-                                <span className="font-display text-[15px] font-medium tracking-tight">Performance</span>
-                                <span className="font-mono-brand text-foreground/60 text-[9px] tracking-[0.22em] uppercase">
-                                    Appraisal Studio
-                                </span>
-                            </div>
-                        </Link>
+                        <LandingBrandMark />
 
                         <nav className="font-mono-brand hidden items-center gap-8 text-[11px] tracking-[0.18em] uppercase lg:flex">
                             <a href="#manifesto" className="hover:text-brand-pine dark:hover:text-brand-sand transition-colors">
@@ -178,9 +253,9 @@ export default function Welcome() {
                             </a>
                         </nav>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                             {auth.user ? (
-                                <Button asChild size="sm">
+                                <Button asChild>
                                     <Link href={route('dashboard')}>
                                         Open dashboard
                                         <ArrowRight className="ml-1" />
@@ -188,10 +263,10 @@ export default function Welcome() {
                                 </Button>
                             ) : (
                                 <>
-                                    <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                                    <Button asChild variant="ghost" className="hidden px-4 text-sm sm:inline-flex">
                                         <Link href={route('login')}>Log in</Link>
                                     </Button>
-                                    <Button asChild size="sm">
+                                    <Button asChild className="px-4 text-sm">
                                         <Link href={route('login')}>
                                             Enter studio
                                             <ArrowRight className="ml-1" />
@@ -222,6 +297,34 @@ export default function Welcome() {
                                 </p>
                                 <div className="text-foreground/40 dotted-divider h-1.5 w-full" />
                                 <p>Vol. 01 — Issue 02</p>
+
+                                {companyValues.length > 0 ? (
+                                    <>
+                                        <div className="text-foreground/40 dotted-divider h-1.5 w-full" />
+                                        <div className="space-y-3 pt-1">
+                                            <div className="font-mono-brand text-foreground/60 text-[10px] tracking-[0.22em] uppercase">
+                                                § Company values
+                                            </div>
+                                            <ul className="space-y-3 normal-case">
+                                                {companyValues.map((value) => (
+                                                    <li key={value.id} className="flex items-start gap-2.5">
+                                                        <span className="bg-brand-sand mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full" />
+                                                        <div className="min-w-0">
+                                                            <p className="text-foreground/85 text-[12px] leading-snug font-medium">
+                                                                {value.name}
+                                                            </p>
+                                                            {value.description ? (
+                                                                <p className="text-foreground/55 mt-1 text-[11px] leading-relaxed">
+                                                                    {value.description}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </>
+                                ) : null}
                             </div>
                         </aside>
 
@@ -478,8 +581,13 @@ export default function Welcome() {
                         <div className="col-span-12 lg:col-span-4">
                             <p className="text-foreground/70 leading-relaxed">
                                 Live dashboards for executives, managers, and individual contributors — each cut from
-                                the same source of truth.
+                                the same source of truth in your organisation.
                             </p>
+                            {!platformStats.has_data ? (
+                                <p className="text-foreground/55 mt-3 text-[12px] italic">
+                                    Metrics appear here once review cycles, goals, and feedback are recorded.
+                                </p>
+                            ) : null}
                         </div>
                     </div>
 
@@ -495,34 +603,44 @@ export default function Welcome() {
                                 </div>
                                 <div className="border-brand-pine/40 bg-brand-pine/10 text-brand-pine dark:border-brand-sand/50 dark:bg-brand-sand/15 dark:text-brand-sand flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs">
                                     <TrendingUp className="h-3.5 w-3.5" />
-                                    <span className="font-medium">+22 pts YTD</span>
+                                    <span className="font-medium">
+                                        {platformStats.performance_trend.ytd_change !== null
+                                            ? `${platformStats.performance_trend.ytd_change >= 0 ? '+' : ''}${platformStats.performance_trend.ytd_change} pts`
+                                            : 'Live trend'}
+                                    </span>
                                 </div>
                             </div>
                             <div className="-mx-2 h-64">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={performanceTrend} margin={{ top: 10, right: 8, left: 8, bottom: 0 }}>
-                                        <defs>
-                                            <linearGradient id="barFill" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="var(--palette-sand)" stopOpacity={1} />
-                                                <stop offset="100%" stopColor="var(--palette-sand)" stopOpacity={0.55} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid stroke="var(--palette-ink)" strokeOpacity={0.06} vertical={false} />
-                                        <XAxis
-                                            dataKey="month"
-                                            stroke="var(--palette-ink)"
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tick={{ fontSize: 11, fill: 'var(--palette-ink)', opacity: 0.65 }}
-                                        />
-                                        <Bar dataKey="score" fill="url(#barFill)" radius={[4, 4, 0, 0]} maxBarSize={42} />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                {performanceTrend.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={performanceTrend} margin={{ top: 10, right: 8, left: 8, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="barFill" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="var(--palette-sand)" stopOpacity={1} />
+                                                    <stop offset="100%" stopColor="var(--palette-sand)" stopOpacity={0.55} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid stroke="var(--palette-ink)" strokeOpacity={0.06} vertical={false} />
+                                            <XAxis
+                                                dataKey="month"
+                                                stroke="var(--palette-ink)"
+                                                tickLine={false}
+                                                axisLine={false}
+                                                tick={{ fontSize: 11, fill: 'var(--palette-ink)', opacity: 0.65 }}
+                                            />
+                                            <Bar dataKey="score" fill="url(#barFill)" radius={[4, 4, 0, 0]} maxBarSize={42} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="text-foreground/55 flex h-full items-center justify-center text-sm">
+                                        No finalized review scores yet.
+                                    </div>
+                                )}
                             </div>
                             <div className="font-mono-brand text-foreground/55 mt-2 flex items-center gap-3 text-[10px] tracking-[0.18em] uppercase">
-                                <span>Jan → Aug 2026</span>
+                                <span>{platformStats.performance_trend.period_label}</span>
                                 <span className="dotted-divider h-px flex-1 text-foreground/30" />
-                                <span>n = 1,284</span>
+                                <span>n = {platformStats.performance_trend.sample_size.toLocaleString()}</span>
                             </div>
                         </Reveal>
 
@@ -534,46 +652,60 @@ export default function Welcome() {
                             <div className="font-display mt-2 text-2xl">Values weighting</div>
 
                             <div className="relative h-44">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={competencyMix}
-                                            innerRadius={48}
-                                            outerRadius={74}
-                                            paddingAngle={2}
-                                            dataKey="value"
-                                            stroke="var(--palette-cream)"
-                                            strokeWidth={2}
-                                        >
-                                            {competencyMix.map((_, i) => (
-                                                <Cell key={i} fill={competencyColors[i]} />
-                                            ))}
-                                        </Pie>
-                                    </PieChart>
-                                </ResponsiveContainer>
-                                <div className="pointer-events-none absolute inset-0 grid place-items-center">
-                                    <div className="text-center">
-                                        <div className="font-display text-3xl leading-none">04</div>
-                                        <div className="font-mono-brand text-foreground/60 mt-0.5 text-[9px] tracking-[0.2em] uppercase">
-                                            pillars
+                                {competencyMix.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={competencyMix}
+                                                innerRadius={48}
+                                                outerRadius={74}
+                                                paddingAngle={2}
+                                                dataKey="value"
+                                                stroke="var(--palette-cream)"
+                                                strokeWidth={2}
+                                            >
+                                                {competencyMix.map((_, i) => (
+                                                    <Cell key={i} fill={competencyColors[i % competencyColors.length]} />
+                                                ))}
+                                            </Pie>
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="text-foreground/55 flex h-full items-center justify-center px-4 text-center text-sm">
+                                        No competency ratings recorded yet.
+                                    </div>
+                                )}
+                                {competencyMix.length > 0 ? (
+                                    <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                                        <div className="text-center">
+                                            <div className="font-display text-3xl leading-none">
+                                                {String(platformStats.competency_mix.pillar_count).padStart(2, '0')}
+                                            </div>
+                                            <div className="font-mono-brand text-foreground/60 mt-0.5 text-[9px] tracking-[0.2em] uppercase">
+                                                pillars
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                ) : null}
                             </div>
 
                             <ul className="mt-2 space-y-1.5">
-                                {competencyMix.map((c, i) => (
-                                    <li key={c.name} className="flex items-center justify-between text-[12px]">
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className="inline-block h-2.5 w-2.5 rounded-sm"
-                                                style={{ background: competencyColors[i] }}
-                                            />
-                                            <span>{c.name}</span>
-                                        </div>
-                                        <span className="font-mono-brand text-foreground/70">{c.value}%</span>
-                                    </li>
-                                ))}
+                                {competencyMix.length > 0 ? (
+                                    competencyMix.map((c, i) => (
+                                        <li key={c.name} className="flex items-center justify-between text-[12px]">
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className="inline-block h-2.5 w-2.5 rounded-sm"
+                                                    style={{ background: competencyColors[i % competencyColors.length] }}
+                                                />
+                                                <span>{c.name}</span>
+                                            </div>
+                                            <span className="font-mono-brand text-foreground/70">{c.value}%</span>
+                                        </li>
+                                    ))
+                                ) : (
+                                    <li className="text-foreground/55 text-[12px]">Waiting for rated competencies.</li>
+                                )}
                             </ul>
                         </Reveal>
 
@@ -584,14 +716,27 @@ export default function Welcome() {
                                 Fig. 03 — Snapshot
                             </div>
                             <div className="font-display relative mt-4 text-6xl leading-none font-light">
-                                <span className="text-brand-sand">87</span>
-                                <span className="text-brand-cream/40 text-3xl">/100</span>
+                                <span className="text-brand-sand">
+                                    {platformStats.snapshot.score !== null
+                                        ? Math.round(platformStats.snapshot.score)
+                                        : '—'}
+                                </span>
+                                <span className="text-brand-cream/40 text-3xl">/{platformStats.snapshot.max_score}</span>
                             </div>
                             <p className="text-brand-cream/70 mt-3 text-[13px]">
-                                Median engagement score this cycle. Up from 78 last quarter.
+                                {platformStats.snapshot.score !== null
+                                    ? platformStats.snapshot.previous_score !== null
+                                        ? `Average effective score this quarter. Up from ${Math.round(platformStats.snapshot.previous_score)} last quarter.`
+                                        : 'Average effective score across finalized reviews this quarter.'
+                                    : 'Average effective score will appear once reviews are finalized.'}
                             </p>
                             <div className="relative mt-6 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                                <div className="bg-brand-sand h-full w-[87%] rounded-full" />
+                                <div
+                                    className="bg-brand-sand h-full rounded-full transition-all"
+                                    style={{
+                                        width: `${platformStats.snapshot.score ?? 0}%`,
+                                    }}
+                                />
                             </div>
                         </Reveal>
 
@@ -600,19 +745,31 @@ export default function Welcome() {
                             <div className="font-mono-brand text-brand-cream/60 text-[10px] tracking-[0.2em] uppercase">
                                 Fig. 04 — Goals
                             </div>
-                            <div className="font-display mt-4 text-4xl leading-none">312 of 348</div>
-                            <p className="text-brand-cream/75 mt-2 text-[13px]">objectives closed on time this cycle</p>
+                            <div className="font-display mt-4 text-4xl leading-none">
+                                {platformStats.goals.total > 0
+                                    ? `${platformStats.goals.completed.toLocaleString()} of ${platformStats.goals.total.toLocaleString()}`
+                                    : '—'}
+                            </div>
+                            <p className="text-brand-cream/75 mt-2 text-[13px]">
+                                {platformStats.goals.total > 0
+                                    ? 'objectives rated or evidenced in the active review cycle'
+                                    : 'Goal completion appears once objectives are added to a cycle'}
+                            </p>
                             <div className="mt-5 grid grid-cols-12 gap-1">
                                 {Array.from({ length: 24 }).map((_, i) => (
                                     <span
                                         key={i}
-                                        className={`h-3 rounded-sm ${i < 21 ? 'bg-brand-sand' : 'bg-white/20'}`}
+                                        className={`h-3 rounded-sm ${i < goalBlocksFilled ? 'bg-brand-sand' : 'bg-white/20'}`}
                                     />
                                 ))}
                             </div>
                             <div className="font-mono-brand text-brand-cream/70 mt-3 flex items-center justify-between text-[10px] tracking-[0.18em] uppercase">
-                                <span>89% completion</span>
-                                <span>Q2 · 2026</span>
+                                <span>
+                                    {platformStats.goals.total > 0
+                                        ? `${platformStats.goals.completion_rate}% completion`
+                                        : 'No goals yet'}
+                                </span>
+                                <span>{platformStats.goals.cycle_label ?? 'No active cycle'}</span>
                             </div>
                         </Reveal>
 
@@ -621,20 +778,26 @@ export default function Welcome() {
                             <div className="font-mono-brand text-foreground/60 text-[10px] tracking-[0.2em] uppercase">
                                 Fig. 05 — Velocity
                             </div>
-                            <div className="font-display mt-4 text-4xl leading-none">2,140</div>
-                            <p className="text-foreground/65 mt-2 text-[13px]">pieces of feedback exchanged this month</p>
+                            <div className="font-display mt-4 text-4xl leading-none">
+                                {platformStats.feedback_velocity.total_this_month.toLocaleString()}
+                            </div>
+                            <p className="text-foreground/65 mt-2 text-[13px]">comments and feedback entries this month</p>
                             <div className="mt-6 flex h-16 items-end gap-1.5">
-                                {[8, 14, 11, 18, 22, 16, 26, 30, 24, 33, 28, 41].map((h, i) => (
+                                {platformStats.feedback_velocity.weekly_counts.map((count, i) => (
                                     <div
                                         key={i}
                                         className="bg-brand-rust/70 hover:bg-brand-rust flex-1 rounded-t-sm transition-all"
-                                        style={{ height: `${(h / 41) * 100}%` }}
+                                        style={{ height: `${(count / maxWeeklyFeedback) * 100}%` }}
                                     />
                                 ))}
                             </div>
                             <div className="font-mono-brand text-foreground/55 mt-3 flex items-center justify-between text-[10px] tracking-[0.18em] uppercase">
                                 <span>last 12 weeks</span>
-                                <span className="text-brand-rust">+38%</span>
+                                <span className="text-brand-rust">
+                                    {platformStats.feedback_velocity.period_growth_percent !== null
+                                        ? `${platformStats.feedback_velocity.period_growth_percent >= 0 ? '+' : ''}${platformStats.feedback_velocity.period_growth_percent}%`
+                                        : '—'}
+                                </span>
                             </div>
                         </Reveal>
                     </div>
@@ -672,7 +835,7 @@ export default function Welcome() {
                                 key={f.title}
                                 delay={(i % 3) * 100 + Math.floor(i / 3) * 80}
                                 variant="rise"
-                                className="bg-card group relative flex flex-col p-7 lg:p-8"
+                                className="bg-card group relative flex cursor-pointer flex-col p-7 transition-colors hover:bg-card/95 lg:p-8"
                             >
                                 <div className="text-foreground/40 font-mono-brand absolute top-4 right-5 text-[10px] tracking-[0.18em]">
                                     0{i + 1}
@@ -689,43 +852,6 @@ export default function Welcome() {
                             </Reveal>
                         ))}
                     </div>
-                    </div>
-                </section>
-
-                {/* ============================================================ BUTTON SHOWCASE (subtle) */}
-                <section className="relative z-10 mx-auto max-w-7xl px-6 pb-24 lg:px-10 lg:pb-32">
-                    <div className="bg-card border-foreground/12 rounded-xl border p-8 lg:p-12">
-                        <div className="mb-8 grid grid-cols-12 gap-4">
-                            <div className="col-span-12 lg:col-span-7">
-                                <div className="font-mono-brand text-foreground/60 text-[11px] tracking-[0.22em] uppercase">
-                                    § System
-                                </div>
-                                <h3 className="font-display mt-3 text-3xl lg:text-4xl">A consistent vocabulary, top to bottom.</h3>
-                            </div>
-                            <p className="text-foreground/65 col-span-12 self-end text-[13px] lg:col-span-5">
-                                Every action speaks the same language across the studio — same shape, same weight, same
-                                colour meaning.
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                            {[
-                                { variant: 'default' as const, label: 'Primary' },
-                                { variant: 'secondary' as const, label: 'Secondary' },
-                                { variant: 'accent' as const, label: 'Accent' },
-                                { variant: 'success' as const, label: 'Approve' },
-                                { variant: 'warning' as const, label: 'Pending' },
-                                { variant: 'destructive' as const, label: 'Reject' },
-                                { variant: 'info' as const, label: 'Inform' },
-                                { variant: 'outline' as const, label: 'Outline' },
-                                { variant: 'soft' as const, label: 'Soft' },
-                                { variant: 'ghost' as const, label: 'Ghost' },
-                            ].map((b) => (
-                                <Button key={b.label} variant={b.variant} size="lg" className="w-full">
-                                    {b.label}
-                                </Button>
-                            ))}
-                        </div>
                     </div>
                 </section>
 
@@ -781,23 +907,7 @@ export default function Welcome() {
                 </section>
 
                 {/* ============================================================ FOOTER */}
-                <footer className="border-foreground/15 relative z-10 border-t">
-                    <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-8 sm:flex-row lg:px-10">
-                        <div className="font-mono-brand text-foreground/60 text-[10px] tracking-[0.22em] uppercase">
-                            © 2026 — Performance Appraisal Studio · Made with care
-                        </div>
-                        <div className="font-mono-brand text-foreground/60 flex items-center gap-4 text-[10px] tracking-[0.22em] uppercase">
-                            <span className="flex items-center gap-2">
-                                <span className="bg-brand-sand inline-block h-2 w-2" />
-                                Sand · #BFB48F
-                            </span>
-                            <span className="flex items-center gap-2">
-                                <span className="bg-brand-ink inline-block h-2 w-2" />
-                                Ink · #252627
-                            </span>
-                        </div>
-                    </div>
-                </footer>
+                <PublicSiteFooter />
 
                 {/* Floating onboarding popover — sits above everything */}
                 <GetStartedPopover triggerVariant="floating" />

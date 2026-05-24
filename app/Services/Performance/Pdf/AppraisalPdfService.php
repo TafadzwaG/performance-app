@@ -3,11 +3,12 @@
 namespace App\Services\Performance\Pdf;
 
 use App\Models\Appraisal;
-use App\Models\SystemSetting;
 use App\Support\Branding;
+use App\Support\Pdf\StudioExportPdf;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AppraisalPdfService
@@ -67,23 +68,15 @@ class AppraisalPdfService
         $fileName = "appraisal-{$appraisal->employee_number_snapshot}-{$cycleCode}-final.pdf";
         $filePath = storage_path("app/{$fileName}");
 
-        $poweredByPath = Branding::poweredByPath();
-        $settings = SystemSetting::query()->first();
-
-        Pdf::loadView('pdf.performance.appraisal-assessment-form', [
-            'appraisal' => $appraisal,
-            'poweredByPath' => $poweredByPath,
-            'poweredByExists' => $poweredByPath !== null,
-            'companyName' => $settings?->company_name ?? 'Monomotapa',
-            'exportedAt' => Carbon::now(),
-        ])
-            ->setPaper('a4', 'portrait')
-            ->setOptions([
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled' => true,
-                'defaultFont' => 'DejaVu Sans',
+        StudioExportPdf::configure(
+            Pdf::loadView('pdf.performance.appraisal-assessment-form', [
+                ...Branding::exportHeaderContext(),
+                'appraisal' => $appraisal,
+                'exportedAt' => Carbon::now(),
+                'headerReportLabel' => 'Individual Performance Assessment Form',
+                'statusLabel' => Str::of((string) ($appraisal->status?->value ?? $appraisal->status))->replace('_', ' ')->title(),
             ])
-            ->save($filePath);
+        )->save($filePath);
 
         return [$fileName, $filePath];
     }

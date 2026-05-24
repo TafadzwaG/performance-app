@@ -13,7 +13,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function OverdueReviews({ rows, reviewCycleOptions, filters }: { rows: Array<Record<string, unknown>>; reviewCycleOptions: Option[]; filters: { review_cycle_id?: number | null } }) {
     return (
         <PerformancePage title="Overdue Reviews" description="Identify self-assessments, manager reviews, and approvals that are overdue." breadcrumbs={breadcrumbs}>
-            <CycleFilters reviewCycleOptions={reviewCycleOptions} reviewCycleId={filters.review_cycle_id ?? null} reportRoute="performance.reports.overdue_reviews" exportKey="overdue-reviews" />
+            <CycleFilters reviewCycleOptions={reviewCycleOptions} reviewCycleId={filters.review_cycle_id ?? null} reportRoute="performance.reports.overdue_reviews" exportKey="overdue-reviews" reportTitle="Overdue Reviews" />
             <ReportTable rows={rows} />
         </PerformancePage>
     );

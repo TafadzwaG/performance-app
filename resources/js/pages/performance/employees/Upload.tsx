@@ -21,7 +21,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const templateColumns =
-    'user_email, employee_number, department_name, job_title_name, line_manager_email, approving_manager_email, national_id, date_of_birth, gender, marital_status, personal_phone, employment_status, employment_type, work_location, hire_date, is_active, is_review_eligible, role_names';
+    'employee_number, user_email, department_name, job_title_name, line_manager_employee_number, approving_manager_employee_number, line_manager_email, approving_manager_email, national_id, date_of_birth, gender, marital_status, personal_phone, employment_status, employment_type, work_location, hire_date, is_active, is_review_eligible, role_names';
 
 export default function EmployeeUpload() {
     const { data, setData, post, processing, errors } = useForm<ImportEmployeesFormData>({
@@ -150,7 +150,8 @@ export default function EmployeeUpload() {
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm text-muted-foreground">
                         <div className="rounded-lg border px-4 py-3">
-                            Each row must reference an existing user account via <span className="font-medium text-foreground">user_email</span>.
+                            Each row must include a unique <span className="font-medium text-foreground">employee_number</span> and reference an
+                            existing user account via <span className="font-medium text-foreground">user_email</span>.
                             Create users first under Access → Users if needed.
                         </div>
                         <div className="rounded-lg border px-4 py-3">
@@ -158,7 +159,9 @@ export default function EmployeeUpload() {
                             <span className="font-medium text-foreground">job_title_name</span> values to setup records before importing.
                         </div>
                         <div className="rounded-lg border px-4 py-3">
-                            Manager emails must match existing user accounts. Leave blank when not applicable.
+                            Managers are resolved by <span className="font-medium text-foreground">line_manager_employee_number</span> and{' '}
+                            <span className="font-medium text-foreground">approving_manager_employee_number</span> when provided, otherwise by email.
+                            Leave blank when not applicable.
                         </div>
                         <div className="rounded-lg border px-4 py-3">
                             Optional <span className="font-medium text-foreground">role_names</span> accepts comma-separated role names (e.g. Employee, Manager).

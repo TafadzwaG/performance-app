@@ -100,9 +100,9 @@ class ReportQueryService
                 'my_open_appraisals' => (clone $ownQuery)->whereNotIn('status', ['finalized'])->count(),
                 'team_pending_reviews' => (clone $teamQuery)->where('status', 'manager_review_pending')->count(),
                 'pending_approvals' => (clone $approvalQuery)->where('status', 'approval_pending')->count(),
-                'overdue_reviews' => $this->overdueReviews()->count(),
+                'overdue_reviews' => $this->overdueVisibleAppraisals(clone $visibleQuery)->count(),
                 'open_cycles' => ReviewCycle::query()->where('status', 'open')->count(),
-                'finalized_reviews' => Appraisal::query()->whereNotNull('finalized_at')->count(),
+                'finalized_reviews' => (clone $visibleQuery)->whereNotNull('finalized_at')->count(),
             ],
             'focus_cycle' => $this->focusCycle(),
             'workflow_distribution' => $this->workflowDistribution($visibleQuery),
@@ -173,9 +173,13 @@ class ReportQueryService
             ->get();
     }
 
-    public function overdueReviews(array|int|null $filters = null): Collection
+    public function overdueReviews(array|int|null $filters = null, ?User $user = null): Collection
     {
-        return $this->baseReportQuery($this->normalizeFilters($filters))
+        $query = $user instanceof User
+            ? $this->dashboardVisibleAppraisals($user)
+            : $this->baseReportQuery($this->normalizeFilters($filters));
+
+        return (clone $query)
             ->join('review_cycles', 'review_cycles.id', '=', 'appraisals.review_cycle_id')
             ->where(function (Builder $query) {
                 $query->where(function (Builder $self) {
@@ -252,6 +256,14 @@ class ReportQueryService
             ? round(($cycle->finalized_count / $cycle->appraisals_count) * 100, 1)
             : 0;
 
+        $statusCounts = $cycle->appraisals()
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $countFor = fn (array $statuses): int => collect($statuses)
+            ->sum(fn (string $status) => (int) ($statusCounts[$status] ?? 0));
+
         return [
             'id' => $cycle->id,
             'name' => $cycle->name,
@@ -269,6 +281,13 @@ class ReportQueryService
             'approval_pending_count' => $cycle->approval_pending_count,
             'finalized_count' => $cycle->finalized_count,
             'completion_rate' => $completionRate,
+            'pipeline' => [
+                ['stage' => 'Goal setting', 'count' => $countFor(['draft', 'goal_setting'])],
+                ['stage' => 'Self assessment', 'count' => $countFor(['self_assessment_pending', 'self_assessment_submitted'])],
+                ['stage' => 'Manager review', 'count' => $countFor(['manager_review_pending', 'manager_review_completed'])],
+                ['stage' => 'Approval', 'count' => $countFor(['approval_pending', 'approved', 'calibration_pending', 'sent_back'])],
+                ['stage' => 'Finalized', 'count' => $countFor(['finalized'])],
+            ],
         ];
     }
 

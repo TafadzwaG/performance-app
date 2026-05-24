@@ -113,6 +113,18 @@ class User extends Authenticatable
 
     public function canBeImpersonated(): bool
     {
+        if (! $this->is_approved) {
+            return false;
+        }
+
+        if ($this->can('access.users.impersonate')) {
+            return false;
+        }
+
+        if ($this->hasRole('Super Admin')) {
+            return false;
+        }
+
         return true;
     }
 }

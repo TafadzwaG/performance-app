@@ -1,4 +1,5 @@
 import PaginationLinks from '@/components/performance/PaginationLinks';
+import DeleteEmployeeDialog from '@/components/performance/employees/delete-employee-dialog';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import type { BreadcrumbItem } from '@/types';
 import type { EmployeeFieldConfigItem, EmployeeProfile, Paginated } from '@/types/performance';
-import { Link, useForm } from '@inertiajs/react';
+import { Link, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState, type FormEvent } from 'react';
 import {
     Briefcase,
@@ -21,6 +22,7 @@ import {
     Plus,
     Search,
     ShieldCheck,
+    Trash2,
     UploadCloud,
     UserCheck,
     Users,
@@ -31,7 +33,7 @@ interface Props {
     filters: { search: string };
     fieldConfig: EmployeeFieldConfigItem[];
     exportColumns: EmployeeExportColumn[];
-    can: { create: boolean; import: boolean; export: boolean };
+    can: { create: boolean; import: boolean; export: boolean; delete: boolean };
 }
 
 interface EmployeeExportColumn {
@@ -66,8 +68,11 @@ function maskNationalId(value?: string | null) {
 }
 
 export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig, exportColumns, can }: Props) {
+    const { auth } = usePage<{ auth: { user: { id: number } } }>().props;
     const searchForm = useForm({ search: filters.search ?? '' });
     const [exportModalOpen, setExportModalOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<EmployeeProfile | null>(null);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedExportColumns, setSelectedExportColumns] = useState<string[]>(
         exportColumns.filter((column) => column.default || column.required).map((column) => column.key),
     );
@@ -299,7 +304,7 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
                                             ))}
 
                                             <td className="px-6 py-4">
-                                                <div className="flex justify-end gap-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+                                                <div className="flex justify-end gap-2">
                                                     <Button asChild variant="ghost" size="icon">
                                                         <Link href={route('performance.employees.show', profile.id)}>
                                                             <Eye className="h-4 w-4" />
@@ -311,6 +316,24 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
                                                             <PencilLine className="h-4 w-4" />
                                                         </Link>
                                                     </Button>
+
+                                                    {can.delete && profile.user_id !== auth.user.id ? (
+                                                        <Button
+                                                            type="button"
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            title={`Delete ${profile.user?.name ?? profile.employee_number}`}
+                                                            onClick={() => {
+                                                                setDeleteTarget(profile);
+                                                                setDeleteDialogOpen(true);
+                                                            }}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                            <span className="sr-only">
+                                                                Delete {profile.user?.name ?? profile.employee_number}
+                                                            </span>
+                                                        </Button>
+                                                    ) : null}
                                                 </div>
                                             </td>
                                         </tr>
@@ -344,6 +367,8 @@ export default function EmployeesIndex({ employeeProfiles, filters, fieldConfig,
                         <PaginationLinks paginated={employeeProfiles} />
                     </div>
                 </section>
+
+                <DeleteEmployeeDialog employee={deleteTarget} open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} />
 
                 <Dialog open={exportModalOpen} onOpenChange={setExportModalOpen}>
                     <DialogContent className="max-w-2xl">

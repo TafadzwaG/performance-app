@@ -1,12 +1,14 @@
 <?php
 
+use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 test('authenticated user can view the help and documentation page', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->create(['is_approved' => true]);
+    EmployeeProfile::factory()->for($user)->create();
 
     $this->actingAs($user)
         ->get(route('access.help.index'))
@@ -17,7 +19,7 @@ test('authenticated user can view the help and documentation page', function () 
 });
 
 test('authenticated user can download markdown documentation', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->create(['is_approved' => true]);
 
     $this->actingAs($user)
         ->get(route('access.help.download', [
@@ -29,7 +31,7 @@ test('authenticated user can download markdown documentation', function () {
 });
 
 test('authenticated user can download generated pdf documentation', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->create(['is_approved' => true]);
 
     $this->actingAs($user)
         ->get(route('access.help.download', [

@@ -8,6 +8,7 @@ use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Performance\SubmitSelfAssessmentRequest;
 use App\Models\Appraisal;
 use App\Models\RatingScaleLevel;
+use App\Services\Performance\AppraisalNavigationService;
 use App\Services\Performance\AppraisalWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,7 @@ class AppraisalSelfAssessmentController extends Controller
 
     public function __construct(
         private readonly AppraisalWorkflowService $workflowService,
+        private readonly AppraisalNavigationService $appraisalNavigation,
     ) {}
 
     public function edit(Appraisal $appraisal): Response
@@ -75,7 +77,8 @@ class AppraisalSelfAssessmentController extends Controller
 
         $this->workflowService->submitSelfAssessment($appraisal, request()->user());
 
-        return to_route('performance.appraisals.show', $appraisal);
+        return redirect($this->appraisalNavigation->afterStepSubmitRoute($appraisal, request()->user()))
+            ->with('success', 'Self assessment submitted. Your manager will review it next.');
     }
 
     private function upsertComment(Appraisal $appraisal, CommentType $type, ?string $body): void

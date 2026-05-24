@@ -108,6 +108,7 @@ interface ObjectiveFormRowProps {
     perspectiveOptions: Option[];
     ratingLevels?: RatingScaleLevel[];
     goalLibrarySearchEndpoint?: string;
+    selectedGoalLibraryItemIds?: number[];
     allowStructuralEditing?: boolean;
     onChange?: (index: number, field: string, value: string | number | boolean | null) => void;
     onApplyGoalLibrary?: (index: number, goal: GoalLibrarySearchOption) => void;
@@ -122,6 +123,7 @@ export default function ObjectiveFormRow({
     perspectiveOptions,
     ratingLevels = [],
     goalLibrarySearchEndpoint,
+    selectedGoalLibraryItemIds = [],
     allowStructuralEditing = true,
     onChange,
     onApplyGoalLibrary,
@@ -154,6 +156,13 @@ export default function ObjectiveFormRow({
         });
 
     const fieldId = (suffix: string) => `objective-${index}-${suffix}`;
+    const excludedGoalLibraryItemIds = selectedGoalLibraryItemIds.filter(
+        (goalLibraryItemId) => goalLibraryItemId !== objective.goal_library_item_id,
+    );
+    const goalLibrarySearchExtraQuery =
+        excludedGoalLibraryItemIds.length > 0
+            ? { exclude: excludedGoalLibraryItemIds.join(',') }
+            : undefined;
 
     if (isPlan) {
         return (
@@ -184,6 +193,7 @@ export default function ObjectiveFormRow({
                             id={fieldId('library')}
                             endpoint={goalLibrarySearchEndpoint}
                             value={objective.goal_library_item_id ?? null}
+                            extraQuery={goalLibrarySearchExtraQuery}
                             placeholder="Search goals for your department and role…"
                             emptyText="No matching goals. Try another keyword or enter details manually."
                             fallbackLabel={objective.goal_library_item_id ? objective.title : null}

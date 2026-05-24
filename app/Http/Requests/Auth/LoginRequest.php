@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
+use App\Services\Performance\EmployeeIdentityService;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
@@ -30,7 +32,9 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            'login_method' => ['required', Rule::in(['employee_number', 'email'])],
+            'employee_number' => ['required_if:login_method,employee_number', 'nullable', 'string', 'max:100'],
+            'email' => ['required_if:login_method,email', 'nullable', 'string', 'email', 'max:255'],
             'password' => ['required', 'string'],
         ];
     }
@@ -52,13 +56,13 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        $user = User::query()->where('email', $this->string('email')->toString())->first();
+        $user = $this->resolveUser();
 
         if (! $user || ! Hash::check($this->string('password')->toString(), $user->password)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
+                $this->credentialField() => __('auth.failed'),
             ]);
         }
 
@@ -83,7 +87,7 @@ class LoginRequest extends FormRequest
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'email' => __('auth.throttle', [
+            $this->credentialField() => __('auth.throttle', [
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),
@@ -95,6 +99,45 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        return Str::transliterate($this->loginMethod().'|'.$this->loginIdentifier().'|'.$this->ip());
+    }
+
+    public function loginMethod(): string
+    {
+        return $this->string('login_method')->toString();
+    }
+
+    public function credentialField(): string
+    {
+        return $this->usesEmailLogin() ? 'email' : 'employee_number';
+    }
+
+    public function usesEmailLogin(): bool
+    {
+        return $this->loginMethod() === 'email';
+    }
+
+    private function loginIdentifier(): string
+    {
+        if ($this->usesEmailLogin()) {
+            return Str::lower(trim($this->string('email')->toString()));
+        }
+
+        return app(EmployeeIdentityService::class)->normalizeEmployeeNumber(
+            $this->string('employee_number')->toString(),
+        );
+    }
+
+    private function resolveUser(): ?User
+    {
+        if ($this->usesEmailLogin()) {
+            return User::query()
+                ->where('email', $this->loginIdentifier())
+                ->first();
+        }
+
+        return app(EmployeeIdentityService::class)->findUserByEmployeeNumber(
+            $this->string('employee_number')->toString(),
+        );
     }
 }

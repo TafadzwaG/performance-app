@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Department;
+use App\Models\EmployeeProfile;
 use App\Models\GoalLibraryItem;
 use App\Models\JobTitle;
 use App\Models\Permission;
@@ -163,6 +164,7 @@ test('upload preview reports missing required goal data', function () {
 
 test('users without goal library create permission cannot import goals', function () {
     $user = User::factory()->create(['is_approved' => true]);
+    EmployeeProfile::factory()->for($user)->create();
 
     $this->actingAs($user)
         ->get(route('performance.goal_library.upload'))
@@ -173,9 +175,13 @@ function grantGoalLibraryImportPermissions(User $user): void
 {
     Permission::findOrCreate('performance.goal_library.view', 'web');
     Permission::findOrCreate('performance.goal_library.create', 'web');
+    Permission::findOrCreate('performance.goal_library.update', 'web');
 
     $user->givePermissionTo([
         'performance.goal_library.view',
         'performance.goal_library.create',
+        'performance.goal_library.update',
     ]);
+
+    EmployeeProfile::factory()->for($user)->create();
 }

@@ -1,26 +1,64 @@
 import PaginationLinks from '@/components/performance/PaginationLinks';
 import PerformancePage from '@/components/performance/PerformancePage';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import type { BreadcrumbItem } from '@/types';
-import type { GoalLibraryItem, Paginated } from '@/types/performance';
+import type { GoalLibraryItem, GoalLibraryScope, Option, Paginated } from '@/types/performance';
 import { Link, router } from '@inertiajs/react';
-import { BookOpen, Briefcase, Download, Filter, FolderKanban, Layers3, PencilLine, Plus, Search, Target, Upload, View } from 'lucide-react';
+import {
+    BookOpen,
+    Briefcase,
+    Download,
+    Filter,
+    FolderKanban,
+    Layers3,
+    PencilLine,
+    Plus,
+    Search,
+    SlidersHorizontal,
+    Target,
+    Trash2,
+    Upload,
+    View,
+    X,
+} from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 
 interface Props {
     goalLibraryItems: Paginated<GoalLibraryItem>;
-    filters: { search: string };
-    can: { create: boolean; import: boolean };
+    filters: {
+        search: string;
+        department_id: string;
+        job_title_id: string;
+        perspective_id: string;
+    };
+    departmentOptions: Option[];
+    jobTitleOptions: Option[];
+    perspectiveOptions: Option[];
+    scope: GoalLibraryScope;
+    can: { create: boolean; import: boolean; export: boolean; archive: boolean };
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Performance', href: '/performance/dashboard' },
     { title: 'Goal Library', href: route('performance.goal_library.index') },
 ];
+
+const selectClassName =
+    'flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
 function getAlignmentLabel(item: GoalLibraryItem) {
     const hasPerspective = !!item.perspective?.name;
@@ -39,13 +77,81 @@ function getAlignmentVariant(item: GoalLibraryItem): 'default' | 'secondary' | '
     return 'outline';
 }
 
-export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Props) {
+export default function GoalLibraryIndex({
+    goalLibraryItems,
+    filters,
+    departmentOptions,
+    jobTitleOptions,
+    perspectiveOptions,
+    scope,
+    can,
+}: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const [departmentId, setDepartmentId] = useState(filters.department_id ?? '');
+    const [jobTitleId, setJobTitleId] = useState(filters.job_title_id ?? '');
+    const [perspectiveId, setPerspectiveId] = useState(filters.perspective_id ?? '');
+    const [deleteTarget, setDeleteTarget] = useState<GoalLibraryItem | null>(null);
+
+    const activeFilterCount = useMemo(
+        () => [search, departmentId, jobTitleId, perspectiveId].filter(Boolean).length,
+        [search, departmentId, jobTitleId, perspectiveId],
+    );
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
-        router.get(route('performance.goal_library.index'), { search }, { preserveState: true, replace: true });
+        router.get(
+            route('performance.goal_library.index'),
+            {
+                search,
+                department_id: departmentId || undefined,
+                job_title_id: jobTitleId || undefined,
+                perspective_id: perspectiveId || undefined,
+            },
+            { preserveState: true, replace: true },
+        );
+    };
+
+    const clearFilters = () => {
+        setSearch('');
+        setDepartmentId('');
+        setJobTitleId('');
+        setPerspectiveId('');
+
+        router.get(route('performance.goal_library.index'), {}, { preserveState: true, replace: true });
+    };
+
+    const handleExport = () => {
+        const url = new URL(route('performance.goal_library.export'), window.location.origin);
+
+        if (filters.search) {
+            url.searchParams.set('search', filters.search);
+        }
+
+        if (filters.department_id) {
+            url.searchParams.set('department_id', filters.department_id);
+        }
+
+        if (filters.job_title_id) {
+            url.searchParams.set('job_title_id', filters.job_title_id);
+        }
+
+        if (filters.perspective_id) {
+            url.searchParams.set('perspective_id', filters.perspective_id);
+        }
+
+        window.location.assign(url.toString());
+    };
+
+    const deleteGoal = () => {
+        if (!deleteTarget) {
+            return;
+        }
+
+        router.delete(route('performance.goal_library.destroy', deleteTarget.id), {
+            preserveScroll: true,
+            onFinish: () => setDeleteTarget(null),
+        });
     };
 
     const totalVisible = goalLibraryItems.data.length;
@@ -113,8 +219,9 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                             <div>
                                 <h1 className="text-foreground text-3xl font-bold tracking-tight">Goal Library</h1>
                                 <p className="text-muted-foreground mt-2 max-w-2xl text-sm">
-                                    Reusable SMART goals categorized by department and strategic perspective to support consistent planning across the
-                                    organization.
+                                    {scope.locked
+                                        ? `Goals for ${scope.department_label ?? 'your department'} and ${scope.job_title_label ?? 'your job title'}.`
+                                        : 'Reusable SMART goals categorized by department, position, and strategic perspective to support consistent planning across the organization.'}
                                 </p>
                             </div>
                         </div>
@@ -179,31 +286,120 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <CardTitle className="text-lg">Search & Filter</CardTitle>
-                                <CardDescription>Find reusable goals by title, department, or strategic perspective.</CardDescription>
+                                <CardDescription>
+                                    {scope.locked
+                                        ? 'Search by title or KPI, then filter by perspective within your department and job title.'
+                                        : 'Search by title or KPI, then narrow results by department, position, and perspective.'}
+                                </CardDescription>
                             </div>
 
-                            <div className="text-muted-foreground text-xs">
-                                {highAlignmentCount} high-alignment goal{highAlignmentCount === 1 ? '' : 's'}
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <SlidersHorizontal className="h-4 w-4" />
+                                <span>
+                                    {activeFilterCount} active filter{activeFilterCount === 1 ? '' : 's'}
+                                </span>
+                                {highAlignmentCount > 0 ? (
+                                    <Badge variant="outline" className="ml-1">
+                                        {highAlignmentCount} high alignment
+                                    </Badge>
+                                ) : null}
                             </div>
                         </div>
                     </CardHeader>
 
                     <CardContent className="p-6">
-                        <form onSubmit={submit} className="flex flex-col gap-3 md:flex-row">
-                            <div className="relative flex-1">
-                                <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-                                <Input
-                                    value={search}
-                                    onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="Search goal library"
-                                    className="pl-9"
-                                />
+                        <form onSubmit={submit} className="space-y-4">
+                            <div className={`grid gap-4 lg:grid-cols-2 ${scope.locked ? 'xl:grid-cols-2' : 'xl:grid-cols-4'}`}>
+                                <div className="space-y-2">
+                                    <label className="font-mono-brand text-muted-foreground block text-[10px] tracking-[0.22em] uppercase">
+                                        Search
+                                    </label>
+                                    <div className="relative">
+                                        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                                        <Input
+                                            value={search}
+                                            onChange={(event) => setSearch(event.target.value)}
+                                            placeholder="Search title or KPI"
+                                            className="pl-9"
+                                        />
+                                    </div>
+                                </div>
+
+                                {!scope.locked ? (
+                                    <>
+                                        <div className="space-y-2">
+                                            <label className="font-mono-brand text-muted-foreground block text-[10px] tracking-[0.22em] uppercase">
+                                                Department
+                                            </label>
+                                            <select
+                                                className={selectClassName}
+                                                value={departmentId}
+                                                onChange={(event) => setDepartmentId(event.target.value)}
+                                            >
+                                                <option value="">All departments</option>
+                                                {departmentOptions.map((option) => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="font-mono-brand text-muted-foreground block text-[10px] tracking-[0.22em] uppercase">
+                                                Position
+                                            </label>
+                                            <select className={selectClassName} value={jobTitleId} onChange={(event) => setJobTitleId(event.target.value)}>
+                                                <option value="">All positions</option>
+                                                {jobTitleOptions.map((option) => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </>
+                                ) : null}
+
+                                <div className="space-y-2">
+                                    <label className="font-mono-brand text-muted-foreground block text-[10px] tracking-[0.22em] uppercase">
+                                        Perspective
+                                    </label>
+                                    <select
+                                        className={selectClassName}
+                                        value={perspectiveId}
+                                        onChange={(event) => setPerspectiveId(event.target.value)}
+                                    >
+                                        <option value="">All perspectives</option>
+                                        {perspectiveOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
-                            <Button type="submit" variant="outline">
-                                <Filter className="mr-2 h-4 w-4" />
-                                Filter
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                                <Button type="submit" variant="outline">
+                                    <Filter className="mr-2 h-4 w-4" />
+                                    Apply Filters
+                                </Button>
+
+                                {can.export ? (
+                                    <Button type="button" variant="outline" onClick={handleExport}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Export Filtered
+                                    </Button>
+                                ) : null}
+
+                                {activeFilterCount > 0 ? (
+                                    <Button type="button" variant="ghost" onClick={clearFilters}>
+                                        <X className="mr-2 h-4 w-4" />
+                                        Clear Filters
+                                    </Button>
+                                ) : null}
+                            </div>
                         </form>
                     </CardContent>
                 </Card>
@@ -232,7 +428,9 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                                         <FolderKanban className="text-muted-foreground h-5 w-5" />
                                     </div>
                                     <h3 className="text-foreground text-base font-semibold">No goals found</h3>
-                                    <p className="text-muted-foreground text-sm">Try adjusting your search to find matching goal templates.</p>
+                                    <p className="text-muted-foreground text-sm">
+                                        Try adjusting your search or filters to find matching goal templates.
+                                    </p>
                                 </div>
                             </div>
                         ) : (
@@ -242,16 +440,22 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                                         <thead className="bg-muted/30 text-left">
                                             <tr>
                                                 <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
-                                                    Goal Title
-                                                </th>
-                                                <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Perspective
                                                 </th>
                                                 <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
-                                                    Department
+                                                    Objective (The Goal)
                                                 </th>
                                                 <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
-                                                    Alignment
+                                                    KPI / Measure (How Measured)
+                                                </th>
+                                                <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
+                                                    Target (Success Definition)
+                                                </th>
+                                                <th className="text-muted-foreground px-6 py-4 text-right text-[11px] font-semibold tracking-[0.16em] uppercase">
+                                                    Weight
+                                                </th>
+                                                <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
+                                                    Evidence Source
                                                 </th>
                                                 <th className="text-muted-foreground px-6 py-4 text-right text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                     Actions
@@ -262,6 +466,10 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                                         <tbody>
                                             {goalLibraryItems.data.map((item) => (
                                                 <tr key={item.id} className="hover:bg-muted/20 border-t transition-colors">
+                                                    <td className="px-6 py-5">
+                                                        <Badge variant="secondary">{item.perspective?.name ?? '-'}</Badge>
+                                                    </td>
+
                                                     <td className="px-6 py-5">
                                                         <div className="flex min-w-[240px] items-start gap-3">
                                                             <div className="bg-muted/30 mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg border">
@@ -275,15 +483,15 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                                                         </div>
                                                     </td>
 
-                                                    <td className="px-6 py-5">
-                                                        <Badge variant="secondary">{item.perspective?.name ?? '-'}</Badge>
+                                                    <td className="text-muted-foreground px-6 py-5">{item.kpi_measure ?? '-'}</td>
+
+                                                    <td className="text-muted-foreground px-6 py-5">{item.target_definition ?? '-'}</td>
+
+                                                    <td className="text-muted-foreground px-6 py-5 text-right">
+                                                        {item.default_weight ?? '-'}%
                                                     </td>
 
-                                                    <td className="text-muted-foreground px-6 py-5">{item.department?.name ?? '-'}</td>
-
-                                                    <td className="px-6 py-5">
-                                                        <Badge variant={getAlignmentVariant(item)}>{getAlignmentLabel(item)}</Badge>
-                                                    </td>
+                                                    <td className="text-muted-foreground px-6 py-5">{item.evidence_source ?? '-'}</td>
 
                                                     <td className="px-6 py-5">
                                                         <div className="flex justify-end gap-2">
@@ -300,6 +508,19 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                                                                     Edit
                                                                 </Link>
                                                             </Button>
+
+                                                            {can.archive ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="text-destructive hover:text-destructive"
+                                                                    onClick={() => setDeleteTarget(item)}
+                                                                >
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </Button>
+                                                            ) : null}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -316,6 +537,24 @@ export default function GoalLibraryIndex({ goalLibraryItems, filters, can }: Pro
                     </CardContent>
                 </Card>
             </div>
+
+            <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete goal?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will remove {deleteTarget ? `"${deleteTarget.title}"` : 'this goal'} from the active goal library. Existing appraisals
+                            that already used this template keep their recorded objectives.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={deleteGoal}>
+                            Delete Goal
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PerformancePage>
     );
 }

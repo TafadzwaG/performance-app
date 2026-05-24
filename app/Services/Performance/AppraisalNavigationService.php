@@ -64,6 +64,14 @@ class AppraisalNavigationService
         return null;
     }
 
+    public function afterStepSubmitRoute(Appraisal $appraisal, User $user): string
+    {
+        $appraisal->refresh();
+
+        return $this->continueRoute($appraisal, $user)
+            ?? route('performance.appraisals.show', $appraisal);
+    }
+
     private function canAccessDevelopmentPlanEditor(Appraisal $appraisal, User $user): bool
     {
         if (! $user->can('performance.development_plans.view')) {

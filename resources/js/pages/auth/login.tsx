@@ -10,9 +10,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
+import { cn } from '@/lib/utils';
 import AuthLayout from '@/layouts/auth-layout';
 
+type LoginMethod = 'employee_number' | 'email';
+
 interface LoginForm {
+    login_method: LoginMethod;
+    employee_number: string;
     email: string;
     password: string;
     remember: boolean;
@@ -24,8 +29,15 @@ interface LoginProps {
     canResetPassword: boolean;
 }
 
+const loginMethods: Array<{ value: LoginMethod; label: string }> = [
+    { value: 'email', label: 'Email' },
+    { value: 'employee_number', label: 'Employee number' },
+];
+
 export default function Login({ status, canResetPassword }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<LoginForm>({
+        login_method: 'email',
+        employee_number: '',
         email: '',
         password: '',
         remember: false,
@@ -37,6 +49,10 @@ export default function Login({ status, canResetPassword }: LoginProps) {
         post(route('login'), {
             onFinish: () => reset('password'),
         });
+    };
+
+    const switchLoginMethod = (method: LoginMethod) => {
+        setData('login_method', method);
     };
 
     return (
@@ -57,24 +73,72 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         </div>
                     )}
 
-                    <div className="grid gap-1.5">
-                        <Label htmlFor="email" className="font-mono-brand text-foreground/70 text-[10px] tracking-[0.22em] uppercase">
-                            Work email
+                    <div className="grid gap-2">
+                        <Label className="font-mono-brand text-foreground/70 text-[10px] tracking-[0.22em] uppercase">
+                            Sign in with
                         </Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            required
-                            autoFocus
-                            tabIndex={1}
-                            autoComplete="email"
-                            value={data.email}
-                            onChange={(e) => setData('email', e.target.value)}
-                            placeholder="name@company.com"
-                            className="bg-background border-foreground/15 focus-visible:border-brand-sand h-11 text-[14px]"
-                        />
-                        <InputError message={errors.email} />
+                        <div className="bg-muted/40 border-foreground/10 grid grid-cols-2 gap-1 rounded-lg border p-1">
+                            {loginMethods.map((method) => (
+                                <button
+                                    key={method.value}
+                                    type="button"
+                                    tabIndex={1}
+                                    onClick={() => switchLoginMethod(method.value)}
+                                    className={cn(
+                                        'rounded-md px-3 py-2 text-[13px] font-medium transition-colors',
+                                        data.login_method === method.value
+                                            ? 'bg-background text-foreground shadow-sm'
+                                            : 'text-foreground/65 hover:text-foreground',
+                                    )}
+                                >
+                                    {method.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
+
+                    {data.login_method === 'email' ? (
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="email" className="font-mono-brand text-foreground/70 text-[10px] tracking-[0.22em] uppercase">
+                                Work email
+                            </Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                required
+                                autoFocus
+                                tabIndex={2}
+                                autoComplete="email"
+                                value={data.email}
+                                onChange={(e) => setData('email', e.target.value)}
+                                placeholder="name@company.com"
+                                className="bg-background border-foreground/15 focus-visible:border-brand-sand h-11 text-[14px]"
+                            />
+                            <InputError message={errors.email} />
+                        </div>
+                    ) : (
+                        <div className="grid gap-1.5">
+                            <Label
+                                htmlFor="employee_number"
+                                className="font-mono-brand text-foreground/70 text-[10px] tracking-[0.22em] uppercase"
+                            >
+                                Employee number
+                            </Label>
+                            <Input
+                                id="employee_number"
+                                type="text"
+                                required
+                                autoFocus
+                                tabIndex={2}
+                                autoComplete="username"
+                                value={data.employee_number}
+                                onChange={(e) => setData('employee_number', e.target.value)}
+                                placeholder="EMP-1001"
+                                className="bg-background border-foreground/15 focus-visible:border-brand-sand h-11 text-[14px]"
+                            />
+                            <InputError message={errors.employee_number} />
+                        </div>
+                    )}
 
                     <div className="grid gap-1.5">
                         <div className="flex items-center justify-between">
@@ -95,7 +159,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         <PasswordInput
                             id="password"
                             required
-                            tabIndex={2}
+                            tabIndex={3}
                             autoComplete="current-password"
                             value={data.password}
                             onChange={(e) => setData('password', e.target.value)}
@@ -109,7 +173,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         <Checkbox
                             id="remember"
                             name="remember"
-                            tabIndex={3}
+                            tabIndex={4}
                             checked={data.remember}
                             onCheckedChange={(checked) => setData('remember', checked === true)}
                         />
@@ -118,29 +182,22 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         </Label>
                     </div>
 
-                    <Button
-                        type="submit"
-                        size="xl"
-                        className="mt-3 w-full"
-                        tabIndex={4}
-                        disabled={processing}
-                    >
-                        {processing ? (
-                            <LoaderCircle className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <LogIn className="h-4 w-4" />
-                        )}
+                    <Button type="submit" size="xl" className="mt-3 w-full" tabIndex={5} disabled={processing}>
+                        {processing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
                         Sign in
                         {!processing ? <MoveRight className="h-4 w-4" /> : null}
                     </Button>
                 </div>
 
-                {/* Divider + secondary actions */}
                 <div className="border-foreground/10 flex flex-col gap-4 border-t pt-5">
                     <div className="flex items-center justify-between">
                         <p className="text-foreground/65 text-[13px]">
                             New to the platform?{' '}
-                            <TextLink href={route('register')} tabIndex={6} className="text-foreground hover:text-brand-pine decoration-brand-sand decoration-2">
+                            <TextLink
+                                href={route('register')}
+                                tabIndex={6}
+                                className="text-foreground hover:text-brand-pine decoration-brand-sand decoration-2"
+                            >
                                 Create an account
                             </TextLink>
                         </p>

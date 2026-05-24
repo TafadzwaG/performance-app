@@ -6,6 +6,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -15,12 +16,11 @@ class SystemOperationsService
     /**
      * @return array<string, mixed>
      */
-    public function snapshot(?string $fileZone = null, ?string $filePath = null): array
+    public function snapshot(): array
     {
         return [
             'queue' => $this->queueOverview(),
             'storage' => $this->storageOverview(),
-            'files' => $this->filesOverview($fileZone, $filePath),
         ];
     }
 
@@ -32,13 +32,15 @@ class SystemOperationsService
         $zones = [];
 
         foreach ($this->fileZones() as $key => $zone) {
+            [$fileCount, $sizeBytes] = $this->zoneStats($key);
+
             $zones[] = [
                 'key' => $key,
                 'label' => $zone['label'],
                 'description' => $zone['description'],
-                'file_count' => $this->countFilesInZone($key),
-                'size_bytes' => $this->sizeOfZone($key),
-                'size_human' => $this->formatBytes($this->sizeOfZone($key)),
+                'file_count' => $fileCount,
+                'size_bytes' => $sizeBytes,
+                'size_human' => $this->formatBytes($sizeBytes),
             ];
         }
 
@@ -301,6 +303,11 @@ class SystemOperationsService
     {
         $size = (int) filesize($absolutePath);
 
+        $downloadParams = [
+            'zone' => $zone,
+            'path' => $relativePath,
+        ];
+
         return [
             'type' => 'file',
             'name' => basename($relativePath),
@@ -308,15 +315,12 @@ class SystemOperationsService
             'size_bytes' => $size,
             'size_human' => $this->formatBytes($size),
             'modified_at' => Carbon::createFromTimestamp(filemtime($absolutePath))->toDateTimeString(),
-            'download_url' => route('access.storage.download', [
-                'zone' => $zone,
-                'path' => $relativePath,
-            ]),
-            'view_url' => route('access.storage.download', [
-                'zone' => $zone,
-                'path' => $relativePath,
-                'inline' => 1,
-            ]),
+            'download_url' => Route::has('access.storage.download')
+                ? route('access.storage.download', $downloadParams)
+                : null,
+            'view_url' => Route::has('access.storage.download')
+                ? route('access.storage.download', [...$downloadParams, 'inline' => 1])
+                : null,
         ];
     }
 
@@ -480,21 +484,24 @@ class SystemOperationsService
         return 'Queued job';
     }
 
-    private function countFilesInZone(string $zone): int
+    /**
+     * @return array{0: int, 1: int}
+     */
+    private function zoneStats(string $zone): array
     {
-        return count(array_filter(
-            $this->walkZone($zone),
-            fn (string $path) => is_file($path),
-        ));
-    }
+        $fileCount = 0;
+        $sizeBytes = 0;
 
-    private function sizeOfZone(string $zone): int
-    {
-        return array_reduce(
-            $this->walkZone($zone),
-            fn (int $carry, string $path) => $carry + (is_file($path) ? (int) filesize($path) : 0),
-            0,
-        );
+        foreach ($this->walkZone($zone) as $path) {
+            if (! is_file($path)) {
+                continue;
+            }
+
+            $fileCount++;
+            $sizeBytes += (int) filesize($path);
+        }
+
+        return [$fileCount, $sizeBytes];
     }
 
     /**

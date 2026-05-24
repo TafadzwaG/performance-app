@@ -3,6 +3,7 @@ import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 import InputError from '@/components/input-error';
+import PasswordFieldWithStrength from '@/components/password-field-with-strength';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,11 @@ export default function Register() {
         post(route('register'), {
             onFinish: () => reset('password', 'password_confirmation'),
         });
+    };
+
+    const applySuggestedPassword = (password: string) => {
+        setData('password', password);
+        setData('password_confirmation', password);
     };
 
     return (
@@ -71,20 +77,18 @@ export default function Register() {
                         <InputError message={errors.email} />
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="password">Password</Label>
-                        <PasswordInput
-                            id="password"
-                            required
-                            tabIndex={3}
-                            autoComplete="new-password"
-                            value={data.password}
-                            onChange={(e) => setData('password', e.target.value)}
-                            disabled={processing}
-                            placeholder="Password"
-                        />
-                        <InputError message={errors.password} />
-                    </div>
+                    <PasswordFieldWithStrength
+                        id="password"
+                        label="Password"
+                        value={data.password}
+                        confirmation={data.password_confirmation}
+                        error={errors.password}
+                        showConfirmationMatch
+                        disabled={processing}
+                        tabIndex={3}
+                        onChange={(value) => setData('password', value)}
+                        onSuggest={applySuggestedPassword}
+                    />
 
                     <div className="grid gap-2">
                         <Label htmlFor="password_confirmation">Confirm password</Label>

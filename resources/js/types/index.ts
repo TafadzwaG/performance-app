@@ -40,6 +40,7 @@ export interface SharedData {
     nav?: {
         employeesCount?: number | null;
         pendingAppraisalsCount?: number | null;
+        showMyKpis?: boolean;
         profileUrl?: string | null;
     };
     branding?: {

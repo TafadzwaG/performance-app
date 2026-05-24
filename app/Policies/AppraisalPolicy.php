@@ -89,6 +89,11 @@ class AppraisalPolicy
         return $user->can('performance.review_cycles.assign_employees') || $user->can('performance.appraisals.view_all');
     }
 
+    public function delete(User $user, Appraisal $appraisal): bool
+    {
+        return $this->create($user);
+    }
+
     public function update(User $user, Appraisal $appraisal): bool
     {
         return $this->view($user, $appraisal);

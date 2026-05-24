@@ -147,6 +147,7 @@ export default function CompletionStatus({
                     reviewCycleId={filters.review_cycle_id ?? null}
                     reportRoute="performance.reports.completion_status"
                     exportKey="completion-status"
+                    reportTitle="Completion Status"
                 />
 
                 <ReportTable rows={rows} />

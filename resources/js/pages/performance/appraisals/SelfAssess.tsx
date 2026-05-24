@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem, SharedData } from '@/types';
 import type { Appraisal, Objective, Option } from '@/types/performance';
-import { useForm, usePage } from '@inertiajs/react';
+import { useForm, router, usePage } from '@inertiajs/react';
 import { MessageSquareMore, Save, Send, Target } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -209,6 +209,7 @@ export default function SelfAssessment({ appraisal, abilities }: Props) {
                                                         window.localStorage.removeItem(draftStorageKey);
                                                     }
                                                     setDraftSaved(false);
+                                                    router.visit(route('performance.appraisals.show', appraisal.id));
                                                 },
                                             }),
                                     })

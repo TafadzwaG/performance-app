@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Performance;
 
+use App\Support\Security\EvidenceUploadRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -22,7 +23,7 @@ class SubmitCalibrationDecisionRequest extends FormRequest
             'calibrated_overall_rating_scale_level_id' => ['nullable', 'exists:rating_scale_levels,id', 'required_if:decision,adjusted'],
             'evidence_summary' => ['nullable', 'string'],
             'evidence_files' => ['nullable', 'array'],
-            'evidence_files.*' => ['file', 'max:10240'],
+            'evidence_files.*' => EvidenceUploadRules::fileRules(),
         ];
     }
 

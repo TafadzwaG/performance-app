@@ -1,7 +1,8 @@
+import PublicSiteShell from '@/components/public-site-shell';
 import { Button } from '@/components/ui/button';
 import { type SharedData } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight, CheckCircle2, FileText, Scale, ShieldCheck } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { ArrowRight, CheckCircle2, FileText, Scale, ShieldCheck } from 'lucide-react';
 
 const termsSections = [
     {
@@ -10,7 +11,7 @@ const termsSections = [
     },
     {
         title: 'Performance data',
-        copy: 'The platform stores review cycles, objectives, ratings, feedback, evidence, development plans, and audit records so appraisal decisions remain traceable and consistent.',
+        copy: 'The platform stores review cycles, objectives, ratings, feedback, evidence, development plans, and audit records so appraisal decisions remain traceable and consistent. Records are retained for three years unless a longer period is required by law or organisational policy.',
     },
     {
         title: 'Acceptable use',
@@ -40,54 +41,8 @@ export default function Terms() {
     const { auth } = usePage<SharedData>().props;
 
     return (
-        <>
-            <Head title="Terms of Service">
-                <link rel="preconnect" href="https://fonts.bunny.net" />
-                <link
-                    href="https://fonts.bunny.net/css?family=fraunces:300,400,500,600,700|instrument-sans:400,500,600|jetbrains-mono:400,500"
-                    rel="stylesheet"
-                />
-            </Head>
-
-            <div className="bg-paper text-foreground relative min-h-screen overflow-x-hidden">
-                <div className="bg-grain pointer-events-none fixed inset-0 z-0 opacity-20 mix-blend-multiply" />
-                <div className="bg-topo pointer-events-none fixed inset-0 z-0 opacity-40" />
-
-                <header className="relative z-20">
-                    <div className="mx-auto flex max-w-7xl items-center justify-between px-6 pt-6 lg:px-10 lg:pt-8">
-                        <Link href="/" className="group flex items-center gap-3">
-                            <div className="bg-brand-ink relative grid h-9 w-9 place-items-center overflow-hidden rounded-sm">
-                                <div className="bg-brand-sand absolute inset-1 rounded-[2px]" />
-                                <span className="text-brand-ink relative font-display text-[15px] font-bold">P</span>
-                            </div>
-                            <div className="flex flex-col leading-none">
-                                <span className="font-display text-[15px] font-medium tracking-tight">Performance</span>
-                                <span className="font-mono-brand text-foreground/60 text-[9px] tracking-[0.22em] uppercase">
-                                    Appraisal Studio
-                                </span>
-                            </div>
-                        </Link>
-
-                        <div className="flex items-center gap-2">
-                            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-                                <Link href="/">
-                                    <ArrowLeft className="mr-1" />
-                                    Welcome
-                                </Link>
-                            </Button>
-                            <Button asChild size="sm">
-                                <Link href={auth.user ? route('dashboard') : route('login')}>
-                                    <span className="hidden sm:inline">{auth.user ? 'Open dashboard' : 'Enter studio'}</span>
-                                    <ArrowRight className="ml-1" />
-                                </Link>
-                            </Button>
-                        </div>
-                    </div>
-                    <div className="bg-foreground/10 mx-auto mt-6 h-px max-w-7xl px-6 lg:px-10" />
-                </header>
-
-                <main className="relative z-10">
-                    <section className="relative overflow-hidden">
+        <PublicSiteShell title="Terms of Service">
+            <section className="relative overflow-hidden">
                         <div className="bg-hero-photo pointer-events-none absolute inset-0 opacity-80" aria-hidden />
                         <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 pt-10 pb-18 lg:grid-cols-12 lg:gap-10 lg:px-10 lg:pt-16 lg:pb-24">
                             <aside className="min-w-0 lg:col-span-2">
@@ -264,24 +219,6 @@ export default function Terms() {
                             </div>
                         </div>
                     </section>
-                </main>
-
-                <footer className="border-foreground/15 relative z-10 border-t">
-                    <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-8 sm:flex-row lg:px-10">
-                        <div className="font-mono-brand text-foreground/60 text-[10px] tracking-[0.22em] uppercase">
-                            (c) 2026 - Performance Appraisal Studio - Terms of Service
-                        </div>
-                        <div className="font-mono-brand text-foreground/60 flex items-center gap-4 text-[10px] tracking-[0.22em] uppercase">
-                            <Link href="/" className="hover:text-brand-pine transition-colors">
-                                Welcome
-                            </Link>
-                            <Link href={auth.user ? route('dashboard') : route('login')} className="hover:text-brand-pine transition-colors">
-                                {auth.user ? 'Dashboard' : 'Log in'}
-                            </Link>
-                        </div>
-                    </div>
-                </footer>
-            </div>
-        </>
+        </PublicSiteShell>
     );
 }

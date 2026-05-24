@@ -13,6 +13,7 @@ use App\Models\RatingScaleLevel;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 use OpenSpout\Reader\XLSX\Reader;
 
@@ -442,6 +443,83 @@ test('authenticated users can view and update their own employee profile', funct
         ->city->toBe('Johannesburg')
         ->personal_phone->toBe('+27112223333');
 });
+
+test('authorized user can preview employee deletion impact', function () {
+    $admin = createEmployeeAdmin('Confirm@Password1');
+    $targetUser = User::factory()->create(['is_approved' => true]);
+    $profile = EmployeeProfile::factory()->for($targetUser)->create();
+    Appraisal::factory()->for($profile, 'employeeProfile')->for($targetUser, 'employee')->create();
+
+    $response = $this->actingAs($admin)
+        ->getJson(route('performance.employees.deletion_impact', $profile))
+        ->assertOk()
+        ->assertJsonPath('employee.id', $profile->id);
+
+    $appraisalItem = collect($response->json('items'))->firstWhere('key', 'appraisals');
+
+    expect($appraisalItem['count'] ?? 0)->toBe(1);
+});
+
+test('authorized user can delete an employee with password confirmation', function () {
+    $admin = createEmployeeAdmin('Confirm@Password1');
+    $targetUser = User::factory()->create(['is_approved' => true, 'email' => 'delete-employee@example.test']);
+    $profile = EmployeeProfile::factory()->for($targetUser)->create();
+
+    $this->actingAs($admin)
+        ->delete(route('performance.employees.destroy', $profile), [
+            'current_password' => 'Confirm@Password1',
+        ])
+        ->assertRedirect(route('performance.employees.index'));
+
+    expect(User::query()->whereKey($targetUser->id)->exists())->toBeFalse();
+    expect(EmployeeProfile::withTrashed()->whereKey($profile->id)->exists())->toBeFalse();
+});
+
+test('employee deletion requires the actor current password', function () {
+    $admin = createEmployeeAdmin('Confirm@Password1');
+    $targetUser = User::factory()->create(['is_approved' => true]);
+    $profile = EmployeeProfile::factory()->for($targetUser)->create();
+
+    $this->actingAs($admin)
+        ->from(route('performance.employees.index'))
+        ->delete(route('performance.employees.destroy', $profile), [
+            'current_password' => 'wrong-password',
+        ])
+        ->assertRedirect(route('performance.employees.index'))
+        ->assertSessionHasErrors('current_password');
+
+    expect(User::query()->whereKey($targetUser->id)->exists())->toBeTrue();
+});
+
+test('users cannot delete their own employee profile', function () {
+    $admin = createEmployeeAdmin('Confirm@Password1');
+    $profile = EmployeeProfile::query()->where('user_id', $admin->id)->firstOrFail();
+
+    $this->actingAs($admin)
+        ->delete(route('performance.employees.destroy', $profile), [
+            'current_password' => 'Confirm@Password1',
+        ])
+        ->assertForbidden();
+
+    expect(User::query()->whereKey($admin->id)->exists())->toBeTrue();
+});
+
+function createEmployeeAdmin(string $password = 'password'): User
+{
+    $user = User::factory()->create([
+        'is_approved' => true,
+        'password' => Hash::make($password),
+    ]);
+
+    EmployeeProfile::factory()->for($user)->create();
+
+    grantPermissions($user, [
+        'performance.employees.view',
+        'performance.employees.update',
+    ]);
+
+    return $user;
+}
 
 function grantPermissions(User $user, array $permissions): void
 {
