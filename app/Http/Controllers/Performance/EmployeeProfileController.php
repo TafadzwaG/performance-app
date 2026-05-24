@@ -16,6 +16,7 @@ use App\Models\EmployeeProfile;
 use App\Models\Role;
 use App\Services\Performance\EmployeeFieldConfigService;
 use App\Services\Performance\EmployeeImportService;
+use App\Services\Performance\EmployeePerformanceAnalyticsService;
 use App\Services\Performance\EmployeeProfileDeletionService;
 use App\Support\Performance\EmployeeExportColumnRegistry;
 use App\Support\Performance\EmployeeFieldRegistry;
@@ -36,6 +37,7 @@ class EmployeeProfileController extends Controller
 
     public function __construct(
         private readonly EmployeeFieldConfigService $fieldConfigService,
+        private readonly EmployeePerformanceAnalyticsService $employeePerformanceAnalyticsService,
     ) {
         $this->authorizeResource(EmployeeProfile::class, 'employee_profile');
     }
@@ -225,6 +227,8 @@ class EmployeeProfileController extends Controller
             'employeeProfile' => $employeeProfile,
             'managerOptions' => $this->managerUserOptions(),
             'fieldConfig' => $this->fieldConfigService->forScreen(EmployeeFieldRegistry::SCREEN_EMPLOYEE_SHOW)->all(),
+            'performanceTrend' => $this->employeePerformanceAnalyticsService->employeeTrend($employeeProfile->id),
+            'peerComparison' => $this->employeePerformanceAnalyticsService->peerComparison($employeeProfile->id),
             'can' => [
                 'assignManagers' => $request->user()->can('performance.employees.assign_managers')
                     || $request->user()->can('performance.employees.update'),

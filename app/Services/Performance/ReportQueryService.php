@@ -19,6 +19,10 @@ class ReportQueryService
 
     private const EFFECTIVE_OVERALL_RATING_LABEL_SQL = 'coalesce(calibrated_rating_scale_levels.label, original_rating_scale_levels.label, "Unrated")';
 
+    public function __construct(
+        private readonly EmployeePerformanceAnalyticsService $employeePerformanceAnalyticsService,
+    ) {}
+
     public function dashboard(User $user): array
     {
         return Cache::remember(
@@ -85,6 +89,7 @@ class ReportQueryService
             ],
             'overdue_analysis' => $this->comprehensiveOverdueAnalysis($overdueItems),
             'cycle_comparison' => $this->comprehensiveCycleComparison($normalizedFilters, $appraisals),
+            'employee_performance_movement' => $this->employeePerformanceAnalyticsService->movementReport($normalizedFilters),
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Performance\UpdateMyEmployeeProfileRequest;
 use App\Models\EmployeeProfile;
 use App\Services\Performance\EmployeeFieldConfigService;
+use App\Services\Performance\EmployeePerformanceAnalyticsService;
 use App\Support\Performance\EmployeeFieldRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class MyEmployeeProfileController extends Controller
 
     public function __construct(
         private readonly EmployeeFieldConfigService $fieldConfigService,
+        private readonly EmployeePerformanceAnalyticsService $employeePerformanceAnalyticsService,
     ) {}
 
     public function show(Request $request): Response
@@ -42,6 +44,8 @@ class MyEmployeeProfileController extends Controller
             'employeeProfile' => $employeeProfile,
             'managerOptions' => [],
             'fieldConfig' => $this->fieldConfigService->forScreen(EmployeeFieldRegistry::SCREEN_EMPLOYEE_SHOW)->all(),
+            'performanceTrend' => $this->employeePerformanceAnalyticsService->employeeTrend($employeeProfile->id),
+            'peerComparison' => $this->employeePerformanceAnalyticsService->peerComparison($employeeProfile->id),
             'isOwnProfile' => true,
             'can' => [
                 'assignManagers' => false,

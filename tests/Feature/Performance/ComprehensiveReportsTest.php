@@ -106,6 +106,7 @@ test('comprehensive reports expose specific operational report sections', functi
         'rating_quality',
         'overdue_analysis',
         'cycle_comparison',
+        'employee_performance_movement',
     ])
         ->and($reports['executive_summary'])->toMatchArray([
             'total_appraisals' => 4,

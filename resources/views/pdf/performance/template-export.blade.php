@@ -7,7 +7,7 @@
 
 @section('content')
     <div class="title-block">
-        <div class="eyebrow">§ Performance Setup</div>
+        <div class="eyebrow">Performance Setup</div>
         <div class="title">{{ $template->name }}</div>
         <div class="meta">
             {{ $template->code ?? '—' }}
@@ -49,7 +49,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Overview &amp; Scope</h2>
+        <h2>Overview &amp; Scope</h2>
         <table style="width:100%; border-collapse:collapse;">
             <tr>
                 <td style="width:50%; vertical-align:top; padding-right:8px;">
@@ -74,7 +74,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Objective Items</h2>
+        <h2>Objective Items</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -106,7 +106,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Values / Behaviour Items</h2>
+        <h2>Values / Behaviour Items</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -139,7 +139,7 @@
         ['Overall Scale', $template->overallRatingScale],
     ] as [$label, $scale])
         <div class="section">
-            <h2>§ {{ $label }}</h2>
+            <h2>{{ $label }}</h2>
             @if($scale)
                 <div class="muted" style="margin-bottom:4px;">{{ $scale->name }} · {{ $scale->code }}</div>
                 <table class="data-table">

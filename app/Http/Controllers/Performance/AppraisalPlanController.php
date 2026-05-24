@@ -48,10 +48,13 @@ class AppraisalPlanController extends Controller
             ->values()
             ->all();
 
+        $limit = min(max($request->integer('limit', 25), 1), 100);
+
         return response()->json([
             'results' => $this->goalLibraryLookupService->searchForAppraisal(
                 $appraisal,
                 (string) $request->string('q'),
+                limit: $limit,
                 excludeIds: $excludeIds,
             ),
         ]);

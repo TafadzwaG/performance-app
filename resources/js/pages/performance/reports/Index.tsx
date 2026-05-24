@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import type { BreadcrumbItem } from '@/types';
-import type { Option } from '@/types/performance';
+import type { EmployeePerformanceMovementReport } from '@/types/performance';
 import { Link, router } from '@inertiajs/react';
 import {
     ArrowRight,
@@ -99,6 +99,7 @@ type ReportsPayload = {
         previous_completion_rate: number;
         completion_rate_delta: number;
     };
+    employee_performance_movement: EmployeePerformanceMovementReport;
 };
 
 type Props = {
@@ -178,6 +179,28 @@ function MiniTable({ headers, rows }: { headers: string[]; rows: Array<Array<str
             </table>
         </div>
     );
+}
+
+function trendBadgeClass(status: string) {
+    if (status === 'improving') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+    if (status === 'declining') return 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300';
+    if (status === 'stable') return 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300';
+    return 'border-muted-foreground/30 bg-muted/20 text-muted-foreground';
+}
+
+function movementRowCells(row: EmployeePerformanceMovementReport['movement_rows'][number]) {
+    return [
+        `${row.employee_name} (${row.employee_number})`,
+        row.department ?? 'Unassigned',
+        row.template_name ?? '—',
+        row.previous_cycle_name ?? '—',
+        row.current_cycle_name ?? '—',
+        row.previous_score ?? '—',
+        row.current_score ?? '—',
+        row.score_delta ?? '—',
+        row.trend_label,
+        row.cohort_rank ?? '—',
+    ];
 }
 
 export default function ReportsIndex({ reviewCycleOptions, filters, reports }: Props) {
@@ -462,6 +485,119 @@ export default function ReportsIndex({ reviewCycleOptions, filters, reports }: P
                                     ])}
                                 />
                             ) : <EmptyState message="No employee exceptions are present for this filter." />}
+                        </CardContent>
+                    </Card>
+                </section>
+
+                <section className="space-y-6">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                § Employee movement
+                            </div>
+                            <h2 className="font-display text-foreground mt-2 text-2xl font-light tracking-tight">
+                                Employee Performance Movement
+                            </h2>
+                            <p className="text-muted-foreground mt-1 max-w-3xl text-sm">
+                                Effective score movement across finalized cycles, trend classification, and same-scorecard peer comparison for {selectedCycleLabel}.
+                            </p>
+                        </div>
+                        <ReportExportButtons
+                            exportKey="employee-performance-movement"
+                            reportTitle="Employee Performance Movement"
+                            reviewCycleId={filters.review_cycle_id ?? null}
+                            className="flex flex-wrap gap-2"
+                            size="sm"
+                        />
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-4">
+                        {[
+                            ['Improving', reports.employee_performance_movement.summary.improving, 'improving'],
+                            ['Declining', reports.employee_performance_movement.summary.declining, 'declining'],
+                            ['Stable', reports.employee_performance_movement.summary.stable, 'stable'],
+                            ['Insufficient Data', reports.employee_performance_movement.summary.insufficient_data, 'insufficient_data'],
+                        ].map(([label, count, status]) => (
+                            <div key={String(label)} className="rounded-xl border bg-muted/10 p-4">
+                                <Badge variant="outline" className={trendBadgeClass(String(status))}>{label}</Badge>
+                                <div className="font-display text-foreground mt-3 text-3xl font-light">{count}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid gap-6 xl:grid-cols-3">
+                        <Card className="shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5 text-muted-foreground" />Top Improving</CardTitle>
+                                <CardDescription>Largest positive effective score deltas.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {reports.employee_performance_movement.top_improving.length > 0 ? (
+                                    <MiniTable
+                                        headers={['Employee', 'Previous', 'Current', 'Delta']}
+                                        rows={reports.employee_performance_movement.top_improving.map((row) => [
+                                            row.employee_name,
+                                            row.previous_score ?? '—',
+                                            row.current_score ?? '—',
+                                            row.score_delta ?? '—',
+                                        ])}
+                                    />
+                                ) : <EmptyState message="No improving employees matched this filter." />}
+                            </CardContent>
+                        </Card>
+
+                        <Card className="shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><CircleAlert className="h-5 w-5 text-muted-foreground" />Top Declining</CardTitle>
+                                <CardDescription>Largest negative effective score deltas.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {reports.employee_performance_movement.top_declining.length > 0 ? (
+                                    <MiniTable
+                                        headers={['Employee', 'Previous', 'Current', 'Delta']}
+                                        rows={reports.employee_performance_movement.top_declining.map((row) => [
+                                            row.employee_name,
+                                            row.previous_score ?? '—',
+                                            row.current_score ?? '—',
+                                            row.score_delta ?? '—',
+                                        ])}
+                                    />
+                                ) : <EmptyState message="No declining employees matched this filter." />}
+                            </CardContent>
+                        </Card>
+
+                        <Card className="shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><GitCompareArrows className="h-5 w-5 text-muted-foreground" />Stable Employees</CardTitle>
+                                <CardDescription>Employees with unchanged effective scores.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {reports.employee_performance_movement.stable_employees.length > 0 ? (
+                                    <MiniTable
+                                        headers={['Employee', 'Cycle', 'Score']}
+                                        rows={reports.employee_performance_movement.stable_employees.map((row) => [
+                                            row.employee_name,
+                                            row.current_cycle_name ?? '—',
+                                            row.current_score ?? '—',
+                                        ])}
+                                    />
+                                ) : <EmptyState message="No stable employees matched this filter." />}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-muted-foreground" />Same-Scorecard Comparison</CardTitle>
+                            <CardDescription>Peer ranking within matching appraisal templates for the selected cycle context.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {reports.employee_performance_movement.scorecard_comparison.length > 0 ? (
+                                <MiniTable
+                                    headers={['Employee', 'Department', 'Scorecard', 'Previous', 'Current', 'Delta', 'Trend', 'Rank']}
+                                    rows={reports.employee_performance_movement.scorecard_comparison.slice(0, 20).map((row) => movementRowCells(row))}
+                                />
+                            ) : <EmptyState message="No same-scorecard comparison rows are available for this filter." />}
                         </CardContent>
                     </Card>
                 </section>

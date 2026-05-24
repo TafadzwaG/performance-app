@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
+use App\Services\DisasterRecovery\DisasterRecoveryService;
 use App\Services\Settings\MailSettingsService;
 use App\Services\Settings\SystemOperationsService;
 use Illuminate\Http\RedirectResponse;
@@ -15,13 +16,26 @@ use Inertia\Response;
 
 class SystemSettingsController extends Controller
 {
-    public function index(Request $request, SystemOperationsService $operations): Response
+    public function index(Request $request, SystemOperationsService $operations, DisasterRecoveryService $disasterRecovery): Response
     {
+        abort_unless(
+            $request->user()->can('system.settings.manage') || $request->user()->can('system.disaster_recovery.manage'),
+            403,
+        );
+
+        $canManageSettings = $request->user()->can('system.settings.manage');
+        $canManageDisasterRecovery = $request->user()->can('system.disaster_recovery.manage')
+            || $canManageSettings;
         $settings = SystemSetting::current();
 
         return Inertia::render('settings/index', [
-            'operations' => $operations->snapshot(),
-            'settings' => [
+            'can' => [
+                'manageSettings' => $canManageSettings,
+                'manageDisasterRecovery' => $canManageDisasterRecovery,
+            ],
+            'operations' => $canManageSettings ? $operations->snapshot() : null,
+            'disasterRecovery' => $canManageDisasterRecovery ? $disasterRecovery->snapshot() : null,
+            'settings' => $canManageSettings ? [
                 ...$settings->only([
                     'company_name',
                     'company_legal_name',
@@ -49,7 +63,7 @@ class SystemSettingsController extends Controller
                 ]),
                 'smtp_password' => '',
                 'smtp_password_set' => filled($settings->smtp_password),
-            ],
+            ] : null,
         ]);
     }
 

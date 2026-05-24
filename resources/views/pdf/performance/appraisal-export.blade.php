@@ -7,7 +7,7 @@
 
 @section('content')
     <div class="title-block">
-        <div class="eyebrow">§ Performance Appraisal</div>
+        <div class="eyebrow">Performance Appraisal</div>
         <div class="title">{{ $appraisal->employee_name_snapshot }}</div>
         <div class="meta">
             <span class="pill">{{ $statusLabel ?? str((string) ($appraisal->status?->value ?? $appraisal->status))->replace('_', ' ')->title() }}</span>
@@ -18,7 +18,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Employee &amp; Workflow</h2>
+        <h2>Employee &amp; Workflow</h2>
         <table style="width:100%; border-collapse:collapse;">
             <tr>
                 <td style="width:50%; vertical-align:top; padding-right:8px;">
@@ -44,7 +44,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Score Summary</h2>
+        <h2>Score Summary</h2>
         <table class="stat-band">
             <tr>
                 <td>
@@ -68,7 +68,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Objectives</h2>
+        <h2>Objectives</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -107,7 +107,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Values</h2>
+        <h2>Values</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -136,7 +136,7 @@
 
     @if($appraisal->latestCalibration)
         <div class="section">
-            <h2>§ Calibration</h2>
+            <h2>Calibration</h2>
             <table class="data-table">
                 <thead>
                     <tr>
@@ -173,7 +173,7 @@
     @endif
 
     <div class="section">
-        <h2>§ Comments</h2>
+        <h2>Comments</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -197,7 +197,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Approvals &amp; History</h2>
+        <h2>Approvals &amp; History</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -225,7 +225,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Development Plan</h2>
+        <h2>Development Plan</h2>
         <table class="kv-table">
             <tr><td class="label">Strengths</td><td>{{ $appraisal->developmentPlan?->strengths ?? '—' }}</td></tr>
             <tr><td class="label">Improvement</td><td>{{ $appraisal->developmentPlan?->improvement_areas ?? '—' }}</td></tr>

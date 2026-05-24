@@ -1,4 +1,3 @@
-// Components
 import { Head, useForm } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
@@ -18,44 +17,57 @@ export default function ForgotPassword({ status }: { status?: string }) {
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('password.email'));
+        post(route('password.email'), {
+            preserveScroll: true,
+        });
     };
 
     return (
-        <AuthLayout title="Forgot password" description="Enter your email to receive a password reset link">
+        <AuthLayout
+            title="Forgot your password?"
+            description="Enter the work email linked to your account and we will send you a secure reset link."
+        >
             <Head title="Forgot password" />
 
-            {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
-
             <div className="space-y-6">
-                <form onSubmit={submit}>
-                    <div className="grid gap-2">
-                        <Label htmlFor="email">Email address</Label>
+                {status && (
+                    <div className="border-brand-sand/40 bg-brand-sand/15 text-foreground rounded-md border px-4 py-3 text-sm font-medium">
+                        <span className="font-mono-brand mr-2 text-[10px] tracking-[0.2em] uppercase">
+                            Notice
+                        </span>
+                        {status}
+                    </div>
+                )}
+
+                <form onSubmit={submit} className="space-y-6">
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="email" className="font-mono-brand text-foreground/70 text-[10px] tracking-[0.22em] uppercase">
+                            Work email
+                        </Label>
                         <Input
                             id="email"
                             type="email"
                             name="email"
-                            autoComplete="off"
+                            required
+                            autoComplete="email"
                             value={data.email}
                             autoFocus
                             onChange={(e) => setData('email', e.target.value)}
-                            placeholder="email@example.com"
+                            placeholder="name@company.com"
+                            className="bg-background border-foreground/15 focus-visible:border-brand-sand h-11 text-[14px]"
                         />
-
                         <InputError message={errors.email} />
                     </div>
 
-                    <div className="my-6 flex items-center justify-start">
-                        <Button className="w-full" disabled={processing}>
-                            {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                            Email password reset link
-                        </Button>
-                    </div>
+                    <Button className="h-11 w-full" disabled={processing}>
+                        {processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
+                        Email password reset link
+                    </Button>
                 </form>
 
-                <div className="text-muted-foreground space-x-1 text-center text-sm">
-                    <span>Or, return to</span>
-                    <TextLink href={route('login')}>log in</TextLink>
+                <div className="text-muted-foreground text-center text-sm">
+                    <span>Or, return to </span>
+                    <TextLink href={route('login')}>sign in</TextLink>
                 </div>
             </div>
         </AuthLayout>

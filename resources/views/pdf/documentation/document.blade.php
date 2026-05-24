@@ -7,7 +7,7 @@
 
 @section('content')
     <div class="title-block">
-        <div class="eyebrow">§ Help &amp; Documentation</div>
+        <div class="eyebrow">Help &amp; Documentation</div>
         <div class="title">{{ $title }}</div>
         <div class="meta">{{ $description }}</div>
     </div>

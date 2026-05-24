@@ -33,20 +33,30 @@ function drUser(string $role): User
     return $user;
 }
 
+function disasterRecoverySettingsTab(): string
+{
+    return route('settings.index', ['tab' => 'disaster-recovery']);
+}
+
 test('disaster recovery permission is registered and super admin can view dashboard', function () {
     expect(PerformancePermissions::all())->toContain('system.disaster_recovery.manage');
 
     $this->actingAs(drUser('Super Admin'))
         ->get(route('settings.disaster_recovery.index'))
+        ->assertRedirect(disasterRecoverySettingsTab());
+
+    $this->actingAs(drUser('Super Admin'))
+        ->get(disasterRecoverySettingsTab())
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('settings/disaster-recovery/Index')
-            ->has('backups')
-            ->has('restoreRequests')
-            ->has('restoreTests'));
+            ->component('settings/index')
+            ->where('can.manageDisasterRecovery', true)
+            ->has('disasterRecovery.backups')
+            ->has('disasterRecovery.restoreRequests')
+            ->has('disasterRecovery.restoreTests'));
 
     $this->actingAs(drUser('Employee'))
-        ->get(route('settings.disaster_recovery.index'))
+        ->get(disasterRecoverySettingsTab())
         ->assertForbidden();
 });
 
@@ -57,7 +67,7 @@ test('manual backup request creates metadata and queues backup job', function ()
 
     $this->actingAs($admin)
         ->post(route('settings.disaster_recovery.backups.store'))
-        ->assertRedirect(route('settings.disaster_recovery.index'));
+        ->assertRedirect(disasterRecoverySettingsTab());
 
     $backup = DisasterRecoveryBackup::query()->first();
 
@@ -101,7 +111,7 @@ test('restore approval requires another super admin and confirmation phrase', fu
             'backup_id' => $backup->id,
             'notes' => 'Restore after failed import.',
         ])
-        ->assertRedirect(route('settings.disaster_recovery.index'));
+        ->assertRedirect(disasterRecoverySettingsTab());
 
     $restore = DisasterRecoveryRestoreRequest::query()->first();
 
@@ -125,7 +135,7 @@ test('restore approval requires another super admin and confirmation phrase', fu
         ->post(route('settings.disaster_recovery.restores.approve', $restore), [
             'confirmation_phrase' => config('disaster_recovery.restore_confirmation_phrase'),
         ])
-        ->assertRedirect(route('settings.disaster_recovery.index'));
+        ->assertRedirect(disasterRecoverySettingsTab());
 
     $restore->refresh();
 
@@ -137,15 +147,18 @@ test('restore approval requires another super admin and confirmation phrase', fu
 
 test('disaster recovery frontend exposes dashboard and confirmation controls', function () {
     $sidebar = file_get_contents(resource_path('js/components/app-sidebar.tsx'));
-    $page = file_get_contents(resource_path('js/pages/settings/disaster-recovery/Index.tsx'));
+    $panel = file_get_contents(resource_path('js/components/settings/disaster-recovery-panel.tsx'));
+    $settingsPage = file_get_contents(resource_path('js/pages/settings/index.tsx'));
     $consoleRoutes = file_get_contents(base_path('routes/console.php'));
 
-    expect($sidebar)->toContain('Disaster Recovery')
+    expect($sidebar)->toContain('Settings')
         ->and($sidebar)->toContain('system.disaster_recovery.manage')
-        ->and($page)->toContain('Latest backups')
-        ->and($page)->toContain('Request restore')
-        ->and($page)->toContain('Approve restore')
-        ->and($page)->toContain('confirmation_phrase')
+        ->and($panel)->toContain('Latest backups')
+        ->and($panel)->toContain('Request restore')
+        ->and($panel)->toContain('Approve restore')
+        ->and($panel)->toContain('confirmation_phrase')
+        ->and($settingsPage)->toContain('disaster-recovery')
+        ->and($settingsPage)->toContain('DisasterRecoveryPanel')
         ->and($consoleRoutes)->toContain('dr:backup')
         ->and($consoleRoutes)->toContain('dr:restore-test');
 });

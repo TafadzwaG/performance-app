@@ -1,5 +1,6 @@
 import HeadingSmall from '@/components/heading-small';
 import BrandingLogoDropzone from '@/components/settings/branding-logo-dropzone';
+import DisasterRecoveryPanel, { type DisasterRecoverySnapshot } from '@/components/settings/disaster-recovery-panel';
 import OperationsPanel, { type OperationsSnapshot } from '@/components/settings/operations-panel';
 import SettingsTabs, { type SettingsTab } from '@/components/settings/settings-tabs';
 import InputError from '@/components/input-error';
@@ -75,8 +76,76 @@ type SettingsForm = {
 };
 
 interface Props {
-    settings: SystemSettings;
-    operations: OperationsSnapshot;
+    settings: SystemSettings | null;
+    operations: OperationsSnapshot | null;
+    disasterRecovery: DisasterRecoverySnapshot | null;
+    can: {
+        manageSettings: boolean;
+        manageDisasterRecovery: boolean;
+    };
+}
+
+const emptySettings: SystemSettings = {
+    company_name: null,
+    company_legal_name: null,
+    company_registration_number: null,
+    company_tax_number: null,
+    company_email: null,
+    company_phone: null,
+    company_website: null,
+    address_line_1: null,
+    address_line_2: null,
+    city: null,
+    state_province: null,
+    postal_code: null,
+    country: null,
+    report_footer: null,
+    smtp_host: null,
+    smtp_port: null,
+    smtp_username: null,
+    smtp_password: '',
+    smtp_password_set: false,
+    smtp_encryption: null,
+    mail_from_address: null,
+    mail_from_name: null,
+    mail_reply_to_address: null,
+    mail_reply_to_name: null,
+    mail_notifications_enabled: false,
+};
+
+function availableTabsFor(can: Props['can']): SettingsTab[] {
+    const tabs: SettingsTab[] = [];
+    if (can.manageSettings) {
+        tabs.push('general', 'operations');
+    }
+    if (can.manageDisasterRecovery) {
+        tabs.push('disaster-recovery');
+    }
+
+    return tabs;
+}
+
+function resolveTabFromUrl(availableTabs: SettingsTab[]): SettingsTab {
+    const requested = new URLSearchParams(window.location.search).get('tab');
+    if (requested === 'operations' && availableTabs.includes('operations')) {
+        return 'operations';
+    }
+    if (requested === 'disaster-recovery' && availableTabs.includes('disaster-recovery')) {
+        return 'disaster-recovery';
+    }
+
+    return availableTabs.includes('general') ? 'general' : availableTabs[0] ?? 'general';
+}
+
+function tabDescription(tab: SettingsTab): string {
+    if (tab === 'operations') {
+        return 'Monitor queued jobs, review storage usage, and manage application files.';
+    }
+    if (tab === 'disaster-recovery') {
+        return 'Manage offsite backups, restore requests, approvals, and restore verification tests.';
+    }
+
+    return 'Manage company identity, report branding, interface colors, and email notification delivery.';
 }
 
 const paletteFields: Array<{ key: keyof Palette; label: string; hint: string }> = [
@@ -97,57 +166,56 @@ function normalizeHex(input: string) {
     return /^#[0-9A-F]{6}$/.test(withHash) ? withHash : null;
 }
 
-function resolveTabFromUrl(): SettingsTab {
-    return new URLSearchParams(window.location.search).get('tab') === 'operations' ? 'operations' : 'general';
-}
 
-export default function SettingsIndex({ settings, operations }: Props) {
-    const [activeTab, setActiveTab] = useState<SettingsTab>(resolveTabFromUrl);
+export default function SettingsIndex({ settings, operations, disasterRecovery, can }: Props) {
+    const availableTabs = availableTabsFor(can);
+    const [activeTab, setActiveTab] = useState<SettingsTab>(() => resolveTabFromUrl(availableTabs));
+    const formSettings = settings ?? emptySettings;
     const { palette, updateColor, resetPalette, previewColors } = usePalette();
     const [drafts, setDrafts] = useState<Palette>(palette);
     const [testEmail, setTestEmail] = useState('');
     const [testEmailError, setTestEmailError] = useState<string | null>(null);
 
     const { data, setData, put, processing, errors } = useForm<SettingsForm>({
-        company_name: value(settings.company_name),
-        company_legal_name: value(settings.company_legal_name),
-        company_registration_number: value(settings.company_registration_number),
-        company_tax_number: value(settings.company_tax_number),
-        company_email: value(settings.company_email),
-        company_phone: value(settings.company_phone),
-        company_website: value(settings.company_website),
-        address_line_1: value(settings.address_line_1),
-        address_line_2: value(settings.address_line_2),
-        city: value(settings.city),
-        state_province: value(settings.state_province),
-        postal_code: value(settings.postal_code),
-        country: value(settings.country),
-        report_footer: value(settings.report_footer),
-        smtp_host: value(settings.smtp_host),
-        smtp_port: value(settings.smtp_port),
-        smtp_username: value(settings.smtp_username),
+        company_name: value(formSettings.company_name),
+        company_legal_name: value(formSettings.company_legal_name),
+        company_registration_number: value(formSettings.company_registration_number),
+        company_tax_number: value(formSettings.company_tax_number),
+        company_email: value(formSettings.company_email),
+        company_phone: value(formSettings.company_phone),
+        company_website: value(formSettings.company_website),
+        address_line_1: value(formSettings.address_line_1),
+        address_line_2: value(formSettings.address_line_2),
+        city: value(formSettings.city),
+        state_province: value(formSettings.state_province),
+        postal_code: value(formSettings.postal_code),
+        country: value(formSettings.country),
+        report_footer: value(formSettings.report_footer),
+        smtp_host: value(formSettings.smtp_host),
+        smtp_port: value(formSettings.smtp_port),
+        smtp_username: value(formSettings.smtp_username),
         smtp_password: '',
-        smtp_encryption: value(settings.smtp_encryption || 'tls'),
-        mail_from_address: value(settings.mail_from_address),
-        mail_from_name: value(settings.mail_from_name),
-        mail_reply_to_address: value(settings.mail_reply_to_address),
-        mail_reply_to_name: value(settings.mail_reply_to_name),
-        mail_notifications_enabled: settings.mail_notifications_enabled,
+        smtp_encryption: value(formSettings.smtp_encryption || 'tls'),
+        mail_from_address: value(formSettings.mail_from_address),
+        mail_from_name: value(formSettings.mail_from_name),
+        mail_reply_to_address: value(formSettings.mail_reply_to_address),
+        mail_reply_to_name: value(formSettings.mail_reply_to_name),
+        mail_notifications_enabled: formSettings.mail_notifications_enabled,
     });
 
     useEffect(() => setDrafts(palette), [palette]);
 
     useEffect(() => {
-        setActiveTab(resolveTabFromUrl());
-    }, [operations]);
+        setActiveTab(resolveTabFromUrl(availableTabs));
+    }, [operations, disasterRecovery, can.manageSettings, can.manageDisasterRecovery]);
 
     const changeTab = (tab: SettingsTab) => {
-        if (tab === 'operations') {
-            router.get(route('settings.index'), { tab: 'operations' }, { preserveScroll: true });
+        if (tab === 'general') {
+            router.get(route('settings.index'), {}, { preserveScroll: true });
             return;
         }
 
-        router.get(route('settings.index'), {}, { preserveScroll: true });
+        router.get(route('settings.index'), { tab }, { preserveScroll: true });
     };
 
     const submit = (event: FormEvent) => {
@@ -184,16 +252,9 @@ export default function SettingsIndex({ settings, operations }: Props) {
 
             <div className="space-y-6 px-4 py-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <HeadingSmall
-                        title="Settings"
-                        description={
-                            activeTab === 'general'
-                                ? 'Manage company identity, report branding, interface colors, and email notification delivery.'
-                                : 'Monitor queued jobs, review storage usage, and manage application files.'
-                        }
-                    />
+                    <HeadingSmall title="Settings" description={tabDescription(activeTab)} />
 
-                    {activeTab === 'general' ? (
+                    {activeTab === 'general' && can.manageSettings ? (
                         <Button type="submit" form="system-settings-form" disabled={processing}>
                             <Save className="mr-2 h-4 w-4" />
                             Save Settings
@@ -201,11 +262,13 @@ export default function SettingsIndex({ settings, operations }: Props) {
                     ) : null}
                 </div>
 
-                <SettingsTabs active={activeTab} onChange={changeTab} />
+                <SettingsTabs active={activeTab} availableTabs={availableTabs} onChange={changeTab} />
 
-                {activeTab === 'operations' ? <OperationsPanel operations={operations} /> : null}
+                {activeTab === 'operations' && operations ? <OperationsPanel operations={operations} /> : null}
 
-                {activeTab === 'general' ? (
+                {activeTab === 'disaster-recovery' && disasterRecovery ? <DisasterRecoveryPanel {...disasterRecovery} /> : null}
+
+                {activeTab === 'general' && can.manageSettings && settings ? (
             <form id="system-settings-form" onSubmit={submit} className="space-y-6">
                 <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                     <Card className="border shadow-sm">
@@ -370,8 +433,8 @@ export default function SettingsIndex({ settings, operations }: Props) {
                             <Field label="Username" id="smtp-username" error={errors.smtp_username}>
                                 <Input id="smtp-username" value={data.smtp_username} onChange={(event) => setData('smtp_username', event.target.value)} />
                             </Field>
-                            <Field label={settings.smtp_password_set ? 'Password (saved)' : 'Password'} id="smtp-password" error={errors.smtp_password}>
-                                <Input id="smtp-password" type="password" value={data.smtp_password} placeholder={settings.smtp_password_set ? 'Leave blank to keep current password' : ''} onChange={(event) => setData('smtp_password', event.target.value)} />
+                            <Field label={formSettings.smtp_password_set ? 'Password (saved)' : 'Password'} id="smtp-password" error={errors.smtp_password}>
+                                <Input id="smtp-password" type="password" value={data.smtp_password} placeholder={formSettings.smtp_password_set ? 'Leave blank to keep current password' : ''} onChange={(event) => setData('smtp_password', event.target.value)} />
                             </Field>
                             <Field label="From Address" id="mail-from-address" error={errors.mail_from_address}>
                                 <Input id="mail-from-address" type="email" value={data.mail_from_address} onChange={(event) => setData('mail_from_address', event.target.value)} />

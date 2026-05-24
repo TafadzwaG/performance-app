@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::middleware(['auth', 'approved', 'password.change'])->group(function () {
+    Route::get('settings', [SystemSettingsController::class, 'index'])->name('settings.index');
+
     Route::middleware('can:system.settings.manage')->group(function () {
-        Route::get('settings', [SystemSettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [SystemSettingsController::class, 'update'])->name('settings.update');
         Route::post('settings/test-email', [SystemSettingsController::class, 'testEmail'])->name('settings.test_email');
         Route::post('settings/logo', [BrandingController::class, 'update'])->name('settings.logo.update');
@@ -23,14 +24,14 @@ Route::middleware(['auth', 'approved', 'password.change'])->group(function () {
         Route::delete('settings/operations/pending-jobs/{job}', [SystemOperationsController::class, 'deletePendingJob'])->name('settings.operations.pending_jobs.destroy');
     });
 
-    Route::middleware('can:system.disaster_recovery.manage')->group(function () {
-        Route::get('settings/disaster-recovery', [DisasterRecoveryController::class, 'index'])->name('settings.disaster_recovery.index');
-        Route::post('settings/disaster-recovery/backups', [DisasterRecoveryController::class, 'storeBackup'])->name('settings.disaster_recovery.backups.store');
-        Route::get('settings/disaster-recovery/backups/{backup}', [DisasterRecoveryController::class, 'showBackup'])->name('settings.disaster_recovery.backups.show');
-        Route::post('settings/disaster-recovery/restores', [DisasterRecoveryController::class, 'storeRestore'])->name('settings.disaster_recovery.restores.store');
-        Route::post('settings/disaster-recovery/restores/{restore}/approve', [DisasterRecoveryController::class, 'approveRestore'])->name('settings.disaster_recovery.restores.approve');
-        Route::post('settings/disaster-recovery/restores/{restore}/reject', [DisasterRecoveryController::class, 'rejectRestore'])->name('settings.disaster_recovery.restores.reject');
-        Route::get('settings/disaster-recovery/restore-tests', [DisasterRecoveryController::class, 'restoreTests'])->name('settings.disaster_recovery.restore_tests.index');
+    Route::prefix('settings/disaster-recovery')->name('settings.disaster_recovery.')->group(function () {
+        Route::get('/', [DisasterRecoveryController::class, 'index'])->name('index');
+        Route::post('backups', [DisasterRecoveryController::class, 'storeBackup'])->name('backups.store');
+        Route::get('backups/{backup}', [DisasterRecoveryController::class, 'showBackup'])->name('backups.show');
+        Route::post('restores', [DisasterRecoveryController::class, 'storeRestore'])->name('restores.store');
+        Route::post('restores/{restore}/approve', [DisasterRecoveryController::class, 'approveRestore'])->name('restores.approve');
+        Route::post('restores/{restore}/reject', [DisasterRecoveryController::class, 'rejectRestore'])->name('restores.reject');
+        Route::get('restore-tests', [DisasterRecoveryController::class, 'restoreTests'])->name('restore_tests.index');
     });
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -20,7 +20,7 @@
 
 @section('content')
     <div class="title-block">
-        <div class="eyebrow">§ Performance Appraisal</div>
+        <div class="eyebrow">Performance Appraisal</div>
         <div class="title">Individual Performance Assessment Form</div>
         <div class="meta">
             {{ $appraisal->employee_name_snapshot }}
@@ -32,7 +32,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Employee Details</h2>
+        <h2>Employee Details</h2>
         <table class="kv-table">
             <tr>
                 <td class="label">Employee Name</td>
@@ -56,7 +56,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Business Objectives</h2>
+        <h2>Business Objectives</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -94,7 +94,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Other Substantial Achievements</h2>
+        <h2>Other Substantial Achievements</h2>
         <div class="comment-box">
             @forelse ($achievementComments as $comment)
                 <p>{{ $comment->body }}</p>
@@ -105,7 +105,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Significant Issues</h2>
+        <h2>Significant Issues</h2>
         <div class="comment-box">
             @forelse ($issueComments as $comment)
                 <p>{{ $comment->body }}</p>
@@ -116,7 +116,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Comments</h2>
+        <h2>Comments</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -151,7 +151,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Sign-off</h2>
+        <h2>Sign-off</h2>
         <table class="kv-table">
             <tr>
                 <td class="label">Employee</td>
@@ -175,7 +175,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Business Objectives Rating Scale</h2>
+        <h2>Business Objectives Rating Scale</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -212,7 +212,7 @@
     </div>
 
     <div class="section">
-        <h2>§ Values Objectives Rating Scale</h2>
+        <h2>Values Objectives Rating Scale</h2>
         <table class="data-table">
             <thead>
                 <tr>

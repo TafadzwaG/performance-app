@@ -7,7 +7,7 @@
 
 @section('content')
     <div class="title-block">
-        <div class="eyebrow">§ Performance Report</div>
+        <div class="eyebrow">Performance Report</div>
         <div class="title">{{ $reportTitle }}</div>
         <div class="meta">
             {{ $reportDescription }}
@@ -16,7 +16,7 @@
     </div>
 
     <div class="section filters">
-        <h2>§ Export Filters</h2>
+        <h2>Export Filters</h2>
         <table>
             @foreach ($filterRows as [$label, $value])
                 <tr>
@@ -28,7 +28,7 @@
     </div>
 
     <div class="section summary">
-        <h2>§ Summary</h2>
+        <h2>Summary</h2>
         <table class="summary-grid">
             <tr>
                 <td>
@@ -52,7 +52,7 @@
     </div>
 
     <div class="section">
-        <h2>§ {{ $reportTitle }}</h2>
+        <h2>{{ $reportTitle }}</h2>
         <table class="data-table">
             <thead>
                 <tr>

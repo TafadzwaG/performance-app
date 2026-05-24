@@ -585,3 +585,79 @@ export interface RoleRecord {
     permissions?: Array<{ id: number; name: string }>;
     users?: BasicUser[];
 }
+
+export type PerformanceTrendStatus = 'improving' | 'declining' | 'stable' | 'insufficient_data';
+
+export interface PerformanceTrendPoint {
+    review_cycle_id: number;
+    cycle_name: string;
+    score: number;
+    finalized_at?: string | null;
+}
+
+export interface EmployeePerformanceTrend {
+    points: PerformanceTrendPoint[];
+    latest_score: number | null;
+    previous_score: number | null;
+    score_delta: number | null;
+    trend_status: PerformanceTrendStatus;
+    trend_label: string;
+    current_cycle_name: string | null;
+    previous_cycle_name: string | null;
+}
+
+export interface PeerComparisonPeer {
+    employee_profile_id: number;
+    employee_name: string;
+    employee_number: string;
+    job_title?: string | null;
+    current_score: number;
+}
+
+export interface EmployeePeerComparison {
+    template_id: number;
+    template_name: string;
+    current_review_cycle_id: number;
+    current_cycle_name: string;
+    cohort_average: number;
+    cohort_rank: number;
+    cohort_size: number;
+    gap_from_cohort_average: number;
+    peers: PeerComparisonPeer[];
+}
+
+export interface EmployeeMovementRow {
+    employee_profile_id: number;
+    employee_name: string;
+    employee_number: string;
+    department?: string | null;
+    job_title?: string | null;
+    template_id?: number | null;
+    template_name?: string | null;
+    current_review_cycle_id?: number | null;
+    current_cycle_name?: string | null;
+    previous_cycle_name?: string | null;
+    previous_score?: number | null;
+    current_score?: number | null;
+    score_delta?: number | null;
+    trend_status: PerformanceTrendStatus;
+    trend_label: string;
+    cohort_average?: number | null;
+    cohort_rank?: number | null;
+    cohort_size?: number | null;
+    gap_from_cohort_average?: number | null;
+}
+
+export interface EmployeePerformanceMovementReport {
+    summary: {
+        improving: number;
+        declining: number;
+        stable: number;
+        insufficient_data: number;
+    };
+    top_improving: EmployeeMovementRow[];
+    top_declining: EmployeeMovementRow[];
+    stable_employees: EmployeeMovementRow[];
+    scorecard_comparison: EmployeeMovementRow[];
+    movement_rows: EmployeeMovementRow[];
+}

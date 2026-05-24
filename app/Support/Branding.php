@@ -32,8 +32,16 @@ class Branding
 
     public static function logoDataUri(): ?string
     {
-        $path = static::logoAbsolutePath();
+        return static::imageDataUriForPath(static::logoAbsolutePath());
+    }
 
+    public static function poweredByDataUri(): ?string
+    {
+        return static::imageDataUriForPath(static::poweredByPath());
+    }
+
+    public static function imageDataUriForPath(?string $path): ?string
+    {
         if ($path === null || ! file_exists($path)) {
             return null;
         }
@@ -42,10 +50,36 @@ class Branding
         $mime = match ($extension) {
             'jpg', 'jpeg' => 'image/jpeg',
             'webp' => 'image/webp',
+            'gif' => 'image/gif',
             default => 'image/png',
         };
 
         return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($path));
+    }
+
+    /**
+     * DomPDF-friendly image source: embedded data URI first, then a chroot-relative path.
+     */
+    public static function pdfImageSrc(?string $path): ?string
+    {
+        if ($path === null || ! file_exists($path)) {
+            return null;
+        }
+
+        $dataUri = static::imageDataUriForPath($path);
+
+        if ($dataUri !== null) {
+            return $dataUri;
+        }
+
+        $basePath = str_replace('\\', '/', (string) realpath(base_path()));
+        $absolutePath = str_replace('\\', '/', (string) realpath($path));
+
+        if ($basePath !== '' && str_starts_with($absolutePath, $basePath.'/')) {
+            return substr($absolutePath, strlen($basePath) + 1);
+        }
+
+        return $absolutePath;
     }
 
     /**
@@ -67,9 +101,12 @@ class Branding
      *     logoPath: ?string,
      *     logoUrl: ?string,
      *     logoDataUri: ?string,
+     *     logoPdfSrc: ?string,
      *     logoExists: bool,
      *     poweredByPath: ?string,
      *     poweredByUrl: ?string,
+     *     poweredByDataUri: ?string,
+     *     poweredByPdfSrc: ?string,
      *     poweredByExists: bool,
      *     companyName: string,
      *     companyAddress: ?string,
@@ -87,9 +124,12 @@ class Branding
             'logoPath' => $logoPath,
             'logoUrl' => static::logoUrl(),
             'logoDataUri' => static::logoDataUri(),
+            'logoPdfSrc' => static::pdfImageSrc($logoPath),
             'logoExists' => $logoPath !== null && File::exists($logoPath),
             'poweredByPath' => $poweredByPath,
             'poweredByUrl' => $poweredByPath ? asset('branding/tjt-logo.png') : null,
+            'poweredByDataUri' => static::poweredByDataUri(),
+            'poweredByPdfSrc' => static::pdfImageSrc($poweredByPath),
             'poweredByExists' => $poweredByPath !== null,
             'companyName' => filled($settings->company_name)
                 ? $settings->company_name

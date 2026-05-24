@@ -6,6 +6,7 @@ use App\Exports\Performance\BasePerformanceExport;
 use App\Exports\Performance\CompletionStatusExport;
 use App\Exports\Performance\CycleSummaryExport;
 use App\Exports\Performance\DepartmentSummaryExport;
+use App\Exports\Performance\EmployeePerformanceMovementExport;
 use App\Exports\Performance\EmployeeSummaryExport;
 use App\Exports\Performance\OverdueReviewsExport;
 use App\Exports\Performance\RatingDistributionExport;
@@ -13,6 +14,7 @@ use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\ReviewCycle;
 use App\Models\User;
+use App\Services\Performance\EmployeePerformanceAnalyticsService;
 use App\Services\Performance\ReportQueryService;
 use App\Support\Branding;
 use App\Support\Pdf\StudioExportPdf;
@@ -75,10 +77,18 @@ class ReportExportService
             'export' => OverdueReviewsExport::class,
             'filename' => 'overdueReviewsFilename',
         ],
+        'employee-performance-movement' => [
+            'title' => 'Employee Performance Movement',
+            'description' => 'Effective score movement, trend status, and same-scorecard peer comparison.',
+            'query' => 'employeePerformanceMovement',
+            'export' => EmployeePerformanceMovementExport::class,
+            'filename' => 'employeePerformanceMovementFilename',
+        ],
     ];
 
     public function __construct(
         private readonly ReportQueryService $reportQueryService,
+        private readonly EmployeePerformanceAnalyticsService $employeePerformanceAnalyticsService,
     ) {}
 
     public function excel(string $report, User $actor, array $filters = []): BinaryFileResponse
@@ -122,6 +132,10 @@ class ReportExportService
 
     private function queryRows(string $method, array $filters): Collection
     {
+        if ($method === 'employeePerformanceMovement') {
+            return collect($this->employeePerformanceAnalyticsService->movementReport($filters)['movement_rows']);
+        }
+
         $rows = $this->reportQueryService->{$method}($filters);
 
         if ($method === 'overdueReviews') {
@@ -145,8 +159,11 @@ class ReportExportService
             $tableRows[0][0] = 'No records matched the selected filters.';
         }
 
+        $branding = Branding::exportHeaderContext();
+
         return [
-            ...Branding::exportHeaderContext(),
+            ...$branding,
+            'branding' => $branding,
             'reportTitle' => $definition['title'],
             'headerReportLabel' => $definition['title'],
             'reportDescription' => $definition['description'],
@@ -240,6 +257,13 @@ class ReportExportService
     private function overdueReviewsFilename(array $filters): string
     {
         return 'overdue-reviews-'.$this->timestamp().'.xlsx';
+    }
+
+    private function employeePerformanceMovementFilename(array $filters): string
+    {
+        $cycleCode = ReviewCycle::query()->find($filters['review_cycle_id'] ?? null)?->code ?? 'all-cycles';
+
+        return "employee-performance-movement-{$cycleCode}-".$this->timestamp().'.xlsx';
     }
 
     private function timestamp(): string

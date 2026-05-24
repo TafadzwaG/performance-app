@@ -1,4 +1,5 @@
 import AppraisalSteps, { AppraisalStepSubmitActions } from '@/components/performance/AppraisalSteps';
+import GoalLibraryPicker from '@/components/performance/GoalLibraryPicker';
 import ObjectiveTable from '@/components/performance/ObjectiveTable';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem, SharedData } from '@/types';
 import type { Appraisal, GoalLibrarySearchOption, Objective, Option } from '@/types/performance';
 import { useForm, usePage } from '@inertiajs/react';
-import { Loader2, Save, Send, Target } from 'lucide-react';
+import { BookOpen, Loader2, Save, Send, Target } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
@@ -46,6 +47,21 @@ function createEmptyPlanObjective(perspectiveOptions: Option[]): PlanObjective {
     };
 }
 
+function planObjectiveFromKpi(goal: GoalLibrarySearchOption, perspectiveOptions: Option[]): PlanObjective {
+    return {
+        perspective_id: goal.perspective_id || Number(perspectiveOptions[0]?.value ?? 0),
+        goal_library_item_id: goal.value,
+        objective_type: 'business',
+        title: goal.title,
+        kpi_measure: goal.kpi_measure ?? '',
+        target_definition: goal.target_definition ?? '',
+        weight: goal.default_weight ?? 0,
+        evidence_source: goal.evidence_source ?? '',
+        due_date: '',
+        include_in_business_score: true,
+    };
+}
+
 const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
     { title: 'Appraisals', href: route('performance.appraisals.index') },
@@ -55,6 +71,7 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
 
 export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions, goalLibrarySearchEndpoint }: Props) {
     const { auth } = usePage<SharedData>().props;
+    const [pickerOpen, setPickerOpen] = useState(false);
     const [draftSaved, setDraftSaved] = useState(false);
     const hydratedFromStorage = useRef(false);
     const { data, setData, put, post, processing } = useForm<{ objectives: PlanObjective[] }>({
@@ -150,16 +167,22 @@ export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions
         const next = [...data.objectives];
         next[index] = {
             ...next[index],
-            goal_library_item_id: goal.value,
-            perspective_id: goal.perspective_id,
-            title: goal.title,
-            kpi_measure: goal.kpi_measure ?? '',
-            target_definition: goal.target_definition ?? '',
-            weight: goal.default_weight ?? next[index].weight,
-            evidence_source: goal.evidence_source ?? '',
+            ...planObjectiveFromKpi(goal, perspectiveOptions),
         };
         setData('objectives', next);
     };
+
+    const applySelectedKpis = (goals: GoalLibrarySearchOption[]) => {
+        if (goals.length === 0) {
+            return;
+        }
+
+        setData('objectives', [...data.objectives, ...goals.map((goal) => planObjectiveFromKpi(goal, perspectiveOptions))]);
+    };
+
+    const selectedGoalLibraryItemIds = data.objectives
+        .map((objective) => objective.goal_library_item_id)
+        .filter((goalLibraryItemId): goalLibraryItemId is number => goalLibraryItemId != null);
 
     const addObjective = () => {
         setData('objectives', [...data.objectives, createEmptyPlanObjective(perspectiveOptions)]);
@@ -175,8 +198,16 @@ export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions
     return (
         <PerformancePage
             title="Goal Planning"
-            description="Define SMART objectives, measures, targets, and weights for the cycle. Search the goal library matched to your department and job title."
+            description="Define SMART objectives, measures, targets, and weights for the cycle. Pick KPIs matched to your department and job title, or enter objectives manually."
             breadcrumbs={breadcrumbs(appraisal)}
+            secondaryActions={
+                canStructurallyEditGoals ? (
+                    <Button type="button" variant="outline" onClick={() => setPickerOpen(true)}>
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        Pick From KPIs
+                    </Button>
+                ) : undefined
+            }
         >
             <AppraisalSteps
                 appraisal={appraisal}
@@ -206,10 +237,18 @@ export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions
                                 <span>
                                     <span className="font-medium text-foreground">{objectiveCount}</span> objectives
                                 </span>
-                                <span className={hasWeightIssue ? 'font-medium text-red-700' : 'font-medium text-emerald-800'}>
-                                    Total weight: {totalWeight}%
-                                    {hasWeightIssue ? ` — need ${weightDelta > 0 ? '+' : ''}${weightDelta}%` : ' — ready'}
-                                </span>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    {canStructurallyEditGoals ? (
+                                        <Button type="button" variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+                                            <BookOpen className="mr-2 h-4 w-4" />
+                                            Pick From KPIs
+                                        </Button>
+                                    ) : null}
+                                    <span className={hasWeightIssue ? 'font-medium text-red-700' : 'font-medium text-emerald-800'}>
+                                        Total weight: {totalWeight}%
+                                        {hasWeightIssue ? ` — need ${weightDelta > 0 ? '+' : ''}${weightDelta}%` : ' — ready'}
+                                    </span>
+                                </div>
                             </div>
                             <ObjectiveTable
                                 objectives={data.objectives as unknown as Objective[]}
@@ -283,6 +322,16 @@ export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions
                     </Card>
                 </div>
             </div>
+
+            {canStructurallyEditGoals ? (
+                <GoalLibraryPicker
+                    endpoint={goalLibrarySearchEndpoint}
+                    excludeIds={selectedGoalLibraryItemIds}
+                    open={pickerOpen}
+                    onOpenChange={setPickerOpen}
+                    onApply={applySelectedKpis}
+                />
+            ) : null}
         </PerformancePage>
     );
 }

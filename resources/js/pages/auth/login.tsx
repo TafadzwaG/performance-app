@@ -137,6 +137,15 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 className="bg-background border-foreground/15 focus-visible:border-brand-sand h-11 text-[14px]"
                             />
                             <InputError message={errors.employee_number} />
+                            {canResetPassword && (
+                                <p className="text-foreground/60 text-[12px] leading-5">
+                                    Forgot your password?{' '}
+                                    <TextLink href={route('password.request')} className="text-[12px]">
+                                        Reset it using your work email
+                                    </TextLink>
+                                    .
+                                </p>
+                            )}
                         </div>
                     )}
 
@@ -145,7 +154,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             <Label htmlFor="password" className="font-mono-brand text-foreground/70 text-[10px] tracking-[0.22em] uppercase">
                                 Password
                             </Label>
-                            {canResetPassword && (
+                            {canResetPassword && data.login_method === 'email' && (
                                 <TextLink
                                     href={route('password.request')}
                                     className="text-foreground/65 hover:text-brand-pine text-[11px]"

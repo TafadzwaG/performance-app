@@ -11,21 +11,32 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class DisasterRecoveryController extends Controller
 {
-    public function index(DisasterRecoveryService $disasterRecovery): Response
+    public function __construct()
     {
-        return Inertia::render('settings/disaster-recovery/Index', $disasterRecovery->snapshot());
+        $this->middleware(function ($request, $next) {
+            abort_unless(
+                $request->user()?->can('system.disaster_recovery.manage')
+                || $request->user()?->can('system.settings.manage'),
+                403,
+            );
+
+            return $next($request);
+        });
+    }
+
+    public function index(): RedirectResponse
+    {
+        return to_route('settings.index', ['tab' => 'disaster-recovery']);
     }
 
     public function storeBackup(Request $request, DisasterRecoveryService $disasterRecovery): RedirectResponse
     {
         $disasterRecovery->queueManualBackup($request->user());
 
-        return to_route('settings.disaster_recovery.index')->with('success', 'Disaster recovery backup queued.');
+        return $this->redirectToTab()->with('success', 'Disaster recovery backup queued.');
     }
 
     public function showBackup(DisasterRecoveryBackup $backup)
@@ -46,7 +57,7 @@ class DisasterRecoveryController extends Controller
         $backup = DisasterRecoveryBackup::query()->findOrFail($validated['backup_id']);
         $disasterRecovery->requestRestore($request->user(), $backup, $validated['notes'] ?? null);
 
-        return to_route('settings.disaster_recovery.index')->with('success', 'Restore request submitted for approval.');
+        return $this->redirectToTab()->with('success', 'Restore request submitted for approval.');
     }
 
     public function approveRestore(Request $request, DisasterRecoveryRestoreRequest $restore, DisasterRecoveryService $disasterRecovery): RedirectResponse
@@ -61,7 +72,7 @@ class DisasterRecoveryController extends Controller
 
         $disasterRecovery->approveRestore($request->user(), $restore, $validated['confirmation_phrase']);
 
-        return to_route('settings.disaster_recovery.index')->with('success', 'Restore approved and queued.');
+        return $this->redirectToTab()->with('success', 'Restore approved and queued.');
     }
 
     public function rejectRestore(Request $request, DisasterRecoveryRestoreRequest $restore, DisasterRecoveryService $disasterRecovery): RedirectResponse
@@ -72,11 +83,16 @@ class DisasterRecoveryController extends Controller
 
         $disasterRecovery->rejectRestore($request->user(), $restore, $validated['reason'] ?? null);
 
-        return to_route('settings.disaster_recovery.index')->with('success', 'Restore request rejected.');
+        return $this->redirectToTab()->with('success', 'Restore request rejected.');
     }
 
-    public function restoreTests(DisasterRecoveryService $disasterRecovery): Response
+    public function restoreTests(): RedirectResponse
     {
-        return Inertia::render('settings/disaster-recovery/Index', $disasterRecovery->snapshot());
+        return $this->redirectToTab();
+    }
+
+    private function redirectToTab(): RedirectResponse
+    {
+        return to_route('settings.index', ['tab' => 'disaster-recovery']);
     }
 }

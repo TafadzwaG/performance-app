@@ -13,9 +13,17 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { formatDate } from '@/lib/date-utils';
 import type { BreadcrumbItem } from '@/types';
-import type { EmployeeFieldConfigItem, EmployeeProfile, Option } from '@/types/performance';
+import type {
+    EmployeeFieldConfigItem,
+    EmployeePeerComparison,
+    EmployeePerformanceTrend,
+    EmployeeProfile,
+    Option,
+    PerformanceTrendStatus,
+} from '@/types/performance';
 import { Link, useForm } from '@inertiajs/react';
 import {
     Briefcase,
@@ -24,15 +32,19 @@ import {
     Eye,
     History,
     Mail,
+    Minus,
     PencilLine,
     PieChart,
     ShieldCheck,
+    TrendingDown,
+    TrendingUp,
     User2,
     UserCog,
     UserRoundCog,
     Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 const adminBreadcrumbs = (profile: EmployeeProfile): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -50,12 +62,16 @@ export default function EmployeeShow({
     employeeProfile,
     managerOptions,
     fieldConfig,
+    performanceTrend,
+    peerComparison = null,
     isOwnProfile = false,
     can,
 }: {
     employeeProfile: EmployeeProfile;
     managerOptions: Option[];
     fieldConfig: EmployeeFieldConfigItem[];
+    performanceTrend?: EmployeePerformanceTrend;
+    peerComparison?: EmployeePeerComparison | null;
     isOwnProfile?: boolean;
     can: { assignManagers: boolean; edit?: boolean };
 }) {
@@ -309,7 +325,11 @@ export default function EmployeeShow({
                                     </CardDescription>
                                 </CardHeader>
 
-                                <CardContent className="space-y-3">
+                                <CardContent className="space-y-6">
+                                    {performanceTrend && performanceTrend.points.length > 0 ? (
+                                        <PerformanceTrendPanel trend={performanceTrend} peerComparison={peerComparison} />
+                                    ) : null}
+
                                     {appraisals.length > 0 ? (
                                         appraisals.map((appraisal) => (
                                             <div
@@ -337,12 +357,12 @@ export default function EmployeeShow({
                                                             Performance score
                                                         </div>
                                                         <div className="font-display text-foreground mt-1 text-lg leading-none font-light">
-                                                            {appraisal.overall_score !== undefined && appraisal.overall_score !== null
-                                                                ? `${Number(appraisal.overall_score).toFixed(1)}%`
+                                                            {effectiveAppraisalScore(appraisal) !== null
+                                                                ? `${effectiveAppraisalScore(appraisal)!.toFixed(1)}%`
                                                                 : '—'}
                                                         </div>
                                                     </div>
-                                                    <ScoreDonut score={appraisal.overall_score} />
+                                                    <ScoreDonut score={effectiveAppraisalScore(appraisal)} />
                                                 </div>
                                             </div>
                                         ))
@@ -457,6 +477,168 @@ export default function EmployeeShow({
             </div>
         </PerformancePage>
     );
+}
+
+function effectiveAppraisalScore(appraisal: NonNullable<EmployeeProfile['appraisals']>[number]) {
+    const score = appraisal.calibrated_overall_score ?? appraisal.overall_score;
+
+    return score === null || score === undefined ? null : Number(score);
+}
+
+const trendChartConfig = {
+    score: { label: 'Effective score', theme: { light: 'var(--chart-1)', dark: 'var(--chart-1)' } },
+} satisfies ChartConfig;
+
+function PerformanceTrendPanel({
+    trend,
+    peerComparison,
+}: {
+    trend: EmployeePerformanceTrend;
+    peerComparison: EmployeePeerComparison | null;
+}) {
+    const chartData = useMemo(
+        () =>
+            trend.points.map((point) => ({
+                cycle: point.cycle_name,
+                score: point.score,
+            })),
+        [trend.points],
+    );
+
+    return (
+        <div className="space-y-5 rounded-xl border bg-muted/10 p-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                        § Performance trend
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <TrendStatusBadge status={trend.trend_status} label={trend.trend_label} />
+                        {trend.score_delta !== null ? (
+                            <span className="text-muted-foreground text-sm">
+                                {trend.previous_cycle_name ?? 'Previous'} → {trend.current_cycle_name ?? 'Current'}:{' '}
+                                <span className="text-foreground font-medium">{formatTrendDelta(trend.score_delta)}</span>
+                            </span>
+                        ) : null}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 text-center">
+                    <TrendMetric label="Previous" value={trend.previous_score} />
+                    <TrendMetric label="Current" value={trend.latest_score} />
+                    <TrendMetric label="Delta" value={trend.score_delta} signed />
+                </div>
+            </div>
+
+            {chartData.length >= 2 ? (
+                <ChartContainer config={trendChartConfig} className="h-[220px] w-full">
+                    <LineChart data={chartData} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis dataKey="cycle" tickLine={false} axisLine={false} tickMargin={8} />
+                        <YAxis domain={[0, 100]} tickLine={false} axisLine={false} width={32} />
+                        <ChartTooltip cursor={false} content={(props) => <ChartTooltipContent {...props} />} />
+                        <Line
+                            type="monotone"
+                            dataKey="score"
+                            stroke="var(--color-score)"
+                            strokeWidth={2}
+                            dot={{ r: 4, fill: 'var(--color-score)' }}
+                            activeDot={{ r: 6 }}
+                        />
+                    </LineChart>
+                </ChartContainer>
+            ) : (
+                <p className="text-muted-foreground text-sm">
+                    At least two finalized scored cycles are required to plot movement over time.
+                </p>
+            )}
+
+            {peerComparison ? (
+                <div className="space-y-3 border-t pt-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                                § Same scorecard peers
+                            </div>
+                            <p className="text-foreground mt-1 text-sm font-medium">{peerComparison.template_name}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline">Rank {peerComparison.cohort_rank} of {peerComparison.cohort_size}</Badge>
+                            <Badge variant="outline">Cohort avg {peerComparison.cohort_average.toFixed(1)}%</Badge>
+                            <Badge variant="outline">
+                                Gap {formatTrendDelta(peerComparison.gap_from_cohort_average)}
+                            </Badge>
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-lg border">
+                        <table className="min-w-full text-sm">
+                            <thead className="bg-muted/30">
+                                <tr>
+                                    {['Employee', 'Job title', 'Score'].map((header) => (
+                                        <th
+                                            key={header}
+                                            className="px-4 py-3 text-left text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase"
+                                        >
+                                            {header}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {peerComparison.peers.slice(0, 5).map((peer) => (
+                                    <tr key={peer.employee_profile_id} className="border-t">
+                                        <td className="px-4 py-3 font-medium">{peer.employee_name}</td>
+                                        <td className="text-muted-foreground px-4 py-3">{peer.job_title ?? '—'}</td>
+                                        <td className="text-muted-foreground px-4 py-3">{peer.current_score.toFixed(1)}%</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+function TrendStatusBadge({ status, label }: { status: PerformanceTrendStatus; label: string }) {
+    const className =
+        status === 'improving'
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+            : status === 'declining'
+              ? 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300'
+              : status === 'stable'
+                ? 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                : 'border-muted-foreground/30 bg-muted/20 text-muted-foreground';
+
+    const Icon = status === 'improving' ? TrendingUp : status === 'declining' ? TrendingDown : Minus;
+
+    return (
+        <Badge variant="outline" className={className}>
+            <Icon className="mr-1.5 h-3.5 w-3.5" />
+            {label}
+        </Badge>
+    );
+}
+
+function TrendMetric({ label, value, signed = false }: { label: string; value: number | null; signed?: boolean }) {
+    return (
+        <div className="rounded-lg border bg-background px-3 py-2">
+            <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">{label}</div>
+            <div className="font-display text-foreground mt-1 text-lg font-light">
+                {value === null ? '—' : signed ? formatTrendDelta(value) : `${value.toFixed(1)}%`}
+            </div>
+        </div>
+    );
+}
+
+function formatTrendDelta(value: number) {
+    if (value === 0) {
+        return '0.0';
+    }
+
+    return `${value > 0 ? '+' : ''}${value.toFixed(1)}`;
 }
 
 function formatShowField(profile: EmployeeProfile, field: EmployeeFieldConfigItem) {

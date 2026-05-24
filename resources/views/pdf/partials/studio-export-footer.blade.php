@@ -1,12 +1,28 @@
 @php
-    $reportFooter = $reportFooter ?? ($branding['reportFooter'] ?? null);
-    $companyName = $companyName ?? ($branding['companyName'] ?? 'Performance Appraisal Studio');
-    $poweredByExists = $poweredByExists ?? ($branding['poweredByExists'] ?? false);
-    $poweredByPath = $poweredByPath ?? ($branding['poweredByPath'] ?? null);
-    $poweredByUrl = $poweredByUrl ?? ($branding['poweredByUrl'] ?? null);
+    use App\Support\Branding;
+
+    $brandingContext = $branding ?? [];
+    $reportFooter = $reportFooter ?? ($brandingContext['reportFooter'] ?? null);
+    $companyName = $companyName ?? ($brandingContext['companyName'] ?? 'Performance Appraisal Studio');
+    $poweredByExists = $poweredByExists ?? ($brandingContext['poweredByExists'] ?? false);
+    $poweredByPath = $poweredByPath ?? ($brandingContext['poweredByPath'] ?? null);
+    $poweredByUrl = $poweredByUrl ?? ($brandingContext['poweredByUrl'] ?? null);
+    $poweredByDataUri = $poweredByDataUri ?? ($brandingContext['poweredByDataUri'] ?? null);
+    $poweredByPdfSrc = $poweredByPdfSrc ?? ($brandingContext['poweredByPdfSrc'] ?? null);
+
+    if (! filled($poweredByPdfSrc) && filled($poweredByPath)) {
+        $poweredByPdfSrc = Branding::pdfImageSrc($poweredByPath);
+    }
+
+    if (! filled($poweredByDataUri) && filled($poweredByPath)) {
+        $poweredByDataUri = Branding::imageDataUriForPath($poweredByPath);
+    }
+
+    $poweredByExists = $poweredByExists || filled($poweredByPdfSrc) || filled($poweredByDataUri) || filled($poweredByUrl);
+
     $poweredBySrc = ($previewHtml ?? false)
-        ? ($poweredByUrl ?? $poweredByPath)
-        : ($poweredByPath ?? $poweredByUrl);
+        ? ($poweredByUrl ?? $poweredByDataUri ?? $poweredByPdfSrc)
+        : ($poweredByPdfSrc ?? $poweredByDataUri ?? $poweredByUrl);
 @endphp
 <div class="footer">
     <table class="footer-table">

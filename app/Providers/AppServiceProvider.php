@@ -34,6 +34,7 @@ use App\Policies\ReviewCyclePolicy;
 use App\Policies\RolePolicy;
 use App\Policies\UserPolicy;
 use App\Services\Settings\MailSettingsService;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -59,6 +60,13 @@ class AppServiceProvider extends ServiceProvider
                 ->mixedCase()
                 ->numbers()
                 ->symbols();
+        });
+
+        ResetPassword::createUrlUsing(function (object $notifiable, string $token): string {
+            return url(route('password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ], false));
         });
 
         Gate::policy(Department::class, DepartmentPolicy::class);

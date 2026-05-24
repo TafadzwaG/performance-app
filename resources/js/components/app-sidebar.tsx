@@ -164,16 +164,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('system.disaster_recovery.manage')
-            ? [
-                  {
-                      title: 'Disaster Recovery',
-                      url: route('settings.disaster_recovery.index'),
-                      icon: HardDrive,
-                  } satisfies NavItem,
-              ]
-            : []),
-        ...(can('system.settings.manage')
+        ...(can('system.settings.manage', 'system.disaster_recovery.manage')
             ? [
                   {
                       title: 'Settings',

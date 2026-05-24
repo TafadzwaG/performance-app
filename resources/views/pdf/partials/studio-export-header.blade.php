@@ -1,12 +1,28 @@
 @php
-    $logoDataUri = $logoDataUri ?? ($branding['logoDataUri'] ?? null);
-    $logoUrl = $logoUrl ?? ($branding['logoUrl'] ?? null);
-    $logoExists = $logoExists ?? ($branding['logoExists'] ?? filled($logoDataUri) || filled($logoUrl));
-    $companyName = $companyName ?? ($branding['companyName'] ?? 'Performance Appraisal Studio');
-    $companyAddress = $companyAddress ?? ($branding['companyAddress'] ?? null);
+    use App\Support\Branding;
+
+    $brandingContext = $branding ?? [];
+    $logoPath = $logoPath ?? ($brandingContext['logoPath'] ?? null);
+    $logoDataUri = $logoDataUri ?? ($brandingContext['logoDataUri'] ?? null);
+    $logoPdfSrc = $logoPdfSrc ?? ($brandingContext['logoPdfSrc'] ?? null);
+    $logoUrl = $logoUrl ?? ($brandingContext['logoUrl'] ?? null);
+    $logoExists = $logoExists ?? ($brandingContext['logoExists'] ?? false);
+    $companyName = $companyName ?? ($brandingContext['companyName'] ?? 'Performance Appraisal Studio');
+    $companyAddress = $companyAddress ?? ($brandingContext['companyAddress'] ?? null);
+
+    if (! filled($logoPdfSrc) && filled($logoPath)) {
+        $logoPdfSrc = Branding::pdfImageSrc($logoPath);
+    }
+
+    if (! filled($logoDataUri) && filled($logoPath)) {
+        $logoDataUri = Branding::imageDataUriForPath($logoPath);
+    }
+
+    $logoExists = $logoExists || filled($logoPdfSrc) || filled($logoDataUri) || filled($logoUrl);
+
     $logoSrc = ($previewHtml ?? false)
-        ? ($logoUrl ?? $logoDataUri)
-        : ($logoDataUri ?? $logoUrl);
+        ? ($logoUrl ?? $logoDataUri ?? $logoPdfSrc)
+        : ($logoPdfSrc ?? $logoDataUri ?? $logoUrl);
 @endphp
 <div class="header">
     <table>
@@ -23,7 +39,7 @@
                 @endif
             </td>
             <td class="meta-cell">
-                <div class="export-label">§ {{ strtoupper($headerReportLabel ?? $reportTitle ?? 'Export') }}</div>
+                <div class="export-label">{{ strtoupper($headerReportLabel ?? $reportTitle ?? 'Export') }}</div>
                 @if (isset($exportedBy) || isset($exportedAt))
                     <div class="export-by">
                         @if (isset($exportedBy))

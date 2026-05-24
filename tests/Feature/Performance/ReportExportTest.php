@@ -40,7 +40,7 @@ test('authorized user can export performance reports to excel and pdf', function
         'finalized_at' => now(),
     ]);
 
-    foreach (['cycle-summary', 'department-summary', 'employee-summary', 'completion-status', 'rating-distribution', 'overdue-reviews'] as $report) {
+    foreach (['cycle-summary', 'department-summary', 'employee-summary', 'completion-status', 'rating-distribution', 'overdue-reviews', 'employee-performance-movement'] as $report) {
         $this->actingAs($actor)
             ->get(route('performance.reports.export', [
                 'report' => $report,
@@ -87,6 +87,6 @@ test('performance report pdf uses the shared studio report template', function (
 
     expect($view)->toContain("@extends('pdf.layouts.studio-export')")
         ->and($layout)->toContain('studio-export-styles')
-        ->and($view)->toContain('§ Export Filters')
+        ->and($view)->toContain('Export Filters')
         ->and($view)->toContain('$tableRows');
 });

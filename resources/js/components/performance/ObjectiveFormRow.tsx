@@ -188,14 +188,14 @@ export default function ObjectiveFormRow({
                 </div>
 
                 {goalLibrarySearchEndpoint && allowStructuralEditing ? (
-                    <FormField label="Goal from library" htmlFor={fieldId('library')}>
+                    <FormField label="KPI lookup" htmlFor={fieldId('library')}>
                         <AsyncSearchSelect<GoalLibrarySearchOption>
                             id={fieldId('library')}
                             endpoint={goalLibrarySearchEndpoint}
                             value={objective.goal_library_item_id ?? null}
                             extraQuery={goalLibrarySearchExtraQuery}
-                            placeholder="Search goals for your department and role…"
-                            emptyText="No matching goals. Try another keyword or enter details manually."
+                            placeholder="Search KPIs for your department and role…"
+                            emptyText="No matching KPIs. Try another keyword or enter details manually."
                             fallbackLabel={objective.goal_library_item_id ? objective.title : null}
                             onChange={(_value, option) => {
                                 if (option) {
