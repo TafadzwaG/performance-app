@@ -43,6 +43,33 @@ class HelpController extends Controller
 
         return Inertia::render('access/help/Index', [
             'documents' => $documents,
+            'processFlowChart' => [
+                'title' => 'Employee Performance Appraisal System Flow',
+                'description' => 'End-to-end workflow from setup and employee assignment through final approval, finalization, reporting, Excel export, and PDF output.',
+                'previewUrl' => route('access.help.preview', ['document' => 'system-flow-diagram']),
+                'downloads' => collect(['system-flow-diagram', 'stakeholder-flow-diagram'])
+                    ->map(function (string $slug) {
+                        $entry = DocumentationLibrary::find($slug);
+
+                        if ($entry === null) {
+                            return null;
+                        }
+
+                        return [
+                            'slug' => $entry['slug'],
+                            'title' => $entry['title'],
+                            'description' => $entry['description'],
+                            'url' => route('access.help.download', [
+                                'document' => $entry['slug'],
+                                'format' => 'pdf',
+                            ]),
+                            'filename' => $entry['download_names']['pdf'] ?? "{$entry['slug']}.pdf",
+                        ];
+                    })
+                    ->filter()
+                    ->values()
+                    ->all(),
+            ],
             'workflowSteps' => [
                 [
                     'step' => '01',
@@ -129,5 +156,23 @@ class HelpController extends Controller
                 'exportedAt' => now(),
             ])
         )->download($fileName);
+    }
+
+    public function preview(string $document): HttpResponse
+    {
+        $entry = DocumentationLibrary::find($document);
+
+        abort_unless($entry !== null, 404);
+        abort_unless($entry['category'] === 'diagram', 404);
+
+        $htmlPath = str_ends_with(strtolower($entry['path']), '.pdf')
+            ? preg_replace('/\.pdf$/i', '.html', $entry['path'])
+            : $entry['path'];
+
+        abort_unless(is_string($htmlPath) && File::exists($htmlPath), 404);
+
+        return response(File::get($htmlPath), 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+        ]);
     }
 }

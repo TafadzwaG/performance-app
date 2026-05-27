@@ -8,13 +8,21 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import ExportDownloadDialog, { type ExportDownloadFormat } from '@/components/performance/export-download-dialog';
 import { Button } from '@/components/ui/button';
 import type { SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
 import { FileSpreadsheet, FileText } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 type ExportFormat = 'xlsx' | 'pdf';
+
+type ExportRequest = {
+    url: string;
+    format: ExportDownloadFormat;
+    subject: string;
+    fallbackFilename: string;
+};
 
 interface ReportExportButtonsProps {
     exportKey: string;
@@ -34,25 +42,23 @@ export default function ReportExportButtons({
     const { auth } = usePage<SharedData>().props;
     const canExport = auth.permissions.includes('performance.reports.export');
     const [pendingFormat, setPendingFormat] = useState<ExportFormat | null>(null);
-
-    const exportHref = useMemo(() => {
-        if (!pendingFormat) {
-            return null;
-        }
-
-        return route('performance.reports.export', {
-            report: exportKey,
-            format: pendingFormat,
-            review_cycle_id: reviewCycleId ?? undefined,
-        });
-    }, [exportKey, pendingFormat, reviewCycleId]);
+    const [exportRequest, setExportRequest] = useState<ExportRequest | null>(null);
 
     const handleConfirm = () => {
-        if (!exportHref) {
+        if (!pendingFormat) {
             return;
         }
 
-        window.location.assign(exportHref);
+        setExportRequest({
+            url: route('performance.reports.export', {
+                report: exportKey,
+                format: pendingFormat,
+                review_cycle_id: reviewCycleId ?? undefined,
+            }),
+            format: pendingFormat === 'pdf' ? 'pdf' : 'excel',
+            subject: reportTitle,
+            fallbackFilename: `${exportKey}.${pendingFormat === 'pdf' ? 'pdf' : 'xlsx'}`,
+        });
         setPendingFormat(null);
     };
 
@@ -92,6 +98,8 @@ export default function ReportExportButtons({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <ExportDownloadDialog request={exportRequest} onClose={() => setExportRequest(null)} />
         </>
     );
 }

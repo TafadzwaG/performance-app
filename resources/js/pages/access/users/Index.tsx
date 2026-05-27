@@ -350,6 +350,13 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
                             </div>
 
                             <div className="flex flex-wrap gap-2">
+                                <Button asChild type="button" variant="outline">
+                                    <Link href={route('access.users.mfa.index')}>
+                                        <ShieldCheck className="mr-2 h-4 w-4" />
+                                        MFA Settings
+                                    </Link>
+                                </Button>
+
                                 {canExportUsers ? (
                                     <Button type="button" variant="outline" onClick={() => setExportModalOpen(true)}>
                                         <FileSpreadsheet className="mr-2 h-4 w-4" />
@@ -636,6 +643,9 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
                                             Direct Permissions
                                         </th>
                                         <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                                            MFA
+                                        </th>
+                                        <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                                             <button
                                                 type="button"
                                                 onClick={() => applySort('created_at')}
@@ -716,6 +726,12 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
                                                     </div>
                                                 </td>
 
+                                                <td className="px-6 py-5">
+                                                    <Badge variant={user.email_mfa_enabled ? 'secondary' : 'outline'}>
+                                                        {user.email_mfa_enabled ? 'Enabled' : 'Disabled'}
+                                                    </Badge>
+                                                </td>
+
                                                 <td className="px-6 py-5 text-sm text-foreground">
                                                     {formatDateTime(user.created_at)}
                                                 </td>
@@ -770,7 +786,7 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={approvalStatus === 'pending' ? 7 : 6} className="px-6 py-14 text-center">
+                                            <td colSpan={approvalStatus === 'pending' ? 8 : 7} className="px-6 py-14 text-center">
                                                 <div className="mx-auto max-w-md space-y-2">
                                                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-muted text-muted-foreground">
                                                         <Users className="h-5 w-5" />

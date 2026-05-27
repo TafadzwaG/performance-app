@@ -56,6 +56,36 @@
     </div>
 
     <div class="section">
+        <h2>Score Summary</h2>
+        <table class="stat-band">
+            <tr>
+                <td>
+                    <div class="num">{{ $scoreSummary['business'] ?? '—' }}</div>
+                    <div class="lbl">Business</div>
+                </td>
+                <td>
+                    <div class="num">{{ $scoreSummary['values'] ?? '—' }}</div>
+                    <div class="lbl">Values</div>
+                </td>
+                <td>
+                    <div class="num">{{ $scoreSummary['overall'] ?? '—' }}</div>
+                    <div class="lbl">Overall</div>
+                </td>
+                <td>
+                    <div class="num" style="font-size:12px;">{{ $scoreSummary['rating'] ?? 'Unrated' }}</div>
+                    <div class="lbl">Final Rating</div>
+                </td>
+            </tr>
+        </table>
+        <p class="muted" style="margin-top:8px;">
+            Scorecard: {{ $scoreSummary['weights'] ?? '—' }}
+        </p>
+        <p style="margin-top:8px; font-size:11px; line-height:1.5;">
+            {{ $scoreSummary['comment'] ?? '' }}
+        </p>
+    </div>
+
+    <div class="section">
         <h2>Business Objectives</h2>
         <table class="data-table">
             <thead>

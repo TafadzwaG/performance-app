@@ -266,6 +266,8 @@ export interface BasicUser {
     force_password_change?: boolean;
     password_changed_at?: string | null;
     welcome_notification_sent_at?: string | null;
+    email_mfa_enabled?: boolean;
+    email_mfa_enabled_at?: string | null;
     created_at?: string;
     updated_at?: string;
     roles?: Array<{ id: number; name: string }>;

@@ -46,6 +46,9 @@ Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.comp
     Route::get('profile/edit', [MyEmployeeProfileController::class, 'edit'])->name('profile.edit');
     Route::put('profile', [MyEmployeeProfileController::class, 'update'])->name('profile.update');
 
+    Route::get('profile/export/performance-trend/pdf', [MyEmployeeProfileController::class, 'exportPerformanceTrendPdf'])
+        ->name('profile.export.performance_trend.pdf');
+
     Route::get('my-kpis', [MyKpisController::class, 'index'])->name('my_kpis.index');
     Route::get('my-kpis/create', [MyKpisController::class, 'create'])->name('my_kpis.create');
     Route::post('my-kpis', [MyKpisController::class, 'store'])->name('my_kpis.store');
@@ -104,6 +107,8 @@ Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.comp
         ->parameters(['goal-library' => 'goal_library_item'])
         ->names('goal_library');
 
+    Route::get('employees/{employee_profile}/export/performance-trend/pdf', [EmployeeProfileController::class, 'exportPerformanceTrendPdf'])
+        ->name('employees.export.performance_trend.pdf');
     Route::get('employees/export', [EmployeeProfileController::class, 'export'])->name('employees.export');
     Route::get('employees/upload', [EmployeeProfileController::class, 'uploadCreate'])->name('employees.upload');
     Route::post('employees/upload/preview', [EmployeeProfileController::class, 'uploadPreview'])->name('employees.upload.preview');

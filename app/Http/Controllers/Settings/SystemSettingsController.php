@@ -60,6 +60,7 @@ class SystemSettingsController extends Controller
                     'mail_reply_to_address',
                     'mail_reply_to_name',
                     'mail_notifications_enabled',
+                    'email_mfa_required',
                 ]),
                 'smtp_password' => '',
                 'smtp_password_set' => filled($settings->smtp_password),
@@ -123,6 +124,7 @@ class SystemSettingsController extends Controller
             'mail_reply_to_address' => ['nullable', 'email', 'max:255'],
             'mail_reply_to_name' => ['nullable', 'string', 'max:255'],
             'mail_notifications_enabled' => ['required', 'boolean'],
+            'email_mfa_required' => ['required', 'boolean'],
         ]);
     }
 }

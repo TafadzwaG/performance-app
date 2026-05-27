@@ -1,9 +1,12 @@
 import PerformancePage from '@/components/performance/PerformancePage';
+import ExportDownloadDialog, { type ExportDownloadFormat } from '@/components/performance/export-download-dialog';
+import SystemProcessFlowChart from '@/components/help/system-process-flow-chart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
-import { BookOpen, Download, FileText, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { BookOpen, Download, ExternalLink, FileText, GitBranch, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { useState } from 'react';
 
 interface HelpDocument {
     slug: string;
@@ -30,8 +33,31 @@ interface RoleGuide {
     summary: string;
 }
 
+interface ProcessFlowDownload {
+    slug: string;
+    title: string;
+    description: string;
+    url: string;
+    filename: string;
+}
+
+interface ProcessFlowChart {
+    title: string;
+    description: string;
+    previewUrl: string;
+    downloads: ProcessFlowDownload[];
+}
+
+type ExportRequest = {
+    url: string;
+    format: ExportDownloadFormat;
+    subject: string;
+    fallbackFilename: string;
+};
+
 interface Props {
     documents: HelpDocument[];
+    processFlowChart: ProcessFlowChart;
     workflowSteps: WorkflowStep[];
     roleGuides: RoleGuide[];
 }
@@ -52,10 +78,22 @@ function iconForDocument(category: HelpDocument['category']) {
     }
 }
 
-export default function HelpIndex({ documents, workflowSteps, roleGuides }: Props) {
+export default function HelpIndex({ documents, processFlowChart, workflowSteps, roleGuides }: Props) {
     const featuredDocuments = documents.filter((document) => document.featured);
     const roleManuals = documents.filter((document) => document.category === 'manual' && document.audience !== 'All users');
-    const generalGuides = documents.filter((document) => document.category !== 'manual' || document.audience === 'All users');
+    const generalGuides = documents.filter(
+        (document) => (document.category !== 'manual' || document.audience === 'All users') && document.category !== 'diagram',
+    );
+    const [exportRequest, setExportRequest] = useState<ExportRequest | null>(null);
+
+    const startFlowDownload = (download: ProcessFlowDownload) => {
+        setExportRequest({
+            url: download.url,
+            format: 'pdf',
+            subject: download.title,
+            fallbackFilename: download.filename,
+        });
+    };
 
     return (
         <PerformancePage
@@ -98,6 +136,40 @@ export default function HelpIndex({ documents, workflowSteps, roleGuides }: Prop
                         </Card>
                     ))}
                 </div>
+
+                <Card className="overflow-hidden shadow-sm">
+                    <CardHeader className="gap-4 border-b bg-muted/10">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="space-y-2">
+                                <div className="inline-flex w-fit items-center gap-2 rounded-md border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
+                                    <GitBranch className="h-3.5 w-3.5" />
+                                    Process Flow
+                                </div>
+                                <CardTitle className="text-2xl font-semibold tracking-tight">{processFlowChart.title}</CardTitle>
+                                <CardDescription className="max-w-3xl text-sm leading-6">{processFlowChart.description}</CardDescription>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                <Button type="button" variant="outline" size="sm" asChild>
+                                    <a href={processFlowChart.previewUrl} target="_blank" rel="noreferrer">
+                                        <ExternalLink className="mr-2 h-4 w-4" />
+                                        Open full page
+                                    </a>
+                                </Button>
+                                {processFlowChart.downloads.map((download) => (
+                                    <Button key={download.slug} type="button" variant="default" size="sm" onClick={() => startFlowDownload(download)}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        {download.title}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                    </CardHeader>
+
+                    <CardContent className="p-4 md:p-6">
+                        <SystemProcessFlowChart />
+                    </CardContent>
+                </Card>
 
                 <div className="grid gap-6 xl:grid-cols-2">
                     <Card className="shadow-sm">
@@ -292,6 +364,8 @@ export default function HelpIndex({ documents, workflowSteps, roleGuides }: Prop
                     </CardContent>
                 </Card>
             </div>
+
+            <ExportDownloadDialog request={exportRequest} onClose={() => setExportRequest(null)} />
         </PerformancePage>
     );
 }

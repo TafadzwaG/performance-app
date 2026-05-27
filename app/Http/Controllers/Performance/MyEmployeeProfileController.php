@@ -8,12 +8,14 @@ use App\Http\Requests\Performance\UpdateMyEmployeeProfileRequest;
 use App\Models\EmployeeProfile;
 use App\Services\Performance\EmployeeFieldConfigService;
 use App\Services\Performance\EmployeePerformanceAnalyticsService;
+use App\Services\Performance\Pdf\EmployeePerformanceTrendPdfService;
 use App\Support\Performance\EmployeeFieldRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class MyEmployeeProfileController extends Controller
 {
@@ -22,6 +24,7 @@ class MyEmployeeProfileController extends Controller
     public function __construct(
         private readonly EmployeeFieldConfigService $fieldConfigService,
         private readonly EmployeePerformanceAnalyticsService $employeePerformanceAnalyticsService,
+        private readonly EmployeePerformanceTrendPdfService $employeePerformanceTrendPdfService,
     ) {}
 
     public function show(Request $request): Response
@@ -52,6 +55,15 @@ class MyEmployeeProfileController extends Controller
                 'edit' => true,
             ],
         ]);
+    }
+
+    public function exportPerformanceTrendPdf(Request $request): BinaryFileResponse
+    {
+        $employeeProfile = $this->profileOrFail($request);
+
+        $this->authorize('view', $employeeProfile);
+
+        return $this->employeePerformanceTrendPdfService->download($employeeProfile, $request->user());
     }
 
     public function edit(Request $request): Response

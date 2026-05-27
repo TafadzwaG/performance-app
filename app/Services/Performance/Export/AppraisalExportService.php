@@ -7,6 +7,7 @@ use App\Models\Appraisal;
 use App\Models\User;
 use App\Support\Branding;
 use App\Support\Pdf\StudioExportPdf;
+use App\Support\Performance\ScoreFormatter;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -80,6 +81,7 @@ class AppraisalExportService
 
         $this->writeAssessmentExcelHeader($writer, $context);
         $this->writeAssessmentExcelEmployee($writer, $context);
+        $this->writeAssessmentExcelScoreSummary($writer, $context);
         $this->writeAssessmentExcelObjectives($writer, $context);
         $this->writeAssessmentExcelComments($writer, $context);
         $this->writeAssessmentExcelSignOff($writer);
@@ -140,6 +142,7 @@ class AppraisalExportService
             'effectiveScore' => $effectiveScore,
             'effectiveRating' => $effectiveRating,
             'statusLabel' => Str::of((string) ($appraisal->status?->value ?? $appraisal->status))->replace('_', ' ')->title(),
+            'scoreSummary' => ScoreFormatter::summaryFor($appraisal),
         ];
     }
 
@@ -224,6 +227,25 @@ class AppraisalExportService
             'Approving Manager',
             $appraisal->approvingManager?->name ?? 'Not specified',
         ]);
+        $writer->addRow(Row::fromValues(['']));
+    }
+
+    private function writeAssessmentExcelScoreSummary(Writer $writer, array $context): void
+    {
+        $summary = $context['scoreSummary'];
+
+        $this->writeSectionHeading($writer, 'Score Summary');
+        $this->writeTableHeader($writer, [
+            'Business Score', 'Values Score', 'Overall Score', 'Final Rating',
+        ]);
+        $this->writeTableRow($writer, [
+            $summary['business'],
+            $summary['values'],
+            $summary['overall'],
+            $summary['rating'],
+        ]);
+        $this->writeTableRow($writer, ['Scorecard weights', $summary['weights'], '', '']);
+        $this->writeTableRow($writer, ['Performance comment', $summary['comment'], '', '']);
         $writer->addRow(Row::fromValues(['']));
     }
 
@@ -410,9 +432,9 @@ class AppraisalExportService
             'Business Score', 'Values Score', 'Overall Score', 'Final Rating',
         ]);
         $this->writeTableRow($writer, [
-            $appraisal->business_score ?? '—',
-            $appraisal->values_score ?? '—',
-            $context['effectiveScore'] ?? '—',
+            $appraisal->business_score !== null ? ScoreFormatter::formatPercent($appraisal->business_score) : '—',
+            $appraisal->values_score !== null ? ScoreFormatter::formatPercent($appraisal->values_score) : '—',
+            ($context['effectiveScore'] ?? null) !== null ? ScoreFormatter::formatPercent($context['effectiveScore']) : '—',
             $context['effectiveRating'],
         ]);
         $writer->addRow(Row::fromValues(['']));

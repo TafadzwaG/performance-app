@@ -46,7 +46,10 @@ test('appraisal export excel follows the uploaded assessment form structure', fu
         ->and($text)->toContain('BUSINESS OBJECTIVES RATING SCALE')
         ->and($text)->toContain('VALUES OBJECTIVES RATING SCALE')
         ->and($text)->toContain('This person has achieved the agreed objectives to the agreed performance standards')
-        ->and($text)->toContain('role model for the way the Company');
+        ->and($text)->toContain('role model for the way the Company')
+        ->and($text)->toContain('Score Summary')
+        ->and($text)->toContain('Business Score')
+        ->and($text)->toContain('86%');
 });
 
 test('appraisal pdf download services use the shared assessment form view', function () {
@@ -73,7 +76,9 @@ test('appraisal pdf download services use the shared assessment form view', func
         ->and($view)->toContain('Manager&rsquo;s Rating')
         ->and($view)->toContain('Business Objectives Rating Scale')
         ->and($view)->toContain('Values Objectives Rating Scale')
-        ->and($view)->toContain('$level->description');
+        ->and($view)->toContain('$level->description')
+        ->and($view)->toContain('Score Summary')
+        ->and($view)->toContain('$scoreSummary');
 });
 
 test('appraisal export routes still download pdf and excel files', function () {
@@ -179,6 +184,11 @@ function createAssessmentExportFixture(): array
             'job_title_name_snapshot' => 'Front Office Manager',
             'cycle_name_snapshot' => '2026 Annual Review',
             'template_name_snapshot' => 'Monomotapa Performance Appraisal Template',
+            'business_score' => 88,
+            'values_score' => 82,
+            'overall_score' => 86,
+            'business_weight_percent' => 70,
+            'values_weight_percent' => 30,
         ]);
 
     $perspective = Perspective::factory()->create(['name' => 'Financial']);

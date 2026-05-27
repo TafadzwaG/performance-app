@@ -60,6 +60,7 @@ test('system settings page shows company and smtp settings without exposing smtp
             ->where('settings.smtp_password', '')
             ->where('settings.smtp_password_set', true)
             ->where('settings.mail_notifications_enabled', true)
+            ->where('settings.email_mfa_required', false)
         );
 });
 
@@ -93,6 +94,7 @@ test('system settings update persists company profile and encrypted smtp setting
             'mail_reply_to_address' => 'reply@tjt.test',
             'mail_reply_to_name' => 'TJT HR',
             'mail_notifications_enabled' => true,
+            'email_mfa_required' => true,
         ])
         ->assertRedirect(route('settings.index'));
 
@@ -103,7 +105,8 @@ test('system settings update persists company profile and encrypted smtp setting
         ->and($settings->smtp_host)->toBe('smtp.tjt.test')
         ->and($settings->smtp_password)->toBe('smtp-secret')
         ->and($settings->getRawOriginal('smtp_password'))->not->toBe('smtp-secret')
-        ->and($settings->mail_notifications_enabled)->toBeTrue();
+        ->and($settings->mail_notifications_enabled)->toBeTrue()
+        ->and($settings->email_mfa_required)->toBeTrue();
 });
 
 test('mail settings service applies smtp settings from database at runtime', function () {

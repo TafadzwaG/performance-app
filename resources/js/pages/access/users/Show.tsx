@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import type { BreadcrumbItem, SharedData } from '@/types';
 import type { AccessUserRecord } from '@/types/performance';
 import { Link, usePage } from '@inertiajs/react';
-import { ArrowLeft, BadgeCheck, Briefcase, Building2, ChevronRight, ExternalLink, KeyRound, Lock, Mail, Shield, SquarePen, User2, Users } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Briefcase, Building2, ChevronRight, ExternalLink, KeyRound, Lock, Mail, Shield, ShieldCheck, SquarePen, User2, Users } from 'lucide-react';
 
 interface PermissionRecord {
     id: number;
@@ -113,6 +113,11 @@ export default function UserShow({
                                     Password Change Required
                                 </Badge>
                             ) : null}
+
+                            <Badge variant={userRecord.email_mfa_enabled ? 'secondary' : 'outline'} className="w-fit">
+                                <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                                MFA {userRecord.email_mfa_enabled ? 'Enabled' : 'Disabled'}
+                            </Badge>
                         </div>
                     </CardHeader>
                 </Card>

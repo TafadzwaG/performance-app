@@ -14,7 +14,7 @@ import { DEFAULT_PALETTE, type Palette, usePalette } from '@/hooks/use-palette';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Building2, Mail, Palette as PaletteIcon, RotateCcw, Save, Send, Settings2 } from 'lucide-react';
+import { Building2, Mail, Palette as PaletteIcon, RotateCcw, Save, Send, Settings2, ShieldCheck } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Settings', href: route('settings.index') }];
@@ -45,6 +45,7 @@ type SystemSettings = {
     mail_reply_to_address: string | null;
     mail_reply_to_name: string | null;
     mail_notifications_enabled: boolean;
+    email_mfa_required: boolean;
 };
 
 type SettingsForm = {
@@ -73,6 +74,7 @@ type SettingsForm = {
     mail_reply_to_address: string;
     mail_reply_to_name: string;
     mail_notifications_enabled: boolean;
+    email_mfa_required: boolean;
 };
 
 interface Props {
@@ -111,6 +113,7 @@ const emptySettings: SystemSettings = {
     mail_reply_to_address: null,
     mail_reply_to_name: null,
     mail_notifications_enabled: false,
+    email_mfa_required: false,
 };
 
 function availableTabsFor(can: Props['can']): SettingsTab[] {
@@ -201,6 +204,7 @@ export default function SettingsIndex({ settings, operations, disasterRecovery, 
         mail_reply_to_address: value(formSettings.mail_reply_to_address),
         mail_reply_to_name: value(formSettings.mail_reply_to_name),
         mail_notifications_enabled: formSettings.mail_notifications_enabled,
+        email_mfa_required: formSettings.email_mfa_required,
     });
 
     useEffect(() => setDrafts(palette), [palette]);
@@ -270,6 +274,28 @@ export default function SettingsIndex({ settings, operations, disasterRecovery, 
 
                 {activeTab === 'general' && can.manageSettings && settings ? (
             <form id="system-settings-form" onSubmit={submit} className="space-y-6">
+                <Card className="border shadow-sm">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <ShieldCheck className="h-5 w-5 text-primary" />
+                            Email MFA Security
+                        </CardTitle>
+                        <CardDescription>Require a one-time email code after password sign-in across the system.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <label className="flex items-start gap-3 rounded-lg border bg-muted/10 px-4 py-3">
+                            <Checkbox checked={data.email_mfa_required} onCheckedChange={(checked) => setData('email_mfa_required', checked === true)} />
+                            <span>
+                                <span className="block text-sm font-medium text-foreground">Require email OTP for every sign-in</span>
+                                <span className="text-xs text-muted-foreground">
+                                    When enabled, all approved users must enter the code sent to their account email. Per-user MFA toggles are locked while this is enforced.
+                                </span>
+                            </span>
+                        </label>
+                        <InputError message={errors.email_mfa_required ?? undefined} />
+                    </CardContent>
+                </Card>
+
                 <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                     <Card className="border shadow-sm">
                         <CardHeader>

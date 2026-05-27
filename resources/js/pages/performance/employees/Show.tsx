@@ -1,4 +1,5 @@
 import PerformancePage from '@/components/performance/PerformancePage';
+import ExportDownloadDialog, { type ExportDownloadFormat } from '@/components/performance/export-download-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +31,7 @@ import {
     CalendarDays,
     Contact,
     Eye,
+    FileDown,
     History,
     Mail,
     Minus,
@@ -44,7 +46,7 @@ import {
     Users,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+import { Bar, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from 'recharts';
 
 const adminBreadcrumbs = (profile: EmployeeProfile): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -76,6 +78,12 @@ export default function EmployeeShow({
     can: { assignManagers: boolean; edit?: boolean };
 }) {
     const [lineManagerModalOpen, setLineManagerModalOpen] = useState(false);
+    const [performanceTrendExportRequest, setPerformanceTrendExportRequest] = useState<{
+        url: string;
+        format: ExportDownloadFormat;
+        subject: string;
+        fallbackFilename: string;
+    } | null>(null);
     const managerForm = useForm({
         line_manager_user_id: employeeProfile.line_manager_user_id ? String(employeeProfile.line_manager_user_id) : 'none',
     });
@@ -101,6 +109,28 @@ export default function EmployeeShow({
     const editHref = isOwnProfile
         ? route('performance.profile.edit')
         : route('performance.employees.edit', employeeProfile.id);
+
+    const cycleChartData = useMemo(() => {
+        if (performanceTrend?.points?.length) {
+            return performanceTrend.points.map((point) => ({
+                cycle: point.cycle_name,
+                score: point.score,
+            }));
+        }
+
+        return appraisals
+            .map((appraisal) => ({
+                cycle: appraisal.cycle_name_snapshot ?? appraisal.review_cycle?.name ?? 'Unknown cycle',
+                score: effectiveAppraisalScore(appraisal),
+            }))
+            .filter((point): point is { cycle: string; score: number } => point.score !== null);
+    }, [appraisals, performanceTrend?.points]);
+
+    const showPerformanceChart = cycleChartData.length > 0;
+    const performanceTrendExportUrl = isOwnProfile
+        ? route('performance.profile.export.performance_trend.pdf')
+        : route('performance.employees.export.performance_trend.pdf', employeeProfile.id);
+    const performanceTrendExportFilename = `employee-performance-trend-${employeeProfile.employee_number}.pdf`;
 
     return (
         <PerformancePage
@@ -310,6 +340,53 @@ export default function EmployeeShow({
                     </div>
 
                     <div className="space-y-6 lg:col-span-8">
+                        {showPerformanceChart ? (
+                            <Card className="shadow-sm">
+                                <CardHeader>
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                            <div className="font-mono-brand text-muted-foreground flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase">
+                                                <PieChart className="h-3.5 w-3.5" />
+                                                § Performance by cycle
+                                            </div>
+                                            <CardTitle className="font-display mt-1 text-2xl font-light tracking-tight">
+                                                Cycle scores
+                                            </CardTitle>
+                                            <CardDescription className="text-[13px]">
+                                                Effective overall score across finalized review cycles.
+                                            </CardDescription>
+                                        </div>
+
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="shrink-0"
+                                            onClick={() =>
+                                                setPerformanceTrendExportRequest({
+                                                    url: performanceTrendExportUrl,
+                                                    format: 'pdf',
+                                                    subject: `${userName} performance trend`,
+                                                    fallbackFilename: performanceTrendExportFilename,
+                                                })
+                                            }
+                                        >
+                                            <FileDown className="mr-2 h-4 w-4" />
+                                            Export PDF
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+
+                                <CardContent>
+                                    <PerformanceTrendPanel
+                                        trend={performanceTrend}
+                                        peerComparison={peerComparison}
+                                        cycleChartData={cycleChartData}
+                                    />
+                                </CardContent>
+                            </Card>
+                        ) : null}
+
                         {showAppraisalHistory ? (
                             <Card className="shadow-sm">
                                 <CardHeader>
@@ -326,10 +403,6 @@ export default function EmployeeShow({
                                 </CardHeader>
 
                                 <CardContent className="space-y-6">
-                                    {performanceTrend && performanceTrend.points.length > 0 ? (
-                                        <PerformanceTrendPanel trend={performanceTrend} peerComparison={peerComparison} />
-                                    ) : null}
-
                                     {appraisals.length > 0 ? (
                                         appraisals.map((appraisal) => (
                                             <div
@@ -475,6 +548,11 @@ export default function EmployeeShow({
                     </div>
                 </div>
             </div>
+
+            <ExportDownloadDialog
+                request={performanceTrendExportRequest}
+                onClose={() => setPerformanceTrendExportRequest(null)}
+            />
         </PerformancePage>
     );
 }
@@ -492,51 +570,63 @@ const trendChartConfig = {
 function PerformanceTrendPanel({
     trend,
     peerComparison,
+    cycleChartData,
 }: {
-    trend: EmployeePerformanceTrend;
+    trend?: EmployeePerformanceTrend;
     peerComparison: EmployeePeerComparison | null;
+    cycleChartData: Array<{ cycle: string; score: number }>;
 }) {
-    const chartData = useMemo(
-        () =>
-            trend.points.map((point) => ({
-                cycle: point.cycle_name,
-                score: point.score,
-            })),
-        [trend.points],
-    );
+    const showTrendMetrics = trend !== undefined && trend.points.length > 0;
 
     return (
-        <div className="space-y-5 rounded-xl border bg-muted/10 p-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
-                        § Performance trend
+        <div className="space-y-5">
+            {showTrendMetrics ? (
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <div className="font-mono-brand text-muted-foreground text-[10px] tracking-[0.22em] uppercase">
+                            § Performance trend
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                            <TrendStatusBadge status={trend.trend_status} label={trend.trend_label} />
+                            {trend.score_delta !== null ? (
+                                <span className="text-muted-foreground text-sm">
+                                    {trend.previous_cycle_name ?? 'Previous'} → {trend.current_cycle_name ?? 'Current'}:{' '}
+                                    <span className="text-foreground font-medium">{formatTrendDelta(trend.score_delta)}</span>
+                                </span>
+                            ) : null}
+                        </div>
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-3">
-                        <TrendStatusBadge status={trend.trend_status} label={trend.trend_label} />
-                        {trend.score_delta !== null ? (
-                            <span className="text-muted-foreground text-sm">
-                                {trend.previous_cycle_name ?? 'Previous'} → {trend.current_cycle_name ?? 'Current'}:{' '}
-                                <span className="text-foreground font-medium">{formatTrendDelta(trend.score_delta)}</span>
-                            </span>
-                        ) : null}
+
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                        <TrendMetric label="Previous" value={trend.previous_score} />
+                        <TrendMetric label="Current" value={trend.latest_score} />
+                        <TrendMetric label="Delta" value={trend.score_delta} signed />
                     </div>
                 </div>
+            ) : null}
 
-                <div className="grid grid-cols-3 gap-3 text-center">
-                    <TrendMetric label="Previous" value={trend.previous_score} />
-                    <TrendMetric label="Current" value={trend.latest_score} />
-                    <TrendMetric label="Delta" value={trend.score_delta} signed />
-                </div>
-            </div>
-
-            {chartData.length >= 2 ? (
-                <ChartContainer config={trendChartConfig} className="h-[220px] w-full">
-                    <LineChart data={chartData} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis dataKey="cycle" tickLine={false} axisLine={false} tickMargin={8} />
-                        <YAxis domain={[0, 100]} tickLine={false} axisLine={false} width={32} />
-                        <ChartTooltip cursor={false} content={(props) => <ChartTooltipContent {...props} />} />
+            <ChartContainer config={trendChartConfig} className="h-[240px] w-full">
+                <ComposedChart data={cycleChartData} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="cycle" tickLine={false} axisLine={false} tickMargin={8} />
+                    <YAxis
+                        domain={[0, 100]}
+                        tickLine={false}
+                        axisLine={false}
+                        width={36}
+                        tickFormatter={(value) => `${value}%`}
+                    />
+                    <ChartTooltip
+                        cursor={false}
+                        content={(props) => (
+                            <ChartTooltipContent
+                                {...props}
+                                formatter={(value) => `${Number(value).toFixed(1)}%`}
+                            />
+                        )}
+                    />
+                    <Bar dataKey="score" fill="var(--color-score)" radius={[6, 6, 0, 0]} maxBarSize={52} />
+                    {cycleChartData.length >= 2 ? (
                         <Line
                             type="monotone"
                             dataKey="score"
@@ -545,13 +635,15 @@ function PerformanceTrendPanel({
                             dot={{ r: 4, fill: 'var(--color-score)' }}
                             activeDot={{ r: 6 }}
                         />
-                    </LineChart>
-                </ChartContainer>
-            ) : (
+                    ) : null}
+                </ComposedChart>
+            </ChartContainer>
+
+            {showTrendMetrics && cycleChartData.length < 2 ? (
                 <p className="text-muted-foreground text-sm">
-                    At least two finalized scored cycles are required to plot movement over time.
+                    Add another finalized cycle to compare movement over time.
                 </p>
-            )}
+            ) : null}
 
             {peerComparison ? (
                 <div className="space-y-3 border-t pt-4">

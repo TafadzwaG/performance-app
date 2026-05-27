@@ -48,15 +48,15 @@
         <table class="stat-band">
             <tr>
                 <td>
-                    <div class="num">{{ $appraisal->business_score !== null ? number_format((float) $appraisal->business_score, 1) : '—' }}</div>
+                    <div class="num">{{ $appraisal->business_score !== null ? \App\Support\Performance\ScoreFormatter::formatPercent($appraisal->business_score) : '—' }}</div>
                     <div class="lbl">Business</div>
                 </td>
                 <td>
-                    <div class="num">{{ $appraisal->values_score !== null ? number_format((float) $appraisal->values_score, 1) : '—' }}</div>
+                    <div class="num">{{ $appraisal->values_score !== null ? \App\Support\Performance\ScoreFormatter::formatPercent($appraisal->values_score) : '—' }}</div>
                     <div class="lbl">Values</div>
                 </td>
                 <td>
-                    <div class="num">{{ ($effectiveScore ?? null) !== null ? number_format((float) $effectiveScore, 1) : '—' }}</div>
+                    <div class="num">{{ ($effectiveScore ?? null) !== null ? \App\Support\Performance\ScoreFormatter::formatPercent($effectiveScore) : '—' }}</div>
                     <div class="lbl">Overall</div>
                 </td>
                 <td>
@@ -153,13 +153,13 @@
                         <td>{{ \Illuminate\Support\Str::of($appraisal->latestCalibration->decision->value ?? $appraisal->latestCalibration->decision)->replace('_', ' ')->title() }}</td>
                         <td>{{ $appraisal->latestCalibration->actor?->name ?? 'System' }}</td>
                         <td>
-                            {{ $appraisal->latestCalibration->original_overall_score ?? '—' }}
+                            {{ ($appraisal->latestCalibration->original_overall_score ?? null) !== null ? \App\Support\Performance\ScoreFormatter::formatPercent($appraisal->latestCalibration->original_overall_score) : '—' }}
                             @if($appraisal->latestCalibration->originalOverallRatingLevel?->label)
                                 <br><span class="muted">{{ $appraisal->latestCalibration->originalOverallRatingLevel->label }}</span>
                             @endif
                         </td>
                         <td>
-                            {{ $appraisal->latestCalibration->calibrated_overall_score ?? $effectiveScore ?? '—' }}
+                            {{ ($appraisal->latestCalibration->calibrated_overall_score ?? $effectiveScore ?? null) !== null ? \App\Support\Performance\ScoreFormatter::formatPercent($appraisal->latestCalibration->calibrated_overall_score ?? $effectiveScore) : '—' }}
                             @if($appraisal->calibratedOverallRatingLevel?->label)
                                 <br><span class="muted">{{ $appraisal->calibratedOverallRatingLevel->label }}</span>
                             @endif

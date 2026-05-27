@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\SystemSetting;
 use App\Services\Auth\EmailOtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,7 +39,7 @@ class AuthenticatedSessionController extends Controller
                 ->with('error', 'Your account is pending admin approval.');
         }
 
-        if ($user->hasEmailMfaEnabled()) {
+        if (SystemSetting::current()->email_mfa_required || $user->hasEmailMfaEnabled()) {
             $request->session()->put([
                 'login.id' => $user->id,
                 'login.remember' => $request->boolean('remember'),

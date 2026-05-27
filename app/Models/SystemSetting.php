@@ -31,12 +31,14 @@ class SystemSetting extends Model
         'mail_reply_to_address',
         'mail_reply_to_name',
         'mail_notifications_enabled',
+        'email_mfa_required',
     ];
 
     protected $casts = [
         'smtp_password' => 'encrypted',
         'smtp_port' => 'integer',
         'mail_notifications_enabled' => 'boolean',
+        'email_mfa_required' => 'boolean',
     ];
 
     public static function current(): self

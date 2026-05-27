@@ -15,7 +15,18 @@ test('authenticated user can view the help and documentation page', function () 
         ->assertOk()
         ->assertSee('access\\/help\\/Index', false)
         ->assertSee('Technical Documentation', false)
-        ->assertSee('Employee User Manual', false);
+        ->assertSee('Employee User Manual', false)
+        ->assertSee('Employee Performance Appraisal System Flow', false);
+});
+
+test('authenticated user can preview the system process flow chart', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+
+    $this->actingAs($user)
+        ->get(route('access.help.preview', ['document' => 'system-flow-diagram']))
+        ->assertOk()
+        ->assertHeader('content-type', 'text/html; charset=UTF-8')
+        ->assertSee('Employee Performance Appraisal System Flow', false);
 });
 
 test('authenticated user can download markdown documentation', function () {
@@ -40,4 +51,16 @@ test('authenticated user can download generated pdf documentation', function () 
         ]))
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf');
+});
+
+test('authenticated user can download the system flow diagram pdf', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+
+    $this->actingAs($user)
+        ->get(route('access.help.download', [
+            'document' => 'system-flow-diagram',
+            'format' => 'pdf',
+        ]))
+        ->assertOk()
+        ->assertDownload('SYSTEM_FLOW_DIAGRAM.pdf');
 });

@@ -18,6 +18,7 @@ use App\Services\Performance\EmployeeFieldConfigService;
 use App\Services\Performance\EmployeeImportService;
 use App\Services\Performance\EmployeePerformanceAnalyticsService;
 use App\Services\Performance\EmployeeProfileDeletionService;
+use App\Services\Performance\Pdf\EmployeePerformanceTrendPdfService;
 use App\Support\Performance\EmployeeExportColumnRegistry;
 use App\Support\Performance\EmployeeFieldRegistry;
 use App\Support\Security\SensitiveValueMasker;
@@ -38,6 +39,7 @@ class EmployeeProfileController extends Controller
     public function __construct(
         private readonly EmployeeFieldConfigService $fieldConfigService,
         private readonly EmployeePerformanceAnalyticsService $employeePerformanceAnalyticsService,
+        private readonly EmployeePerformanceTrendPdfService $employeePerformanceTrendPdfService,
     ) {
         $this->authorizeResource(EmployeeProfile::class, 'employee_profile');
     }
@@ -235,6 +237,13 @@ class EmployeeProfileController extends Controller
                 'edit' => $request->user()->can('update', $employeeProfile),
             ],
         ]);
+    }
+
+    public function exportPerformanceTrendPdf(Request $request, EmployeeProfile $employeeProfile): BinaryFileResponse
+    {
+        $this->authorize('view', $employeeProfile);
+
+        return $this->employeePerformanceTrendPdfService->download($employeeProfile, $request->user());
     }
 
     public function edit(EmployeeProfile $employeeProfile): Response

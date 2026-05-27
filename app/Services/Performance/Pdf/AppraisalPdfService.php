@@ -5,6 +5,7 @@ namespace App\Services\Performance\Pdf;
 use App\Models\Appraisal;
 use App\Support\Branding;
 use App\Support\Pdf\StudioExportPdf;
+use App\Support\Performance\ScoreFormatter;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
@@ -61,6 +62,7 @@ class AppraisalPdfService
             'statusHistories.actor',
             'developmentPlan.actions.owner',
             'overallRatingLevel',
+            'calibratedOverallRatingLevel',
             'latestCalibration',
         ]);
 
@@ -75,6 +77,7 @@ class AppraisalPdfService
                 'exportedAt' => Carbon::now(),
                 'headerReportLabel' => 'Individual Performance Assessment Form',
                 'statusLabel' => Str::of((string) ($appraisal->status?->value ?? $appraisal->status))->replace('_', ' ')->title(),
+                'scoreSummary' => ScoreFormatter::summaryFor($appraisal),
             ])
         )->save($filePath);
 
