@@ -50,7 +50,8 @@ class AppraisalWorkflowService
                 ApprovalStage::GoalSetting,
                 ApprovalAction::Submitted,
                 'Goal plan submitted.',
-                ['goal_submitted_at' => now(), 'reopened_stage' => null]
+                ['goal_submitted_at' => now(), 'reopened_stage' => null],
+                'goal_plan_submitted',
             );
         });
     }

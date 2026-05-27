@@ -1,4 +1,5 @@
 import AppraisalStatusBadge from '@/components/performance/AppraisalStatusBadge';
+import ScoreSummaryCard from '@/components/performance/ScoreSummaryCard';
 import { AsyncSearchSelect, type AsyncOption } from '@/components/async-search-select';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { BreadcrumbItem, SharedData } from '@/types';
-import type { Appraisal, CurrentGoalView } from '@/types/performance';
+import type { Appraisal, CurrentGoalView, ScoreSummaryView } from '@/types/performance';
 import { Link, usePage } from '@inertiajs/react';
 import { differenceInCalendarDays, format, isBefore, parseISO } from 'date-fns';
 import {
@@ -99,6 +100,7 @@ type Props = {
     approvalQueue: Appraisal[];
     overdueQueue: Appraisal[];
     currentGoals: CurrentGoalView | null;
+    myScoreSummary: ScoreSummaryView | null;
     assignedGoalCycles: GoalCycleOption[];
     goalsLookupEndpoint: string;
 };
@@ -580,6 +582,34 @@ function GoalCycleOptionPreview({ option }: { option: GoalCycleOption }) {
     );
 }
 
+function DashboardScoreSummaryCard({
+    summary,
+    cycleName,
+    status,
+}: {
+    summary: ScoreSummaryView;
+    cycleName?: string | null;
+    status?: string | null;
+}) {
+    return (
+        <div className="space-y-3">
+            {cycleName ? (
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">{cycleName}</Badge>
+                    {status ? <Badge variant="outline">{labelize(status)}</Badge> : null}
+                </div>
+            ) : null}
+            <ScoreSummaryCard
+                businessScore={summary.business_score}
+                valuesScore={summary.values_score}
+                overallScore={summary.overall_score}
+                overallRating={summary.overall_rating ?? 'Pending'}
+                layout="grid"
+            />
+        </div>
+    );
+}
+
 function GoalsAssessmentContent({ goals }: { goals: CurrentGoalView }) {
     const previewUrl = route('performance.appraisals.print.pdf.inline', goals.appraisal_id);
     const pdfDownloadUrl = route('performance.appraisals.export.pdf', goals.appraisal_id);
@@ -657,6 +687,14 @@ function GoalsAssessmentContent({ goals }: { goals: CurrentGoalView }) {
                     ))}
                 </CardContent>
             </Card>
+
+            {goals.score_summary ? (
+                <DashboardScoreSummaryCard
+                    summary={goals.score_summary}
+                    cycleName={goals.review_cycle.name ?? undefined}
+                    status={goals.status}
+                />
+            ) : null}
 
             <Card className="shadow-sm">
                 <CardHeader className="bg-muted/20 border-b">
@@ -785,10 +823,12 @@ function GoalsAssessmentContent({ goals }: { goals: CurrentGoalView }) {
 
 function GoalsAssessmentTab({
     currentGoals,
+    myScoreSummary,
     assignedGoalCycles,
     goalsLookupEndpoint,
 }: {
     currentGoals: CurrentGoalView | null;
+    myScoreSummary: ScoreSummaryView | null;
     assignedGoalCycles: GoalCycleOption[];
     goalsLookupEndpoint: string;
 }) {
@@ -849,6 +889,14 @@ function GoalsAssessmentTab({
 
     return (
         <div className="space-y-6">
+            {myScoreSummary && !goalsView?.score_summary ? (
+                <DashboardScoreSummaryCard
+                    summary={myScoreSummary}
+                    cycleName={myScoreSummary.cycle_name}
+                    status={myScoreSummary.status}
+                />
+            ) : null}
+
             <Card className="shadow-sm">
                 <CardHeader className="border-b bg-muted/20">
                     <CardTitle className="text-base">Review cycle</CardTitle>
@@ -913,7 +961,7 @@ function GoalsAssessmentTab({
     );
 }
 
-export default function DashboardIndex({ dashboard, myAppraisals, teamPending, approvalQueue, overdueQueue, currentGoals, assignedGoalCycles, goalsLookupEndpoint }: Props) {
+export default function DashboardIndex({ dashboard, myAppraisals, teamPending, approvalQueue, overdueQueue, currentGoals, myScoreSummary, assignedGoalCycles, goalsLookupEndpoint }: Props) {
     const [activeTab, setActiveTab] = useState<'overview' | 'goals'>('goals');
     const { auth } = usePage<SharedData>().props;
     const permissions = new Set(auth.permissions ?? []);
@@ -1628,7 +1676,12 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
                     </section>
                 </div>
             ) : (
-                <GoalsAssessmentTab currentGoals={currentGoals} assignedGoalCycles={assignedGoalCycles} goalsLookupEndpoint={goalsLookupEndpoint} />
+                <GoalsAssessmentTab
+                    currentGoals={currentGoals}
+                    myScoreSummary={myScoreSummary}
+                    assignedGoalCycles={assignedGoalCycles}
+                    goalsLookupEndpoint={goalsLookupEndpoint}
+                />
             )}
         </PerformancePage>
     );

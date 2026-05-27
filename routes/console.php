@@ -7,6 +7,7 @@ use App\Services\DisasterRecovery\BackupArchiveService;
 use App\Services\DisasterRecovery\DisasterRecoveryService;
 use App\Services\DisasterRecovery\RestoreExecutionService;
 use App\Services\DisasterRecovery\RestoreTestService;
+use App\Services\Performance\CycleMilestoneReminderService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -49,3 +50,10 @@ Artisan::command('dr:restore {backupId} {--approved-request= : Approved restore 
 
 Schedule::command('dr:backup')->dailyAt('02:00');
 Schedule::command('dr:restore-test')->monthlyOn(1, '03:00');
+Schedule::command('performance:send-milestone-reminders')->dailyAt('08:00');
+
+Artisan::command('performance:send-milestone-reminders', function (CycleMilestoneReminderService $reminders) {
+    $sent = $reminders->sendDueReminders();
+
+    $this->info("Sent {$sent} cycle milestone reminder notification(s).");
+})->purpose('Send email and in-app reminders for approaching review cycle milestone deadlines');

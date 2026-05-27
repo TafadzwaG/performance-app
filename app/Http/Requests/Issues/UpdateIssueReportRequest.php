@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Issues;
 
 use App\Enums\IssueType;
+use App\Models\IssueReport;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +11,10 @@ class UpdateIssueReportRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $issue = $this->route('issue');
+
+        return $issue instanceof IssueReport
+            && $this->user()?->can('update', $issue);
     }
 
     public function rules(): array

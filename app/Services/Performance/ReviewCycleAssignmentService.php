@@ -36,12 +36,18 @@ class ReviewCycleAssignmentService
                     ]);
                 }
 
-                $appraisal = Appraisal::firstOrCreate(
-                    [
+                $existingAppraisal = Appraisal::query()
+                    ->where('review_cycle_id', $cycle->id)
+                    ->where('employee_profile_id', $profile->id)
+                    ->first();
+
+                if ($existingAppraisal) {
+                    $appraisal = $existingAppraisal;
+                    $wasRecentlyCreated = false;
+                } else {
+                    $appraisal = Appraisal::query()->create([
                         'review_cycle_id' => $cycle->id,
                         'employee_profile_id' => $profile->id,
-                    ],
-                    [
                         'template_id' => $template->id,
                         'employee_user_id' => $profile->user_id,
                         'line_manager_user_id' => $profile->line_manager_user_id,
@@ -56,13 +62,16 @@ class ReviewCycleAssignmentService
                         'job_title_name_snapshot' => $profile->jobTitle?->name,
                         'cycle_name_snapshot' => $cycle->name,
                         'template_name_snapshot' => $template->name,
-                    ],
-                );
+                    ]);
+                    $wasRecentlyCreated = true;
+                }
 
                 $this->instantiationService->createChildren($appraisal);
                 $assigned->push($appraisal);
 
-                event(new AppraisalStatusChanged($appraisal, $actor, 'assigned'));
+                if ($wasRecentlyCreated) {
+                    event(new AppraisalStatusChanged($appraisal, $actor, 'assigned'));
+                }
             }
         });
 

@@ -242,6 +242,17 @@ export interface CurrentGoalView {
         business?: RatingScaleReference | null;
         values?: RatingScaleReference | null;
     };
+    score_summary?: ScoreSummaryView | null;
+}
+
+export interface ScoreSummaryView {
+    business_score?: number | null;
+    values_score?: number | null;
+    overall_score?: number | null;
+    overall_rating?: string | null;
+    appraisal_id?: number;
+    cycle_name?: string | null;
+    status?: string | null;
 }
 
 export interface RatingScaleReference {

@@ -18,6 +18,7 @@ export default function ReportIssueBubble() {
     const permissions = auth.permissions ?? [];
     const roles = auth.roles ?? [];
     const canReportIssue =
+        auth.canReportIssue === true ||
         roles.some((role) => role.toLowerCase() === 'super admin') ||
         permissions.some((permission) => ['issues.create', 'issues.view_own', 'issues.view_all'].includes(permission));
     const [open, setOpen] = useState(false);

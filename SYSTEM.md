@@ -437,9 +437,12 @@ This preserves an audit trail of state changes over time.
 
 Workflow notifications are handled through the `AppraisalStatusChanged` event and `SendAppraisalWorkflowNotifications` listener.
 
-The system currently sends database notifications for:
+Assignment and milestone reminders also send email when **Settings → Email notifications** is enabled and SMTP is configured.
+
+The system sends database notifications (and email when enabled) for:
 
 - appraisal assigned
+- cycle milestone deadline approaching (7, 3, and 1 days before each milestone)
 - self assessment submitted
 - manager review requested
 - approval requested

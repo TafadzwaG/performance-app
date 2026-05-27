@@ -174,6 +174,73 @@ test('employee cannot assign or update issue status', function () {
         ->assertForbidden();
 });
 
+test('reporter can update own pending issue details', function () {
+    $employee = issueEmployee();
+
+    $issue = IssueReport::factory()->for($employee, 'reporter')->create([
+        'type' => IssueType::Bug,
+        'title' => 'Original title',
+        'description' => 'Original description.',
+    ]);
+
+    $this->actingAs($employee)
+        ->get(route('issues.show', $issue))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('issues/Show')
+            ->where('can.update', true)
+            ->has('typeOptions', 6));
+
+    $this->actingAs($employee)
+        ->put(route('issues.update', $issue), [
+            'type' => IssueType::FeatureRequest->value,
+            'title' => 'Updated title',
+            'description' => 'Updated description with more detail.',
+        ])
+        ->assertRedirect(route('issues.show', $issue));
+
+    $issue->refresh();
+
+    expect($issue->type)->toBe(IssueType::FeatureRequest)
+        ->and($issue->title)->toBe('Updated title')
+        ->and($issue->description)->toBe('Updated description with more detail.');
+});
+
+test('reporter cannot update completed issue details', function () {
+    $employee = issueEmployee();
+
+    $issue = IssueReport::factory()
+        ->for($employee, 'reporter')
+        ->create(['status' => IssueStatus::Completed]);
+
+    $this->actingAs($employee)
+        ->put(route('issues.update', $issue), [
+            'type' => IssueType::Bug->value,
+            'title' => 'Should not save',
+            'description' => 'Should not save.',
+        ])
+        ->assertForbidden();
+});
+
+test('admin can update issue details', function () {
+    $admin = issueAdmin();
+    $reporter = issueEmployee();
+
+    $issue = IssueReport::factory()->for($reporter, 'reporter')->create();
+
+    $this->actingAs($admin)
+        ->put(route('issues.update', $issue), [
+            'type' => IssueType::DataProblem->value,
+            'title' => 'Admin edited title',
+            'description' => 'Admin edited description.',
+        ])
+        ->assertRedirect(route('issues.show', $issue));
+
+    $issue->refresh();
+
+    expect($issue->title)->toBe('Admin edited title');
+});
+
 test('completing an issue requires a completion note', function () {
     $admin = issueAdmin();
     $issue = IssueReport::factory()->create();
@@ -214,6 +281,16 @@ test('employee role includes issue permissions in shared auth props', function (
     expect($employee->can('issues.create'))->toBeTrue()
         ->and($employee->can('issues.view_own'))->toBeTrue()
         ->and($employee->can('issues.assign'))->toBeFalse();
+});
+
+test('employee shared auth exposes canReportIssue for report bubble', function () {
+    $employee = issueEmployee();
+
+    $this->actingAs($employee)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.canReportIssue', true));
 });
 
 test('super admin can access issues even when role permissions are stale', function () {

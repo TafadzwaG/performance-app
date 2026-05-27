@@ -75,6 +75,8 @@ class DashboardGoalsViewService
             'template.competencyRatingScale.levels',
             'employeeProfile.department',
             'employeeProfile.jobTitle',
+            'overallRatingLevel',
+            'calibratedOverallRatingLevel',
         ]);
 
         $cycle = $appraisal->reviewCycle;
@@ -122,6 +124,68 @@ class DashboardGoalsViewService
                 'business' => $this->ratingScalePayload($appraisal->template?->objectiveRatingScale),
                 'values' => $this->ratingScalePayload($appraisal->template?->competencyRatingScale),
             ],
+            'score_summary' => $this->scoreSummaryPayload($appraisal),
+        ];
+    }
+
+    /**
+     * @return array{
+     *     business_score: float|null,
+     *     values_score: float|null,
+     *     overall_score: float|null,
+     *     overall_rating: string
+     * }
+     */
+    private function scoreSummaryPayload(Appraisal $appraisal): array
+    {
+        $overallScore = $appraisal->calibrated_overall_score ?? $appraisal->overall_score;
+
+        return [
+            'business_score' => $appraisal->business_score !== null ? (float) $appraisal->business_score : null,
+            'values_score' => $appraisal->values_score !== null ? (float) $appraisal->values_score : null,
+            'overall_score' => $overallScore !== null ? (float) $overallScore : null,
+            'overall_rating' => $appraisal->calibratedOverallRatingLevel?->label
+                ?? $appraisal->overallRatingLevel?->label
+                ?? 'Pending',
+        ];
+    }
+
+    public function latestScoreSummaryFor(User $user): ?array
+    {
+        $profile = $user->employeeProfile;
+
+        if (! $profile) {
+            return null;
+        }
+
+        $appraisal = $profile->appraisals()
+            ->with(['overallRatingLevel', 'calibratedOverallRatingLevel', 'reviewCycle'])
+            ->where('status', AppraisalStatus::Finalized->value)
+            ->latest('finalized_at')
+            ->first();
+
+        if (! $appraisal instanceof Appraisal) {
+            $appraisal = $profile->appraisals()
+                ->with(['overallRatingLevel', 'calibratedOverallRatingLevel', 'reviewCycle'])
+                ->where(function ($query) {
+                    $query->whereNotNull('overall_score')
+                        ->orWhereNotNull('calibrated_overall_score')
+                        ->orWhereNotNull('business_score')
+                        ->orWhereNotNull('values_score');
+                })
+                ->latest('updated_at')
+                ->first();
+        }
+
+        if (! $appraisal instanceof Appraisal) {
+            return null;
+        }
+
+        return [
+            ...$this->scoreSummaryPayload($appraisal),
+            'appraisal_id' => $appraisal->id,
+            'cycle_name' => $appraisal->reviewCycle?->name ?? $appraisal->cycle_name_snapshot,
+            'status' => $appraisal->status?->value ?? (string) $appraisal->status,
         ];
     }
 

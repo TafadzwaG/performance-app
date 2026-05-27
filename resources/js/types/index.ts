@@ -8,6 +8,7 @@ export interface Auth {
     hasEmployeeProfile: boolean;
     requiresEmployeeProfileCompletion: boolean;
     emailMfaEnabled: boolean;
+    canReportIssue?: boolean;
     impersonation: {
         isImpersonating: boolean;
         impersonator: Pick<User, 'id' | 'name' | 'email'> | null;

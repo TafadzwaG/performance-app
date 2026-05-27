@@ -58,6 +58,7 @@ class DashboardController extends Controller
             'approvalQueue' => $approvalQueue,
             'overdueQueue' => $overdueQueue,
             'currentGoals' => $this->goalsViewService->currentGoalsFor($request->user()),
+            'myScoreSummary' => $this->goalsViewService->latestScoreSummaryFor($request->user()),
             'assignedGoalCycles' => $this->goalsViewService->assignedGoalCycles($request->user()),
             'goalsLookupEndpoint' => route('performance.dashboard.goals.lookup'),
         ]);

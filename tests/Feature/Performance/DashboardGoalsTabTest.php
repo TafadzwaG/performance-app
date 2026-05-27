@@ -249,3 +249,45 @@ test('dashboard goals lookup returns signed-in user review cycles', function () 
 
     expect($currentAppraisal->id)->not->toBe($historicalAppraisal->id);
 });
+
+test('dashboard includes score summary for finalized appraisal', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+    $user->givePermissionTo(Permission::findOrCreate('performance.dashboard.view', 'web'));
+
+    $profile = EmployeeProfile::factory()->for($user)->create();
+
+    $cycle = ReviewCycle::factory()->create([
+        'name' => '2025 Review',
+        'status' => ReviewCycleStatus::Closed,
+    ]);
+
+    $appraisal = Appraisal::factory()
+        ->for($cycle, 'reviewCycle')
+        ->for($profile, 'employeeProfile')
+        ->create([
+            'employee_user_id' => $user->id,
+            'status' => AppraisalStatus::Finalized,
+            'business_score' => 82,
+            'values_score' => 78,
+            'overall_score' => 80,
+            'finalized_at' => now()->subDay(),
+            'cycle_name_snapshot' => '2025 Review',
+        ]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('performance/dashboard/Index')
+            ->where('myScoreSummary.business_score', 82)
+            ->where('myScoreSummary.values_score', 78)
+            ->where('myScoreSummary.overall_score', 80)
+            ->where('myScoreSummary.cycle_name', '2025 Review')
+            ->has('assignedGoalCycles', 1));
+
+    $this->actingAs($user)
+        ->getJson(route('performance.dashboard.goals.show', $appraisal))
+        ->assertOk()
+        ->assertJsonPath('score_summary.overall_score', 80)
+        ->assertJsonPath('score_summary.business_score', 82);
+});

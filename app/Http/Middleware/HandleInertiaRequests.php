@@ -75,6 +75,7 @@ class HandleInertiaRequests extends Middleware
                     ? ! $request->user()->employeeProfile()->exists()
                     : false,
                 'emailMfaEnabled' => (bool) $request->user()?->email_mfa_enabled,
+                'canReportIssue' => (bool) ($request->user()?->can('issues.create') ?? false),
                 'impersonation' => [
                     'isImpersonating' => $impersonationManager->isImpersonating(),
                     'impersonator' => $impersonator

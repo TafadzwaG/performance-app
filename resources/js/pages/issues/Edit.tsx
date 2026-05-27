@@ -1,8 +1,7 @@
+import IssueDetailsFormFields from '@/components/issues/issue-details-form-fields';
 import PerformancePage from '@/components/performance/PerformancePage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import type { BreadcrumbItem } from '@/types';
 import type { IssueOption, IssueReport, IssueType } from '@/types/issues';
 import { Link, useForm } from '@inertiajs/react';
@@ -13,9 +12,6 @@ interface Props {
     issue: IssueReport;
     typeOptions: IssueOption[];
 }
-
-const selectClassName =
-    'flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
 export default function IssuesEdit({ issue, typeOptions }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
@@ -48,42 +44,16 @@ export default function IssuesEdit({ issue, typeOptions }: Props) {
                 </CardHeader>
                 <CardContent className="p-6">
                     <form onSubmit={submit} className="space-y-5">
-                        <div className="space-y-2">
-                            <Label htmlFor="type">Issue type</Label>
-                            <select
-                                id="type"
-                                className={selectClassName}
-                                value={data.type}
-                                onChange={(event) => setData('type', event.target.value as IssueType)}
-                                required
-                            >
-                                {typeOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            {errors.type ? <p className="text-sm text-red-600">{errors.type}</p> : null}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="title">Title / summary</Label>
-                            <Input id="title" value={data.title} onChange={(event) => setData('title', event.target.value)} required />
-                            {errors.title ? <p className="text-sm text-red-600">{errors.title}</p> : null}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
-                            <textarea
-                                id="description"
-                                rows={6}
-                                className="min-h-[8rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                value={data.description}
-                                onChange={(event) => setData('description', event.target.value)}
-                                required
-                            />
-                            {errors.description ? <p className="text-sm text-red-600">{errors.description}</p> : null}
-                        </div>
+                        <IssueDetailsFormFields
+                            type={data.type}
+                            title={data.title}
+                            description={data.description}
+                            typeOptions={typeOptions}
+                            errors={errors}
+                            onTypeChange={(value) => setData('type', value)}
+                            onTitleChange={(value) => setData('title', value)}
+                            onDescriptionChange={(value) => setData('description', value)}
+                        />
 
                         <div className="flex gap-3">
                             <Button type="submit" disabled={processing}>
