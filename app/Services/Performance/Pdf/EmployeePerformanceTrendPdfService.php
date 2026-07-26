@@ -9,7 +9,7 @@ use App\Services\Performance\EmployeePerformanceAnalyticsService;
 use App\Support\Branding;
 use App\Support\Pdf\StudioExportPdf;
 use App\Support\Performance\PerformanceTrendChartSvg;
-use App\Support\Performance\ScoreFormatter;
+use App\Support\Tenancy\TenantStoragePath;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -49,7 +49,7 @@ class EmployeePerformanceTrendPdfService
             $employeeProfile->employee_number,
             Carbon::now()->format('Ymd-His'),
         );
-        $tempPath = storage_path('app/exports/'.$fileName);
+        $tempPath = TenantStoragePath::export($fileName);
         $this->ensureDirectory(dirname($tempPath));
 
         StudioExportPdf::configure(

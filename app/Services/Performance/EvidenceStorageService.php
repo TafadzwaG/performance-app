@@ -7,6 +7,7 @@ use App\Models\AppraisalCalibrationEvidence;
 use App\Models\AppraisalObjective;
 use App\Models\AppraisalObjectiveEvidence;
 use App\Models\User;
+use App\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -16,7 +17,8 @@ class EvidenceStorageService
 
     public function storeFile(AppraisalObjective $objective, UploadedFile $file, User $user, ?string $notes = null): AppraisalObjectiveEvidence
     {
-        $path = $file->store("performance/evidence/{$objective->id}", self::DISK);
+        $organizationId = app(TenantContext::class)->requireId();
+        $path = $file->store("organizations/{$organizationId}/performance/evidence/{$objective->id}", self::DISK);
 
         return AppraisalObjectiveEvidence::create([
             'appraisal_objective_id' => $objective->id,
@@ -57,7 +59,8 @@ class EvidenceStorageService
         User $user,
         ?string $notes = null,
     ): AppraisalCalibrationEvidence {
-        $path = $file->store("performance/calibration-evidence/{$calibration->id}", self::DISK);
+        $organizationId = app(TenantContext::class)->requireId();
+        $path = $file->store("organizations/{$organizationId}/performance/calibration-evidence/{$calibration->id}", self::DISK);
 
         return AppraisalCalibrationEvidence::create([
             'appraisal_calibration_id' => $calibration->id,

@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Performance\Setup;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Performance\Concerns\AuthorizesQuickSetupCreate;
 use App\Http\Requests\Performance\Setup\StoreDepartmentRequest;
 use App\Http\Requests\Performance\Setup\UpdateDepartmentRequest;
 use App\Models\Department;
+use App\Support\Performance\SetupCodeGenerator;
+use App\Support\Tenancy\TenantRule;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,6 +17,8 @@ use Inertia\Response;
 
 class DepartmentController extends Controller
 {
+    use AuthorizesQuickSetupCreate;
+
     public function __construct()
     {
         $this->authorizeResource(Department::class, 'department');
@@ -49,6 +55,28 @@ class DepartmentController extends Controller
         ]);
 
         return to_route('performance.setup.departments.index');
+    }
+
+    public function quickStore(Request $request): JsonResponse
+    {
+        $this->authorizeQuickDepartmentCreate($request);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', TenantRule::unique('departments', 'name')],
+        ]);
+
+        $department = Department::query()->create([
+            'name' => $validated['name'],
+            'code' => SetupCodeGenerator::fromName(new Department, $validated['name']),
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'option' => [
+                'value' => $department->id,
+                'label' => $department->name,
+            ],
+        ]);
     }
 
     public function show(Department $department): Response

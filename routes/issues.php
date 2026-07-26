@@ -3,7 +3,7 @@
 use App\Http\Controllers\IssueReportController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.complete'])
+Route::middleware(['auth', 'tenant', 'approved', 'password.change', 'employee.profile.complete'])
     ->group(function () {
         Route::get('issues', [IssueReportController::class, 'index'])->name('issues.index');
         Route::get('issues/create', [IssueReportController::class, 'create'])->name('issues.create');

@@ -14,19 +14,24 @@ use App\Enums\WorkflowStage;
 use App\Models\Appraisal;
 use App\Models\AppraisalApproval;
 use App\Models\AppraisalComment;
+use App\Models\AppraisalCompetencyRating;
+use App\Models\AppraisalObjective;
 use App\Models\AppraisalObjectiveEvidence;
 use App\Models\AppraisalStatusHistory;
 use App\Models\AppraisalTemplate;
+use App\Models\Competency;
 use App\Models\Department;
 use App\Models\DevelopmentPlan;
 use App\Models\EmployeeProfile;
 use App\Models\GoalLibraryItem;
 use App\Models\JobTitle;
+use App\Models\Location;
 use App\Models\Perspective;
 use App\Models\ReviewCycle;
 use App\Models\User;
 use App\Services\Performance\AppraisalScoringService;
 use App\Services\Performance\AppraisalTemplateInstantiationService;
+use App\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
@@ -129,6 +134,17 @@ class PerformanceTestingSeeder extends Seeder
                 'email_verified_at' => now(),
             ])->save();
 
+            $user->memberships()->updateOrCreate(
+                ['organization_id' => app(TenantContext::class)->requireId()],
+                [
+                    'status' => 'active',
+                    'is_default' => true,
+                    'access_all_locations' => true,
+                    'invited_at' => now(),
+                    'activated_at' => now(),
+                ],
+            );
+
             $user->syncRoles($record['roles']);
             $users[$key] = $user;
         }
@@ -139,6 +155,7 @@ class PerformanceTestingSeeder extends Seeder
     private function seedEmployeeProfiles(array $users, array $departments, array $jobTitles): array
     {
         $profiles = [];
+        $locationId = Location::query()->where('is_active', true)->value('id');
 
         foreach ($this->employeeProfileSeedData() as $key => $data) {
             $profiles[$key] = EmployeeProfile::query()->updateOrCreate(
@@ -159,6 +176,7 @@ class PerformanceTestingSeeder extends Seeder
                     'emergency_contact_name' => $data['emergency_contact_name'],
                     'emergency_contact_phone' => $data['emergency_contact_phone'],
                     'department_id' => $departments[$data['department']]->id,
+                    'location_id' => $locationId,
                     'job_title_id' => $jobTitles[$data['job_title']]->id,
                     'line_manager_user_id' => $data['line_manager'] ? $users[$data['line_manager']]->id : null,
                     'approving_manager_user_id' => $data['approver'] ? $users[$data['approver']]->id : null,
@@ -349,11 +367,14 @@ class PerformanceTestingSeeder extends Seeder
         $objectives = $appraisal->objectives()->orderBy('sort_order')->get()->values();
 
         foreach ($objectiveBlueprints as $index => $blueprint) {
-            $objective = $objectives[$index];
+            $objective = $objectives->get($index) ?? new AppraisalObjective([
+                'appraisal_id' => $appraisal->id,
+                'sort_order' => $index + 1,
+            ]);
             $selfLevel = $populateSelfRatings && isset($blueprint['self_rating']) ? $levels->get($blueprint['self_rating']) : null;
             $managerLevel = $populateManagerRatings && isset($blueprint['manager_rating']) ? $levels->get($blueprint['manager_rating']) : null;
 
-            $objective->update([
+            $objective->fill([
                 'perspective_id' => $perspectives[$blueprint['perspective']]->id,
                 'goal_library_item_id' => $goalLibrary[$blueprint['title']]->id ?? null,
                 'objective_type' => 'business',
@@ -378,7 +399,7 @@ class PerformanceTestingSeeder extends Seeder
                 'manager_rating_score' => $managerLevel?->value,
                 'include_in_business_score' => true,
                 'sort_order' => $index + 1,
-            ]);
+            ])->save();
 
             $objective->evidences()->delete();
 
@@ -404,11 +425,18 @@ class PerformanceTestingSeeder extends Seeder
         $ratings = $appraisal->competencyRatings()->with('competency')->orderBy('sort_order')->get()->keyBy('competency.code');
 
         foreach ($competencyBlueprints as $index => $blueprint) {
-            $rating = $ratings[$blueprint['code']];
+            $rating = $ratings->get($blueprint['code']);
+            if (! $rating) {
+                $competency = Competency::query()->where('code', $blueprint['code'])->firstOrFail();
+                $rating = new AppraisalCompetencyRating([
+                    'appraisal_id' => $appraisal->id,
+                    'competency_id' => $competency->id,
+                ]);
+            }
             $selfLevel = $populateSelfRatings && isset($blueprint['self_rating']) ? $levels->get($blueprint['self_rating']) : null;
             $managerLevel = $populateManagerRatings && isset($blueprint['manager_rating']) ? $levels->get($blueprint['manager_rating']) : null;
 
-            $rating->update([
+            $rating->fill([
                 'self_rating_scale_level_id' => $selfLevel?->id,
                 'self_rating_score' => $selfLevel?->value,
                 'manager_rating_scale_level_id' => $managerLevel?->id,
@@ -416,7 +444,7 @@ class PerformanceTestingSeeder extends Seeder
                 'employee_comment' => $populateSelfRatings ? ($blueprint['employee_comment'] ?: null) : null,
                 'manager_comment' => $populateManagerRatings ? ($blueprint['manager_comment'] ?? null) : null,
                 'sort_order' => $index + 1,
-            ]);
+            ])->save();
         }
     }
 

@@ -33,14 +33,16 @@ class AppraisalScoringService
             }), 2);
 
         $competencyRatings = $appraisal->competencyRatings->filter(fn ($rating) => ! is_null($rating->manager_rating_score));
-        $valuesScore = round($competencyRatings->isNotEmpty()
-            ? $competencyRatings->avg(fn ($rating) => ((float) $rating->manager_rating_score / $competencyMax) * 100)
-            : 0, 2);
+        $valuesScore = $competencyRatings->isNotEmpty()
+            ? round($competencyRatings->avg(fn ($rating) => ((float) $rating->manager_rating_score / $competencyMax) * 100), 2)
+            : null;
 
-        $overallScore = round(
-            (($businessScore * (float) $appraisal->business_weight_percent) + ($valuesScore * (float) $appraisal->values_weight_percent)) / 100,
-            2
-        );
+        $overallScore = $valuesScore === null
+            ? $businessScore
+            : round(
+                (($businessScore * (float) $appraisal->business_weight_percent) + ($valuesScore * (float) $appraisal->values_weight_percent)) / 100,
+                2
+            );
 
         $overallLevel = $this->mapOverallLevel($appraisal, $overallScore);
 

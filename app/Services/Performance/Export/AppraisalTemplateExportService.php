@@ -6,6 +6,7 @@ use App\Models\AppraisalTemplate;
 use App\Models\User;
 use App\Support\Branding;
 use App\Support\Pdf\StudioExportPdf;
+use App\Support\Tenancy\TenantStoragePath;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
@@ -72,7 +73,7 @@ class AppraisalTemplateExportService
         $context = $this->buildContext($this->loadTemplate($template), $actor);
 
         $fileName = $this->fileName($context['template'], 'pdf');
-        $tempPath = storage_path('app/exports/'.$fileName);
+        $tempPath = TenantStoragePath::export($fileName);
         $this->ensureDirectory(dirname($tempPath));
 
         StudioExportPdf::configure(
@@ -89,7 +90,7 @@ class AppraisalTemplateExportService
         $context = $this->buildContext($this->loadTemplate($template), $actor);
 
         $fileName = $this->fileName($context['template'], 'xlsx');
-        $filePath = storage_path('app/exports/'.$fileName);
+        $filePath = TenantStoragePath::export($fileName);
         $this->ensureDirectory(dirname($filePath));
 
         $options = new Options;

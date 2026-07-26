@@ -15,9 +15,14 @@ test('user without employee profile can sign in with email and is redirected to 
     ]);
 
     $this->post('/login', [
-        'login_method' => 'email',
         'email' => $user->email,
         'password' => 'Welcome@1234',
+    ])->assertRedirect(route('organizations.select'));
+
+    $organization = $user->memberships()->first()->organization;
+
+    $this->post(route('organizations.switch'), [
+        'organization_id' => $organization->id,
     ])->assertRedirect(route('employee-profile.complete'));
 
     $this->actingAs($user)
@@ -25,7 +30,7 @@ test('user without employee profile can sign in with email and is redirected to 
         ->assertRedirect(route('employee-profile.complete'));
 });
 
-test('user without employee profile cannot sign in with unknown employee number', function () {
+test('employee number cannot be used to sign in', function () {
     User::factory()->create([
         'password' => Hash::make('Welcome@1234'),
     ]);
@@ -37,7 +42,7 @@ test('user without employee profile cannot sign in with unknown employee number'
             'password' => 'Welcome@1234',
         ])
         ->assertRedirect('/login')
-        ->assertSessionHasErrors('employee_number');
+        ->assertSessionHasErrors('email');
 
     $this->assertGuest();
 });

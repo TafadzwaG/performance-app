@@ -2,8 +2,10 @@
 
 use App\Enums\AppraisalStatus;
 use App\Enums\ReviewCycleStatus;
+use App\Events\Performance\AppraisalStatusChanged;
 use App\Models\Appraisal;
 use App\Models\AppraisalMilestoneReminder;
+use App\Models\AppraisalObjective;
 use App\Models\AppraisalTemplate;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
@@ -12,14 +14,14 @@ use App\Models\ReviewCycle;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Notifications\Performance\AppraisalAssignedNotification;
-use App\Notifications\Performance\ApprovalRequestedNotification;
 use App\Notifications\Performance\AppraisalStepCompletedNotification;
+use App\Notifications\Performance\ApprovalRequestedNotification;
 use App\Notifications\Performance\CycleMilestoneReminderNotification;
 use App\Notifications\Performance\SelfAssessmentSubmittedNotification;
+use App\Services\Performance\AppraisalWorkflowNotificationService;
 use App\Services\Performance\CycleMilestoneReminderService;
 use App\Services\Performance\ReviewCycleAssignmentService;
 use App\Support\Notifications\PerformanceNotificationChannels;
-use App\Events\Performance\AppraisalStatusChanged;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
@@ -86,7 +88,7 @@ test('assigning a new appraisal notifies the employee', function () {
             'approving_manager_user_id' => $approver->id,
         ]);
 
-    $cycle = ReviewCycle::factory()->create(['status' => ReviewCycleStatus::Open]);
+    $cycle = ReviewCycle::factory()->create(['status' => ReviewCycleStatus::Draft]);
     $template = AppraisalTemplate::factory()->create();
 
     app(ReviewCycleAssignmentService::class)->assign($cycle, [$profile], $template, $admin);
@@ -110,7 +112,7 @@ test('re-assigning an existing appraisal does not dispatch another assigned even
             'approving_manager_user_id' => $approver->id,
         ]);
 
-    $cycle = ReviewCycle::factory()->create(['status' => ReviewCycleStatus::Open]);
+    $cycle = ReviewCycle::factory()->create(['status' => ReviewCycleStatus::Draft]);
     $template = AppraisalTemplate::factory()->create();
     $service = app(ReviewCycleAssignmentService::class);
 
@@ -263,7 +265,7 @@ test('submitting goal plan notifies the employee', function () {
             'status' => AppraisalStatus::GoalSetting,
         ]);
 
-    \App\Models\AppraisalObjective::factory()->for($appraisal)->create([
+    AppraisalObjective::factory()->for($appraisal)->create([
         'weight' => 100,
         'sort_order' => 1,
     ]);
@@ -299,7 +301,7 @@ test('submitting self assessment notifies employee and line manager', function (
             'self_assessment_submitted_at' => now(),
         ]);
 
-    app(\App\Services\Performance\AppraisalWorkflowNotificationService::class)
+    app(AppraisalWorkflowNotificationService::class)
         ->handle(new AppraisalStatusChanged($appraisal, $employee, 'self_submitted'));
 
     Notification::assertSentTo($employee, AppraisalStepCompletedNotification::class);
@@ -329,7 +331,7 @@ test('submitting manager review notifies manager and approving manager', functio
             'manager_reviewed_at' => now(),
         ]);
 
-    app(\App\Services\Performance\AppraisalWorkflowNotificationService::class)
+    app(AppraisalWorkflowNotificationService::class)
         ->handle(new AppraisalStatusChanged($appraisal, $manager, 'approval_requested'));
 
     Notification::assertSentTo($manager, AppraisalStepCompletedNotification::class);

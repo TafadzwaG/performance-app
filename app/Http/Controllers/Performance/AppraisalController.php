@@ -7,6 +7,7 @@ use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Models\Appraisal;
 use App\Models\AppraisalTemplate;
 use App\Models\ReviewCycle;
+use App\Services\Performance\AppraisalNavigationService;
 use App\Services\Performance\PendingAppraisalNavService;
 use App\Services\Performance\ReviewCycleAssignmentService;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +23,7 @@ class AppraisalController extends Controller
     public function __construct(
         private readonly ReviewCycleAssignmentService $assignmentService,
         private readonly PendingAppraisalNavService $pendingAppraisalNav,
+        private readonly AppraisalNavigationService $appraisalNavigation,
     ) {}
 
     public function index(Request $request): Response
@@ -37,7 +39,16 @@ class AppraisalController extends Controller
         $this->pendingAppraisalNav->applyIndexVisibleScope($appraisals, $user);
 
         $appraisals = $appraisals
-            ->with(['reviewCycle', 'employeeProfile.user', 'template', 'overallRatingLevel'])
+            ->select([
+                'id',
+                'employee_name_snapshot',
+                'employee_number_snapshot',
+                'cycle_name_snapshot',
+                'template_name_snapshot',
+                'status',
+                'overall_score',
+                'updated_at',
+            ])
             ->when($search, function (Builder $query) use ($search) {
                 $query->where(function (Builder $scoped) use ($search) {
                     $scoped->where('employee_name_snapshot', 'like', "%{$search}%")
@@ -140,7 +151,10 @@ class AppraisalController extends Controller
     {
         $this->authorize('view', $appraisal);
 
-        return to_route('performance.appraisals.plan', $appraisal);
+        $route = $this->appraisalNavigation->continueRoute($appraisal, request()->user())
+            ?? route('performance.appraisals.show', $appraisal);
+
+        return redirect()->to($route);
     }
 
     public function destroy(Appraisal $appraisal): RedirectResponse

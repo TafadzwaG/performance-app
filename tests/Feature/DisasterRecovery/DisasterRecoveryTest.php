@@ -26,7 +26,10 @@ beforeEach(function () {
 
 function drUser(string $role): User
 {
-    $user = User::factory()->create(['is_approved' => true]);
+    $user = User::factory()->create([
+        'is_approved' => true,
+        'is_platform_admin' => $role === 'Super Admin',
+    ]);
     $user->assignRole($role);
     EmployeeProfile::factory()->for($user)->create();
 
@@ -143,6 +146,22 @@ test('restore approval requires another super admin and confirmation phrase', fu
         ->and($restore->approved_by_user_id)->toBe($approver->id);
 
     Queue::assertPushed(RunDisasterRecoveryRestoreJob::class);
+});
+
+test('settings disaster recovery tab tolerates missing remote backup archives', function () {
+    DisasterRecoveryBackup::factory()->create([
+        'status' => BackupStatus::Completed,
+        'trigger' => BackupTrigger::Manual,
+        'disk' => 's3',
+        'path' => 'hr-backups/manual/2026/05/28/dr-manual-20260528-100703.zip',
+        'filename' => 'dr-manual-20260528-100703.zip',
+    ]);
+
+    $this->actingAs(drUser('Super Admin'))
+        ->get(disasterRecoverySettingsTab())
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('disasterRecovery.backups.0.download_available', false));
 });
 
 test('disaster recovery frontend exposes dashboard and confirmation controls', function () {

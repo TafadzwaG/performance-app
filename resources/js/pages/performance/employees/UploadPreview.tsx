@@ -61,6 +61,7 @@ export default function EmployeeUploadPreview({ preview, departmentOptions, jobT
         department_mappings: initialMappings(preview.departments, 'department_id') as DepartmentMappingRow[],
         job_title_mappings: initialMappings(preview.job_titles, 'job_title_id') as JobTitleMappingRow[],
     });
+    const fileError = (errors as unknown as { file?: string | string[] }).file;
 
     const unmappedDepartments = useMemo(
         () => data.department_mappings.filter((row) => !row.department_id).length,
@@ -198,16 +199,16 @@ export default function EmployeeUploadPreview({ preview, departmentOptions, jobT
                     </Card>
                 ) : null}
 
-                {errors.file ? (
+                {fileError ? (
                     <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                        {Array.isArray(errors.file) ? (
+                        {Array.isArray(fileError) ? (
                             <ul className="list-disc space-y-1 pl-5">
-                                {errors.file.map((message) => (
+                                {fileError.map((message) => (
                                     <li key={message}>{message}</li>
                                 ))}
                             </ul>
                         ) : (
-                            <p>{errors.file}</p>
+                            <p>{fileError}</p>
                         )}
                     </div>
                 ) : null}

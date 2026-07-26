@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import type { SharedData } from '@/types';
 import type { EmployeeFieldConfigItem, EmployeeProfileFormData, Option } from '@/types/performance';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
@@ -18,6 +17,7 @@ import {
     CheckCircle2,
     FilePenLine,
     IdCard,
+    Loader2,
     LogOut,
     Mail,
     MapPin,
@@ -40,7 +40,7 @@ interface Props {
     maritalStatusOptions: Option[];
     employmentTypeOptions: Option[];
     fieldConfig: EmployeeFieldConfigItem[];
-    can: { assignRoles: boolean };
+    can: { assignRoles: boolean; createDepartment?: boolean; createJobTitle?: boolean };
 }
 
 type StepKey = EmployeeProfileSectionKey | 'review';
@@ -228,6 +228,34 @@ export default function CompleteProfile({
         <>
             <Head title="Complete Employee Profile" />
 
+            {form.processing ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    role="alertdialog"
+                    aria-modal="true"
+                    aria-labelledby="profile-saving-title"
+                    aria-describedby="profile-saving-description"
+                    aria-busy="true"
+                >
+                    <div className="absolute inset-0 bg-background/70 backdrop-blur-md" aria-hidden="true" />
+                    <Card className="relative z-10 w-full max-w-md shadow-2xl">
+                        <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
+                                <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                            </div>
+                            <div className="space-y-2">
+                                <h2 id="profile-saving-title" className="text-lg font-semibold text-foreground">
+                                    Saving your profile
+                                </h2>
+                                <p id="profile-saving-description" className="text-sm leading-6 text-muted-foreground">
+                                    Please wait while we save your employee profile and prepare your dashboard.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            ) : null}
+
             <div className="min-h-svh bg-muted/20">
                 <div className="flex min-h-svh w-full flex-col px-3 py-4 sm:px-4 lg:px-6 lg:py-6 xl:px-8">
                     <div className="mb-5 flex flex-col gap-4 rounded-2xl border bg-background/95 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -395,6 +423,8 @@ export default function CompleteProfile({
                                         maritalStatusOptions={maritalStatusOptions}
                                         employmentTypeOptions={employmentTypeOptions}
                                         canAssignRoles={can.assignRoles}
+                                        canCreateDepartment={can.createDepartment}
+                                        canCreateJobTitle={can.createJobTitle}
                                         sectionFilter={[currentStep as EmployeeProfileSectionKey]}
                                     />
                                 )}
@@ -462,21 +492,35 @@ export default function CompleteProfile({
                                         Step {currentIndex + 1} of {stepDefinitions.length}: {currentStepDefinition.title}
                                     </p>
                                     {isReviewStep ? (
-                                        <div className="flex items-start gap-3">
+                                        <label
+                                            htmlFor="review-confirmed-footer"
+                                            className={`flex w-fit cursor-pointer items-start gap-3 rounded-xl border-2 px-4 py-3 transition-colors ${
+                                                reviewConfirmed
+                                                    ? 'border-emerald-500 bg-emerald-500/10'
+                                                    : 'border-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
+                                            }`}
+                                        >
                                             <Checkbox
                                                 id="review-confirmed-footer"
                                                 checked={reviewConfirmed}
                                                 onCheckedChange={(value) => setReviewConfirmed(value === true)}
+                                                className={`mt-0.5 h-5 w-5 border-2 ${
+                                                    reviewConfirmed
+                                                        ? 'border-emerald-600 data-[state=checked]:bg-emerald-600'
+                                                        : 'border-amber-600 bg-background'
+                                                }`}
                                             />
                                             <div className="space-y-1">
-                                                <Label htmlFor="review-confirmed-footer" className="text-sm font-medium">
+                                                <span className="block text-sm font-semibold text-foreground">
                                                     Confirm final profile
-                                                </Label>
-                                                <p className="text-xs leading-5 text-muted-foreground">
-                                                    Tick this after reviewing all sections to enable saving.
+                                                </span>
+                                                <p className={`text-xs leading-5 ${reviewConfirmed ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                                                    {reviewConfirmed
+                                                        ? 'Confirmed — you can now save your profile.'
+                                                        : 'Tick this box after reviewing all sections to enable saving.'}
                                                 </p>
                                             </div>
-                                        </div>
+                                        </label>
                                     ) : null}
                                 </div>
 
@@ -494,9 +538,13 @@ export default function CompleteProfile({
                                     </Button>
 
                                     {isReviewStep ? (
-                                        <Button type="submit" size="sm" disabled={form.processing || !reviewConfirmed}>
-                                            <Save className="mr-2 h-4 w-4" />
-                                            Save Profile
+                                        <Button type="submit" size="sm" disabled={form.processing || !reviewConfirmed} aria-busy={form.processing}>
+                                            {form.processing ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Save className="mr-2 h-4 w-4" />
+                                            )}
+                                            {form.processing ? 'Saving…' : 'Save Profile'}
                                         </Button>
                                     ) : (
                                         <Button type="button" size="sm" onClick={goToNextStep}>

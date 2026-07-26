@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Performance;
 
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -15,8 +16,8 @@ class StoreReviewCycleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:100', 'unique:review_cycles,code'],
+            'name' => ['required', 'string', 'max:255', TenantRule::unique('review_cycles', 'name')],
+            'code' => ['required', 'string', 'max:100', TenantRule::unique('review_cycles', 'code')],
             'description' => ['nullable', 'string'],
             'start_date' => ['required', 'date', 'after_or_equal:today'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
@@ -24,6 +25,10 @@ class StoreReviewCycleRequest extends FormRequest
             'self_assessment_deadline' => ['nullable', 'date'],
             'manager_review_deadline' => ['nullable', 'date'],
             'approval_deadline' => ['nullable', 'date'],
+            'template_id' => [
+                'required',
+                TenantRule::exists('appraisal_templates')->where(fn ($query) => $query->where('is_active', true)),
+            ],
             'status' => ['prohibited'],
         ];
     }

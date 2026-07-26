@@ -1,14 +1,27 @@
 import PerformancePage from '@/components/performance/PerformancePage';
 import AssignEmployeesModal from '@/components/performance/review-cycles/AssignEmployeesModal';
+import AutomationReadinessBlockers from '@/components/performance/review-cycles/AutomationReadinessBlockers';
+import CycleLaunchPanel from '@/components/performance/review-cycles/CycleLaunchPanel';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { formatDate } from '@/lib/date-utils';
 import type { BreadcrumbItem } from '@/types';
-import type { Option, ReviewCycle } from '@/types/performance';
-import { router, Link } from '@inertiajs/react';
+import type { Option, ReviewCycle, ReviewCycleAutomationReadiness } from '@/types/performance';
+import { Link, router } from '@inertiajs/react';
 import {
+    AlertTriangle,
     CalendarDays,
     CheckCircle2,
     ClipboardList,
@@ -18,12 +31,15 @@ import {
     FileText,
     FolderKanban,
     PlayCircle,
+    RefreshCcw,
     Sparkles,
     Target,
+    UserMinus,
+    UserPlus,
     Users,
     XCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 
 interface Props {
     reviewCycle: ReviewCycle;
@@ -32,7 +48,11 @@ interface Props {
     employeeProfileOptions: Option[];
     can?: {
         assignEmployees?: boolean;
+        open?: boolean;
+        sync?: boolean;
     };
+    automationReadiness?: ReviewCycleAutomationReadiness | null;
+    perspectiveOptions?: Option[];
 }
 
 const breadcrumbs = (cycle: ReviewCycle): BreadcrumbItem[] => [
@@ -88,10 +108,17 @@ function getPhaseOrder(statusCounts: Record<string, number>) {
     return [...ordered, ...extra];
 }
 
-export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOptions, employeeProfileOptions, can }: Props) {
+export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOptions, employeeProfileOptions, can, automationReadiness, perspectiveOptions = [] }: Props) {
     const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [openConfirmVisible, setOpenConfirmVisible] = useState(false);
     const orderedStatuses = getPhaseOrder(statusCounts);
     const totalAssessments = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
+    const isDraft = reviewCycle.status === 'draft';
+    const canLaunchCycle = Boolean(can?.open && isDraft && automationReadiness);
+
+    const scrollToBlockers = () => {
+        document.getElementById('automation-blockers')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
 
     const activeCount = Object.entries(statusCounts).reduce((sum, [status, count]) => {
         const normalized = status.toLowerCase();
@@ -122,30 +149,44 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                         </Link>
                     </Button>
 
-                    {can?.assignEmployees ? (
+                    {can?.assignEmployees && isDraft ? (
                         <Button type="button" variant="outline" onClick={() => setAssignModalOpen(true)}>
                             <Users className="mr-2 h-4 w-4" />
-                            Assign Employees
+                            Assign Manually
                         </Button>
                     ) : null}
 
-                    {reviewCycle.status !== 'open' ? (
+                    {can?.open && isDraft ? (
+                        <Button
+                            type="button"
+                            variant={automationReadiness?.ready ? 'default' : 'secondary'}
+                            onClick={() => (automationReadiness?.ready ? setOpenConfirmVisible(true) : scrollToBlockers())}
+                        >
+                            <PlayCircle className="mr-2 h-4 w-4" />
+                            {automationReadiness?.ready
+                                ? `Open & Assign ${automationReadiness.eligible}`
+                                : 'Review Blockers'}
+                        </Button>
+                    ) : null}
+
+                    {can?.sync && reviewCycle.status === 'open' ? (
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => router.post(route('performance.review_cycles.open', reviewCycle.id))}
+                            disabled={!automationReadiness?.ready || (automationReadiness?.to_create ?? 0) === 0}
+                            onClick={() => {
+                                if (window.confirm(`Add ${automationReadiness?.to_create ?? 0} newly eligible employee appraisal(s)?`)) {
+                                    router.post(route('performance.review_cycles.sync_eligible', reviewCycle.id));
+                                }
+                            }}
                         >
-                            <PlayCircle className="mr-2 h-4 w-4" />
-                            Open Cycle
+                            <RefreshCcw className="mr-2 h-4 w-4" />
+                            Sync Eligible Employees
                         </Button>
                     ) : null}
 
                     {reviewCycle.status !== 'closed' ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.post(route('performance.review_cycles.close', reviewCycle.id))}
-                        >
+                        <Button type="button" variant="outline" onClick={() => router.post(route('performance.review_cycles.close', reviewCycle.id))}>
                             <XCircle className="mr-2 h-4 w-4" />
                             Close Cycle
                         </Button>
@@ -154,7 +195,7 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
             }
         >
             <div className="space-y-6">
-                <div className="rounded-2xl border bg-background p-6 shadow-sm">
+                <div className="bg-background rounded-2xl border p-6 shadow-sm">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-3">
                             <Badge variant="secondary" className="w-fit">
@@ -162,54 +203,132 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                             </Badge>
 
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-                                    {reviewCycle.name}
-                                </h1>
-                                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                                <h1 className="text-foreground text-3xl font-bold tracking-tight md:text-4xl">{reviewCycle.name}</h1>
+                                <p className="text-muted-foreground mt-2 max-w-2xl text-sm leading-6">
                                     Cycle details, status counts, and assignment actions.
                                 </p>
                             </div>
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Code</div>
-                                <div className="mt-1 font-semibold text-foreground">{reviewCycle.code}</div>
+                            <div className="bg-muted/30 rounded-xl border px-4 py-3 text-sm">
+                                <div className="text-muted-foreground text-xs tracking-wide uppercase">Code</div>
+                                <div className="text-foreground mt-1 font-semibold">{reviewCycle.code}</div>
                             </div>
 
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Status</div>
+                            <div className="bg-muted/30 rounded-xl border px-4 py-3 text-sm">
+                                <div className="text-muted-foreground text-xs tracking-wide uppercase">Status</div>
                                 <div className="mt-1">
-                                    <Badge variant={getStatusVariant(reviewCycle.status)}>
-                                        {titleCase(reviewCycle.status)}
-                                    </Badge>
+                                    <Badge variant={getStatusVariant(reviewCycle.status)}>{titleCase(reviewCycle.status)}</Badge>
                                 </div>
                             </div>
 
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Assigned</div>
-                                <div className="mt-1 font-semibold text-foreground">{reviewCycle.appraisals_count ?? 0}</div>
+                            <div className="bg-muted/30 rounded-xl border px-4 py-3 text-sm">
+                                <div className="text-muted-foreground text-xs tracking-wide uppercase">Assigned</div>
+                                <div className="text-foreground mt-1 font-semibold">{reviewCycle.appraisals_count ?? 0}</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                {automationReadiness ? (
+                    <Card
+                        className={
+                            automationReadiness.ready
+                                ? 'border-emerald-200/80 bg-emerald-50/20 shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/10'
+                                : 'border-amber-200/80 bg-amber-50/10 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/10'
+                        }
+                    >
+                        <CardHeader className="border-b bg-background/60">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        {automationReadiness.ready ? (
+                                            <CheckCircle2 className="size-5 text-emerald-600" />
+                                        ) : (
+                                            <AlertTriangle className="size-5 text-amber-600" />
+                                        )}
+                                        Automation readiness
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {automationReadiness.ready
+                                            ? 'Employee profiles, managers, template limits, and My KPI weights are ready.'
+                                            : 'Resolve every blocker before opening or synchronizing this cycle.'}
+                                    </CardDescription>
+                                </div>
+                                <Badge
+                                    variant={automationReadiness.ready ? 'default' : 'outline'}
+                                    className={automationReadiness.ready ? 'bg-emerald-600' : 'border-amber-300 text-amber-900 dark:text-amber-100'}
+                                >
+                                    {automationReadiness.ready ? 'Ready to open' : `${automationReadiness.blockers.length} blocker${automationReadiness.blockers.length === 1 ? '' : 's'}`}
+                                </Badge>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-5 p-6">
+                            {canLaunchCycle ? (
+                                <CycleLaunchPanel
+                                    reviewCycle={reviewCycle}
+                                    automationReadiness={automationReadiness}
+                                    onLaunch={() => setOpenConfirmVisible(true)}
+                                    onScrollToBlockers={scrollToBlockers}
+                                />
+                            ) : null}
+
+                            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                                {(
+                                    [
+                                        { label: 'Eligible', value: automationReadiness.eligible, icon: Users, iconClass: 'text-sky-600' },
+                                        { label: 'Excluded', value: automationReadiness.excluded, icon: UserMinus, iconClass: 'text-rose-600' },
+                                        { label: 'Existing', value: automationReadiness.existing, icon: ClipboardList, iconClass: 'text-violet-600' },
+                                        { label: 'New', value: automationReadiness.to_create, icon: UserPlus, iconClass: 'text-emerald-600' },
+                                        { label: 'To prepare', value: automationReadiness.to_prepare, icon: RefreshCcw, iconClass: 'text-amber-600' },
+                                        { label: 'Objectives', value: automationReadiness.objective_count, icon: Target, iconClass: 'text-orange-600' },
+                                    ] satisfies Array<{
+                                        label: string;
+                                        value: number;
+                                        icon: ComponentType<{ className?: string }>;
+                                        iconClass: string;
+                                    }>
+                                ).map((metric) => {
+                                    const Icon = metric.icon;
+
+                                    return (
+                                        <div key={metric.label} className="bg-background/80 rounded-lg border p-3 shadow-sm">
+                                            <div className="text-muted-foreground flex items-center gap-1.5 text-xs tracking-wide uppercase">
+                                                <Icon className={`size-3.5 shrink-0 ${metric.iconClass}`} />
+                                                {metric.label}
+                                            </div>
+                                            <div className="text-foreground mt-1 text-xl font-semibold tabular-nums">{metric.value}</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {automationReadiness.blockers.length > 0 ? (
+                                <div id="automation-blockers">
+                                    <AutomationReadinessBlockers
+                                        blockers={automationReadiness.blockers}
+                                        perspectiveOptions={perspectiveOptions}
+                                        templateLimits={automationReadiness.template}
+                                    />
+                                </div>
+                            ) : null}
+                        </CardContent>
+                    </Card>
+                ) : null}
+
                 <div className="grid gap-6 lg:grid-cols-12">
                     <Card className="shadow-sm lg:col-span-8">
-                        <CardHeader className="border-b bg-muted/20">
+                        <CardHeader className="bg-muted/20 border-b">
                             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                                 <div>
                                     <CardTitle className="text-lg">Cycle Summary</CardTitle>
-                                    <CardDescription>
-                                        Core timeline, operational state, and narrative for this performance cycle.
-                                    </CardDescription>
+                                    <CardDescription>Core timeline, operational state, and narrative for this performance cycle.</CardDescription>
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Badge variant="outline">{reviewCycle.code}</Badge>
-                                    <Badge variant={getStatusVariant(reviewCycle.status)}>
-                                        {titleCase(reviewCycle.status)}
-                                    </Badge>
+                                    <Badge variant={getStatusVariant(reviewCycle.status)}>{titleCase(reviewCycle.status)}</Badge>
                                 </div>
                             </div>
                         </CardHeader>
@@ -217,40 +336,30 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                         <CardContent className="space-y-8 p-6">
                             <div className="grid gap-6 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                    <div className="text-muted-foreground flex items-center gap-2">
                                         <CalendarDays className="h-4.5 w-4.5" />
-                                        <span className="text-xs font-medium uppercase tracking-wide">
-                                            Commencement
-                                        </span>
+                                        <span className="text-xs font-medium tracking-wide uppercase">Commencement</span>
                                     </div>
-                                    <div className="text-xl font-semibold text-foreground">
-                                        {formatDate(reviewCycle.start_date)}
-                                    </div>
+                                    <div className="text-foreground text-xl font-semibold">{formatDate(reviewCycle.start_date)}</div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                    <div className="text-muted-foreground flex items-center gap-2">
                                         <CalendarDays className="h-4.5 w-4.5" />
-                                        <span className="text-xs font-medium uppercase tracking-wide">
-                                            Termination
-                                        </span>
+                                        <span className="text-xs font-medium tracking-wide uppercase">Termination</span>
                                     </div>
-                                    <div className="text-xl font-semibold text-foreground">
-                                        {formatDate(reviewCycle.end_date)}
-                                    </div>
+                                    <div className="text-foreground text-xl font-semibold">{formatDate(reviewCycle.end_date)}</div>
                                 </div>
                             </div>
 
                             <div className="space-y-3">
-                                <div className="flex items-center gap-2 text-muted-foreground">
+                                <div className="text-muted-foreground flex items-center gap-2">
                                     <FileText className="h-4.5 w-4.5" />
-                                    <span className="text-xs font-medium uppercase tracking-wide">
-                                        Executive Summary
-                                    </span>
+                                    <span className="text-xs font-medium tracking-wide uppercase">Executive Summary</span>
                                 </div>
 
-                                <div className="rounded-xl border bg-muted/20 p-4">
-                                    <p className="text-sm leading-7 text-muted-foreground">
+                                <div className="bg-muted/20 rounded-xl border p-4">
+                                    <p className="text-muted-foreground text-sm leading-7">
                                         {reviewCycle.description?.trim() || 'No description provided.'}
                                     </p>
                                 </div>
@@ -259,52 +368,34 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                             <Separator />
 
                             <div className="grid gap-4 md:grid-cols-4">
-                                <div className="rounded-lg border bg-muted/20 p-4">
-                                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                                        Goal Setting
-                                    </div>
-                                    <div className="mt-2 text-sm font-medium text-foreground">
-                                        {formatDate(reviewCycle.goal_setting_deadline)}
-                                    </div>
+                                <div className="bg-muted/20 rounded-lg border p-4">
+                                    <div className="text-muted-foreground text-xs tracking-wide uppercase">Goal Setting</div>
+                                    <div className="text-foreground mt-2 text-sm font-medium">{formatDate(reviewCycle.goal_setting_deadline)}</div>
                                 </div>
 
-                                <div className="rounded-lg border bg-muted/20 p-4">
-                                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                                        Self Assessment
-                                    </div>
-                                    <div className="mt-2 text-sm font-medium text-foreground">
-                                        {formatDate(reviewCycle.self_assessment_deadline)}
-                                    </div>
+                                <div className="bg-muted/20 rounded-lg border p-4">
+                                    <div className="text-muted-foreground text-xs tracking-wide uppercase">Self Assessment</div>
+                                    <div className="text-foreground mt-2 text-sm font-medium">{formatDate(reviewCycle.self_assessment_deadline)}</div>
                                 </div>
 
-                                <div className="rounded-lg border bg-muted/20 p-4">
-                                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                                        Manager Review
-                                    </div>
-                                    <div className="mt-2 text-sm font-medium text-foreground">
-                                        {formatDate(reviewCycle.manager_review_deadline)}
-                                    </div>
+                                <div className="bg-muted/20 rounded-lg border p-4">
+                                    <div className="text-muted-foreground text-xs tracking-wide uppercase">Manager Review</div>
+                                    <div className="text-foreground mt-2 text-sm font-medium">{formatDate(reviewCycle.manager_review_deadline)}</div>
                                 </div>
 
-                                <div className="rounded-lg border bg-muted/20 p-4">
-                                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                                        Approval
-                                    </div>
-                                    <div className="mt-2 text-sm font-medium text-foreground">
-                                        {formatDate(reviewCycle.approval_deadline)}
-                                    </div>
+                                <div className="bg-muted/20 rounded-lg border p-4">
+                                    <div className="text-muted-foreground text-xs tracking-wide uppercase">Approval</div>
+                                    <div className="text-foreground mt-2 text-sm font-medium">{formatDate(reviewCycle.approval_deadline)}</div>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card className="shadow-sm lg:col-span-4">
-                        <CardHeader className="border-b bg-muted/20">
+                        <CardHeader className="bg-muted/20 border-b">
                             <div>
                                 <CardTitle className="text-lg">Workflow Progress</CardTitle>
-                                <CardDescription>
-                                    Total assessments: {totalAssessments}
-                                </CardDescription>
+                                <CardDescription>Total assessments: {totalAssessments}</CardDescription>
                             </div>
                         </CardHeader>
 
@@ -312,34 +403,25 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                             {orderedStatuses.length > 0 ? (
                                 orderedStatuses.map((status) => {
                                     const count = statusCounts[status] ?? 0;
-                                    const percent =
-                                        totalAssessments > 0 ? Math.round((count / totalAssessments) * 100) : 0;
+                                    const percent = totalAssessments > 0 ? Math.round((count / totalAssessments) * 100) : 0;
 
                                     return (
                                         <div key={status} className="space-y-2">
                                             <div className="flex items-center justify-between text-xs">
-                                                <span className="font-medium uppercase tracking-wide text-muted-foreground">
-                                                    {titleCase(status)}
-                                                </span>
-                                                <span className="font-semibold text-foreground">
-                                                    {count}{' '}
-                                                    <span className="font-normal text-muted-foreground">
-                                                        / {percent}%
-                                                    </span>
+                                                <span className="text-muted-foreground font-medium tracking-wide uppercase">{titleCase(status)}</span>
+                                                <span className="text-foreground font-semibold">
+                                                    {count} <span className="text-muted-foreground font-normal">/ {percent}%</span>
                                                 </span>
                                             </div>
 
-                                            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                                                <div
-                                                    className="h-full rounded-full bg-foreground"
-                                                    style={{ width: `${percent}%` }}
-                                                />
+                                            <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
+                                                <div className="bg-foreground h-full rounded-full" style={{ width: `${percent}%` }} />
                                             </div>
                                         </div>
                                     );
                                 })
                             ) : (
-                                <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+                                <div className="bg-muted/20 text-muted-foreground rounded-xl border p-4 text-sm">
                                     No workflow counts available for this cycle yet.
                                 </div>
                             )}
@@ -350,68 +432,56 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                 <div className="grid gap-6 lg:grid-cols-3">
                     <Card className="shadow-sm">
                         <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="text-muted-foreground flex items-center gap-2">
                                 <Target className="h-4.5 w-4.5" />
                                 <CardTitle className="text-sm font-medium">Active Assessments</CardTitle>
                             </div>
                         </CardHeader>
 
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight text-foreground">{activeCount}</div>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                                Assessments currently somewhere in the active workflow.
-                            </p>
+                            <div className="text-foreground text-3xl font-bold tracking-tight">{activeCount}</div>
+                            <p className="text-muted-foreground mt-2 text-xs">Assessments currently somewhere in the active workflow.</p>
                         </CardContent>
                     </Card>
 
                     <Card className="shadow-sm">
                         <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="text-muted-foreground flex items-center gap-2">
                                 <FolderKanban className="h-4.5 w-4.5" />
                                 <CardTitle className="text-sm font-medium">Template Options</CardTitle>
                             </div>
                         </CardHeader>
 
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight text-foreground">
-                                {templateOptions.length}
-                            </div>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                                Available templates that can support assignments for this cycle.
-                            </p>
+                            <div className="text-foreground text-3xl font-bold tracking-tight">{templateOptions.length}</div>
+                            <p className="text-muted-foreground mt-2 text-xs">Available templates that can support assignments for this cycle.</p>
                         </CardContent>
                     </Card>
 
                     <Card className="shadow-sm">
                         <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="text-muted-foreground flex items-center gap-2">
                                 <Clock3 className="h-4.5 w-4.5" />
                                 <CardTitle className="text-sm font-medium">Current State</CardTitle>
                             </div>
                         </CardHeader>
 
                         <CardContent>
-                            <div className="text-3xl font-bold tracking-tight text-foreground capitalize">
-                                {normalizeStatus(reviewCycle.status)}
-                            </div>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                                Operational state of this review cycle right now.
-                            </p>
+                            <div className="text-foreground text-3xl font-bold tracking-tight capitalize">{normalizeStatus(reviewCycle.status)}</div>
+                            <p className="text-muted-foreground mt-2 text-xs">Operational state of this review cycle right now.</p>
                         </CardContent>
                     </Card>
                 </div>
 
                 <Card className="shadow-sm">
-                    <CardHeader className="border-b bg-muted/20">
+                    <CardHeader className="bg-muted/20 border-b">
                         <div className="flex items-center justify-between gap-4">
                             <div>
                                 <CardTitle className="text-lg">Status Distribution</CardTitle>
-                                <CardDescription>
-                                    Current breakdown of assessment records by workflow state.
-                                </CardDescription>
+                                <CardDescription>Current breakdown of assessment records by workflow state.</CardDescription>
                             </div>
 
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className="text-muted-foreground flex items-center gap-2 text-xs">
                                 <Sparkles className="h-4 w-4" />
                                 <span>Operational snapshot</span>
                             </div>
@@ -420,7 +490,7 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
 
                     <CardContent className="p-0">
                         {orderedStatuses.length === 0 ? (
-                            <div className="flex min-h-[220px] items-center justify-center p-6 text-sm text-muted-foreground">
+                            <div className="text-muted-foreground flex min-h-[220px] items-center justify-center p-6 text-sm">
                                 No status data is available for this cycle.
                             </div>
                         ) : (
@@ -428,16 +498,16 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                                 <table className="min-w-full text-sm">
                                     <thead className="bg-muted/30 text-left">
                                         <tr>
-                                            <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                            <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                 Workflow State
                                             </th>
-                                            <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                            <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                 Count
                                             </th>
-                                            <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                            <th className="text-muted-foreground px-6 py-4 text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                 Share
                                             </th>
-                                            <th className="px-6 py-4 text-right text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                            <th className="text-muted-foreground px-6 py-4 text-right text-[11px] font-semibold tracking-[0.16em] uppercase">
                                                 Action
                                             </th>
                                         </tr>
@@ -446,34 +516,26 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                                     <tbody>
                                         {orderedStatuses.map((status, index) => {
                                             const count = statusCounts[status] ?? 0;
-                                            const percent =
-                                                totalAssessments > 0 ? Math.round((count / totalAssessments) * 100) : 0;
+                                            const percent = totalAssessments > 0 ? Math.round((count / totalAssessments) * 100) : 0;
 
                                             return (
                                                 <tr
                                                     key={status}
-                                                    className={`border-t transition-colors hover:bg-muted/20 ${
+                                                    className={`hover:bg-muted/20 border-t transition-colors ${
                                                         index % 2 === 1 ? 'bg-muted/[0.03]' : ''
                                                     }`}
                                                 >
                                                     <td className="px-6 py-5">
-                                                        <div className="font-medium text-foreground">
-                                                            {titleCase(status)}
-                                                        </div>
+                                                        <div className="text-foreground font-medium">{titleCase(status)}</div>
                                                     </td>
 
-                                                    <td className="px-6 py-5 text-muted-foreground">{count}</td>
+                                                    <td className="text-muted-foreground px-6 py-5">{count}</td>
 
                                                     <td className="px-6 py-5">
                                                         <div className="flex min-w-[180px] items-center gap-3">
-                                                            <span className="w-10 text-sm font-medium text-foreground">
-                                                                {percent}%
-                                                            </span>
-                                                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                                                                <div
-                                                                    className="h-full rounded-full bg-foreground"
-                                                                    style={{ width: `${percent}%` }}
-                                                                />
+                                                            <span className="text-foreground w-10 text-sm font-medium">{percent}%</span>
+                                                            <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+                                                                <div className="bg-foreground h-full rounded-full" style={{ width: `${percent}%` }} />
                                                             </div>
                                                         </div>
                                                     </td>
@@ -503,6 +565,26 @@ export default function ReviewCycleShow({ reviewCycle, statusCounts, templateOpt
                 employeeProfileOptions={employeeProfileOptions}
                 templateOptions={templateOptions}
             />
+
+            <AlertDialog open={openConfirmVisible} onOpenChange={setOpenConfirmVisible}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Open cycle and assign all eligible employees?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will open <span className="font-medium">{reviewCycle.name}</span>, prepare{' '}
+                            {automationReadiness?.to_create ?? 0} new and {automationReadiness?.to_prepare ?? 0} existing appraisal(s) for{' '}
+                            {automationReadiness?.eligible ?? 0} eligible employee{(automationReadiness?.eligible ?? 0) === 1 ? '' : 's'}, snapshot{' '}
+                            {automationReadiness?.objective_count ?? 0} My KPI objective(s), and notify employees after the transaction succeeds.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => router.post(route('performance.review_cycles.open', reviewCycle.id))}>
+                            Open & assign {automationReadiness?.eligible ?? 0} employees
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PerformancePage>
     );
 }

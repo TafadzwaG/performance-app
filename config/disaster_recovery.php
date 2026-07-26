@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'disk' => env('DR_BACKUP_DISK', 's3'),
+    'disk' => env('DR_BACKUP_DISK', 'dr_backups'),
     'path' => trim((string) env('DR_BACKUP_PATH', 'hr-backups'), '/'),
     'notification_email' => env('DR_NOTIFICATION_EMAIL', env('MAIL_FROM_ADDRESS')),
     'restore_confirmation_phrase' => env('DR_RESTORE_CONFIRMATION_PHRASE', 'RESTORE PRODUCTION'),

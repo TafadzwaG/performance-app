@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ReviewCycleStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ReviewCycle extends Model
@@ -21,6 +22,7 @@ class ReviewCycle extends Model
         'self_assessment_deadline',
         'manager_review_deadline',
         'approval_deadline',
+        'template_id',
         'status',
         'opened_at',
         'closed_at',
@@ -44,5 +46,10 @@ class ReviewCycle extends Model
     public function appraisals(): HasMany
     {
         return $this->hasMany(Appraisal::class);
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(AppraisalTemplate::class, 'template_id');
     }
 }

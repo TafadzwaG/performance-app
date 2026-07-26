@@ -45,6 +45,7 @@ export default function GoalLibraryUploadPreview({ preview, perspectiveOptions, 
         department_mappings: initialMappings(preview.departments, 'department_id') as DepartmentMappingRow[],
         job_title_mappings: initialMappings(preview.job_titles, 'job_title_id') as JobTitleMappingRow[],
     });
+    const fileError = (errors as unknown as { file?: string | string[] }).file;
 
     const unmappedPerspectives = useMemo(() => data.perspective_mappings.filter((row) => !row.perspective_id).length, [data.perspective_mappings]);
     const unmappedDepartments = useMemo(() => data.department_mappings.filter((row) => !row.department_id).length, [data.department_mappings]);
@@ -202,16 +203,16 @@ export default function GoalLibraryUploadPreview({ preview, perspectiveOptions, 
                     </Card>
                 ) : null}
 
-                {errors.file ? (
+                {fileError ? (
                     <div className="border-destructive/30 bg-destructive/5 text-destructive rounded-lg border px-4 py-3 text-sm">
-                        {Array.isArray(errors.file) ? (
+                        {Array.isArray(fileError) ? (
                             <ul className="list-disc space-y-1 pl-5">
-                                {errors.file.map((message) => (
+                                {fileError.map((message) => (
                                     <li key={message}>{message}</li>
                                 ))}
                             </ul>
                         ) : (
-                            <p>{errors.file}</p>
+                            <p>{fileError}</p>
                         )}
                     </div>
                 ) : null}

@@ -20,7 +20,7 @@ class SubmitCalibrationDecisionRequest extends FormRequest
             'decision' => ['required', Rule::in(['confirmed', 'adjusted', 'send_back'])],
             'comment' => ['required', 'string'],
             'calibrated_overall_score' => ['nullable', 'numeric', 'between:0,100', 'required_if:decision,adjusted'],
-            'calibrated_overall_rating_scale_level_id' => ['nullable', 'exists:rating_scale_levels,id', 'required_if:decision,adjusted'],
+            'calibrated_overall_rating_scale_level_id' => ['nullable', Rule::exists('rating_scale_levels', 'id'), 'required_if:decision,adjusted'],
             'evidence_summary' => ['nullable', 'string'],
             'evidence_files' => ['nullable', 'array'],
             'evidence_files.*' => EvidenceUploadRules::fileRules(),

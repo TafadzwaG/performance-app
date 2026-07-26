@@ -3,6 +3,8 @@
 namespace App\Notifications\Issues;
 
 use App\Models\IssueReport;
+use App\Notifications\Concerns\ActivatesTenantContext;
+use App\Support\Tenancy\TenantAwareUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +12,7 @@ use Illuminate\Notifications\Notification;
 
 class IssueStatusChangedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use ActivatesTenantContext, Queueable;
 
     public function __construct(
         public readonly IssueReport $issue,
@@ -19,6 +21,8 @@ class IssueStatusChangedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
+        $this->activateTenantContext($this->issue->organization_id);
+
         return ['mail'];
     }
 
@@ -39,7 +43,7 @@ class IssueStatusChangedNotification extends Notification implements ShouldQueue
         }
 
         return $mail
-            ->action('View issue', route('issues.show', $this->issue))
+            ->action('View issue', TenantAwareUrl::forOrganization($this->issue->organization_id, route('issues.show', $this->issue)))
             ->line('This update reflects the latest issue workflow stage.');
     }
 }

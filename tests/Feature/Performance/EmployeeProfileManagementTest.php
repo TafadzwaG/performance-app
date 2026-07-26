@@ -7,6 +7,7 @@ use App\Models\Appraisal;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\JobTitle;
+use App\Models\Location;
 use App\Models\Permission;
 use App\Models\RatingScale;
 use App\Models\RatingScaleLevel;
@@ -59,6 +60,7 @@ test('employee profile can be created with expanded hr and performance fields', 
     $approver = User::factory()->create();
     $department = Department::factory()->create();
     $jobTitle = JobTitle::factory()->create();
+    $location = Location::query()->firstOrFail();
 
     $response = $this->actingAs($admin)->post(route('performance.employees.store'), [
         'user_id' => $subjectUser->id,
@@ -77,6 +79,7 @@ test('employee profile can be created with expanded hr and performance fields', 
         'emergency_contact_name' => 'Jane Contact',
         'emergency_contact_phone' => '+27719999999',
         'department_id' => $department->id,
+        'location_id' => $location->id,
         'job_title_id' => $jobTitle->id,
         'line_manager_user_id' => $manager->id,
         'approving_manager_user_id' => $approver->id,
@@ -122,6 +125,7 @@ test('employee profile update validates national id uniqueness and manager relat
     $profileB = EmployeeProfile::factory()->create([
         'national_id' => 'ID-UNIQUE-2',
     ]);
+    $location = Location::query()->firstOrFail();
 
     $this->actingAs($admin)
         ->from(route('performance.employees.edit', $profileB))
@@ -142,6 +146,7 @@ test('employee profile update validates national id uniqueness and manager relat
             'emergency_contact_name' => 'Example Person',
             'emergency_contact_phone' => '+27700000001',
             'department_id' => $profileB->department_id,
+            'location_id' => $location->id,
             'job_title_id' => $profileB->job_title_id,
             'line_manager_user_id' => $profileB->user_id,
             'approving_manager_user_id' => $profileB->approving_manager_user_id,
@@ -174,6 +179,7 @@ test('employee profile can be updated with expanded fields', function () {
     $jobTitle = JobTitle::factory()->create();
     $manager = User::factory()->create();
     $approver = User::factory()->create();
+    $location = Location::query()->firstOrFail();
 
     $response = $this->actingAs($admin)->put(route('performance.employees.update', $profile), [
         'user_id' => $profile->user_id,
@@ -192,6 +198,7 @@ test('employee profile can be updated with expanded fields', function () {
         'emergency_contact_name' => 'Updated Contact',
         'emergency_contact_phone' => '+27827654321',
         'department_id' => $department->id,
+        'location_id' => $location->id,
         'job_title_id' => $jobTitle->id,
         'line_manager_user_id' => $manager->id,
         'approving_manager_user_id' => $approver->id,
@@ -393,6 +400,7 @@ test('employees export downloads selected columns with effective latest appraisa
     $reader->close();
 
     expect($rows)->toBe([
+        ['Performance Management System (Monomotapa)'],
         ['Employee Name', 'Employee Number', 'Department', 'Recent Score', 'Recent Rating'],
         ['Tariro Employee', 'EMP-EXPORT-001', 'Operations', '77.00', 'Meets'],
     ]);

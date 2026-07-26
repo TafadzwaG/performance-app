@@ -32,6 +32,8 @@ class SystemSetting extends Model
         'mail_reply_to_name',
         'mail_notifications_enabled',
         'email_mfa_required',
+        'open_registration_enabled',
+        'auto_approve_registrations',
     ];
 
     protected $casts = [
@@ -39,6 +41,8 @@ class SystemSetting extends Model
         'smtp_port' => 'integer',
         'mail_notifications_enabled' => 'boolean',
         'email_mfa_required' => 'boolean',
+        'open_registration_enabled' => 'boolean',
+        'auto_approve_registrations' => 'boolean',
     ];
 
     public static function current(): self

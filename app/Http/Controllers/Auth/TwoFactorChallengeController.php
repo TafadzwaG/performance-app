@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Auth\EmailOtpService;
+use App\Services\Auth\PostLoginRedirector;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,7 +30,7 @@ class TwoFactorChallengeController extends Controller
         ]);
     }
 
-    public function store(Request $request, EmailOtpService $emailOtp): RedirectResponse
+    public function store(Request $request, EmailOtpService $emailOtp, PostLoginRedirector $redirector): RedirectResponse
     {
         $user = $this->pendingLoginUser($request);
 
@@ -59,7 +60,7 @@ class TwoFactorChallengeController extends Controller
         $request->session()->forget('login.id');
         $request->session()->regenerate();
 
-        return $this->redirectAfterLogin($request);
+        return $this->redirectAfterLogin($request, $redirector);
     }
 
     public function resend(Request $request, EmailOtpService $emailOtp): RedirectResponse
@@ -87,9 +88,9 @@ class TwoFactorChallengeController extends Controller
         return User::query()->find($userId);
     }
 
-    private function redirectAfterLogin(Request $request): RedirectResponse
+    private function redirectAfterLogin(Request $request, PostLoginRedirector $redirector): RedirectResponse
     {
-        if (! $request->user()?->is_approved) {
+        if (! $request->user()?->is_platform_admin && ! $request->user()?->memberships()->where('status', 'active')->exists()) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -99,15 +100,7 @@ class TwoFactorChallengeController extends Controller
                 ->with('error', 'Your account is pending admin approval.');
         }
 
-        if ($request->user()?->force_password_change) {
-            return redirect()->route('password.edit');
-        }
-
-        if (! $request->user()?->employeeProfile()->exists()) {
-            return redirect()->route('employee-profile.complete');
-        }
-
-        return redirect()->intended(route('dashboard', absolute: false));
+        return $redirector->redirect($request);
     }
 
     private function ensureVerificationIsNotRateLimited(Request $request, User $user): void

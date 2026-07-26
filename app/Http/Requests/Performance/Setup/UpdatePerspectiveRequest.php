@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Performance\Setup;
 
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdatePerspectiveRequest extends FormRequest
 {
@@ -17,8 +17,8 @@ class UpdatePerspectiveRequest extends FormRequest
         $perspective = $this->route('perspective');
 
         return [
-            'name' => ['required', 'string', 'max:255', Rule::unique('perspectives', 'name')->ignore($perspective?->id)],
-            'code' => ['required', 'string', 'max:100', Rule::unique('perspectives', 'code')->ignore($perspective?->id)],
+            'name' => ['required', 'string', 'max:255', TenantRule::unique('perspectives', 'name', $perspective?->id)],
+            'code' => ['required', 'string', 'max:100', TenantRule::unique('perspectives', 'code', $perspective?->id)],
             'description' => ['nullable', 'string'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],

@@ -254,8 +254,8 @@ export default function AssignEmployeesModal({
                     </DialogTitle>
                     <DialogDescription>
                         {reviewCycle
-                            ? `Assign employees to ${reviewCycle.name} and generate appraisal records.`
-                            : 'Assign employees to this cycle and generate appraisal records.'}
+                            ? `Manually assign selected employees to ${reviewCycle.name} while the cycle is still in draft. To assign all eligible employees automatically, use Open & assign instead.`
+                            : 'Manually assign selected employees while the cycle is still in draft.'}
                     </DialogDescription>
                 </DialogHeader>
 

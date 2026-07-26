@@ -15,6 +15,7 @@ interface Props {
     employeeProfile: EmployeeProfile;
     formDefaults: EmployeeProfileFormData;
     departmentOptions: Option[];
+    locationOptions: Option[];
     jobTitleOptions: Option[];
     userOptions: Option[];
     managerOptions: Option[];
@@ -24,7 +25,7 @@ interface Props {
     maritalStatusOptions: Option[];
     employmentTypeOptions: Option[];
     fieldConfig: EmployeeFieldConfigItem[];
-    can: { assignRoles: boolean };
+    can: { assignRoles: boolean; createDepartment?: boolean; createJobTitle?: boolean };
 }
 
 interface EditProps extends Props {
@@ -35,6 +36,7 @@ export default function EmployeeEdit({
     employeeProfile,
     formDefaults,
     departmentOptions,
+    locationOptions,
     jobTitleOptions,
     userOptions,
     managerOptions,
@@ -157,6 +159,7 @@ export default function EmployeeEdit({
                                 form={form}
                                 mode="edit"
                                 departmentOptions={departmentOptions}
+                                locationOptions={locationOptions}
                                 jobTitleOptions={jobTitleOptions}
                                 userOptions={userOptions}
                                 managerOptions={managerOptions}
@@ -167,6 +170,8 @@ export default function EmployeeEdit({
                                 employmentTypeOptions={employmentTypeOptions}
                                 fieldConfig={fieldConfig}
                                 canAssignRoles={can.assignRoles}
+                                canCreateDepartment={can.createDepartment}
+                                canCreateJobTitle={can.createJobTitle}
                             />
 
                             <ProfilePasswordChangeSection />
@@ -189,6 +194,7 @@ export default function EmployeeEdit({
                             form={form}
                             mode="edit"
                             departmentOptions={departmentOptions}
+                            locationOptions={locationOptions}
                             jobTitleOptions={jobTitleOptions}
                             userOptions={userOptions}
                             managerOptions={managerOptions}
@@ -199,6 +205,8 @@ export default function EmployeeEdit({
                             employmentTypeOptions={employmentTypeOptions}
                             fieldConfig={fieldConfig}
                             canAssignRoles={can.assignRoles}
+                            canCreateDepartment={can.createDepartment}
+                            canCreateJobTitle={can.createJobTitle}
                         />
 
                         <div className="flex items-center justify-end border-t pt-6">

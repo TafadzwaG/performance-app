@@ -1,12 +1,23 @@
 import PaginationLinks from '@/components/performance/PaginationLinks';
 import ExportDownloadDialog, { type ExportDownloadFormat } from '@/components/performance/export-download-dialog';
 import PerformancePage from '@/components/performance/PerformancePage';
+import SharedTemplatesPanel from '@/components/performance/templates/SharedTemplatesPanel';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem } from '@/types';
 import type { Paginated, Template } from '@/types/performance';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import {
     BarChart3,
     ClipboardList,
@@ -16,6 +27,7 @@ import {
     Layers3,
     PencilRuler,
     Plus,
+    Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -61,8 +73,32 @@ function getTemplateSubtitle(template: Template) {
     return 'Reusable appraisal sheet';
 }
 
-export default function TemplatesIndex({ templates }: { templates: Paginated<Template> }) {
+export default function TemplatesIndex({
+    templates,
+    sourceOrganizations = [],
+    selectedSourceOrganization = null,
+    sharedTemplates = null,
+    can,
+}: {
+    templates: Paginated<Template>;
+    sourceOrganizations?: Array<{ id: number; name: string; slug: string }>;
+    selectedSourceOrganization?: { id: number; name: string; slug: string } | null;
+    sharedTemplates?: Paginated<Template> | null;
+    can: { create: boolean; import: boolean; archive: boolean };
+}) {
     const [exportRequest, setExportRequest] = useState<TemplateExportRequest | null>(null);
+    const [removeTarget, setRemoveTarget] = useState<Template | null>(null);
+
+    const removeTemplate = () => {
+        if (!removeTarget) {
+            return;
+        }
+
+        router.delete(route('performance.templates.destroy', removeTarget.id), {
+            preserveScroll: true,
+            onFinish: () => setRemoveTarget(null),
+        });
+    };
 
     const totalTemplates = templates.total ?? templates.data.length;
     const from = templates.from ?? 0;
@@ -318,6 +354,19 @@ export default function TemplatesIndex({ templates }: { templates: Paginated<Tem
                                                                     <FileSpreadsheet className="h-3.5 w-3.5" />
                                                                     Excel
                                                                 </Button>
+
+                                                                {can.archive && !template.is_protected ? (
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="text-destructive hover:text-destructive"
+                                                                        onClick={() => setRemoveTarget(template)}
+                                                                    >
+                                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                                        Remove
+                                                                    </Button>
+                                                                ) : null}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -338,9 +387,38 @@ export default function TemplatesIndex({ templates }: { templates: Paginated<Tem
                         )}
                     </CardContent>
                 </Card>
+
+                <SharedTemplatesPanel
+                    sourceOrganizations={sourceOrganizations}
+                    selectedSourceOrganization={selectedSourceOrganization}
+                    sharedTemplates={sharedTemplates}
+                    canImport={can.import}
+                />
             </div>
 
             <ExportDownloadDialog request={exportRequest} onClose={() => setExportRequest(null)} />
+
+            <AlertDialog open={removeTarget !== null} onOpenChange={(open) => !open && setRemoveTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove template?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {removeTarget
+                                ? `"${removeTarget.name}" will be removed from your template library. Review cycles that already use this template are not affected.`
+                                : 'This template will be removed from your template library.'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={removeTemplate}
+                        >
+                            Remove Template
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PerformancePage>
     );
 }

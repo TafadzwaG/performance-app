@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Performance;
 
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ExportReportRequest extends FormRequest
@@ -15,9 +16,10 @@ class ExportReportRequest extends FormRequest
     {
         return [
             'format' => ['nullable', 'in:xlsx,pdf'],
-            'review_cycle_id' => ['nullable', 'exists:review_cycles,id'],
-            'department_id' => ['nullable', 'exists:departments,id'],
-            'employee_profile_id' => ['nullable', 'exists:employee_profiles,id'],
+            'review_cycle_id' => ['nullable', TenantRule::exists('review_cycles')],
+            'department_id' => ['nullable', TenantRule::exists('departments')],
+            'location_id' => ['nullable', TenantRule::visibleLocation()],
+            'employee_profile_id' => ['nullable', TenantRule::exists('employee_profiles')],
         ];
     }
 

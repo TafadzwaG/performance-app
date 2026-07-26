@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Performance;
 
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,10 +21,9 @@ class UpdateEmployeeLineManagerRequest extends FormRequest
             'line_manager_user_id' => [
                 'nullable',
                 'integer',
-                'exists:users,id',
+                TenantRule::activeMember(),
                 Rule::notIn([$profile?->user_id]),
             ],
         ];
     }
 }
-

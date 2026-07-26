@@ -12,6 +12,7 @@ import { Briefcase, CheckCircle2, Save, ShieldCheck, UserCheck2, UserPlus, Users
 interface Props {
     formDefaults: EmployeeProfileFormData;
     departmentOptions: Option[];
+    locationOptions: Option[];
     jobTitleOptions: Option[];
     userOptions: Option[];
     managerOptions: Option[];
@@ -21,7 +22,7 @@ interface Props {
     maritalStatusOptions: Option[];
     employmentTypeOptions: Option[];
     fieldConfig: EmployeeFieldConfigItem[];
-    can: { assignRoles: boolean };
+    can: { assignRoles: boolean; createDepartment?: boolean; createJobTitle?: boolean };
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -33,6 +34,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function EmployeeCreate({
     formDefaults,
     departmentOptions,
+    locationOptions,
     jobTitleOptions,
     userOptions,
     managerOptions,
@@ -123,6 +125,7 @@ export default function EmployeeCreate({
                         form={form}
                         mode="create"
                         departmentOptions={departmentOptions}
+                        locationOptions={locationOptions}
                         jobTitleOptions={jobTitleOptions}
                         userOptions={userOptions}
                         managerOptions={managerOptions}
@@ -133,6 +136,8 @@ export default function EmployeeCreate({
                     employmentTypeOptions={employmentTypeOptions}
                     fieldConfig={fieldConfig}
                     canAssignRoles={can.assignRoles}
+                    canCreateDepartment={can.createDepartment}
+                    canCreateJobTitle={can.createJobTitle}
                 />
 
                     <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">

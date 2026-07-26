@@ -18,6 +18,7 @@ use App\Services\Performance\EmployeePerformanceAnalyticsService;
 use App\Services\Performance\ReportQueryService;
 use App\Support\Branding;
 use App\Support\Pdf\StudioExportPdf;
+use App\Support\Tenancy\TenantStoragePath;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -104,7 +105,7 @@ class ReportExportService
         [$definition, $export] = $this->resolve($report, $filters);
         $filenameMethod = $definition['filename'];
         $fileName = str_replace('.xlsx', '.pdf', $this->{$filenameMethod}($filters));
-        $tempPath = storage_path('app/exports/'.$fileName);
+        $tempPath = TenantStoragePath::export($fileName);
         $this->ensureDirectory(dirname($tempPath));
 
         StudioExportPdf::configure(

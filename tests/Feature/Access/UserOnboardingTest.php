@@ -133,8 +133,7 @@ test('user with forced password change is redirected until the password is updat
     ]);
 
     $this->post('/login', [
-        'login_method' => 'employee_number',
-        'employee_number' => $profile->employee_number,
+        'email' => $user->email,
         'password' => 'Welcome@1234',
     ])->assertRedirect(route('password.edit'));
 

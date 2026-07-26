@@ -1,3 +1,4 @@
+import BulkRoleAssignDialog from '@/components/access/users/bulk-role-assign-dialog';
 import DeleteUserDialog from '@/components/access/users/delete-user-dialog';
 import GeneratedCredentialsAlert from '@/components/access/users/GeneratedCredentialsAlert';
 import PaginationLinks from '@/components/performance/PaginationLinks';
@@ -48,11 +49,13 @@ interface Props {
         department_id?: number | null;
         employee_link?: 'linked' | 'unlinked' | null;
         has_direct_permissions?: 'yes' | 'no' | null;
+        per_page?: '10' | '25' | '50' | '100' | 'all';
     } | null;
     counts?: { active?: number; pending?: number } | null;
     roleOptions?: Option[] | null;
     departmentOptions?: Option[] | null;
     exportColumns?: UserExportColumn[] | null;
+    canBulkAssignRoles?: boolean;
 }
 
 function getInitials(name: string) {
@@ -70,7 +73,7 @@ function permissionTone(count: number) {
     return 'bg-muted-foreground/50';
 }
 
-export default function UsersIndex({ users, filters, counts, roleOptions, departmentOptions, exportColumns }: Props) {
+export default function UsersIndex({ users, filters, counts, roleOptions, departmentOptions, exportColumns, canBulkAssignRoles = false }: Props) {
     const { auth, flash } = usePage<SharedData>().props;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Performance', href: '/performance/dashboard' },
@@ -84,6 +87,8 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
     const canDeleteUsers = auth.permissions.includes('access.users.delete');
     const isImpersonating = auth.impersonation?.isImpersonating ?? false;
     const approvalStatus = filters?.approval_status === 'pending' ? 'pending' : 'active';
+    const perPage = filters?.per_page ?? '10';
+    const showingAllUsers = perPage === 'all';
     const pendingCount = counts?.pending ?? 0;
     const activeCount = counts?.active ?? 0;
     const [pendingSelectionId, setPendingSelectionId] = useState<number | null>(null);
@@ -96,6 +101,8 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
     const [selectedExportColumns, setSelectedExportColumns] = useState<string[]>(
         safeExportColumns.filter((column) => column.default || column.required).map((column) => column.key),
     );
+    const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+    const [bulkRoleModalOpen, setBulkRoleModalOpen] = useState(false);
 
     const safeUsers: Paginated<AccessUserRecord> = {
         data: users?.data ?? [],
@@ -118,6 +125,7 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
         department_id: filters?.department_id ? String(filters.department_id) : '',
         employee_link: filters?.employee_link ?? '',
         has_direct_permissions: filters?.has_direct_permissions ?? '',
+        per_page: perPage,
     });
 
     const safeRoleOptions = roleOptions ?? [];
@@ -127,6 +135,14 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
         [pendingSelectionId, safeUsers.data],
     );
     const canOpenActivateModal = approvalStatus === 'pending' && !!pendingSelection && canApproveUsers;
+    const showPendingSelection = approvalStatus === 'pending' && canApproveUsers;
+    const showBulkRoleSelection = approvalStatus === 'active' && canBulkAssignRoles;
+    const showSelectionColumn = showPendingSelection || showBulkRoleSelection;
+    const selectableUserIds = safeUsers.data
+        .filter((user) => user.id !== auth.user.id)
+        .map((user) => user.id);
+    const allSelectableSelected =
+        selectableUserIds.length > 0 && selectableUserIds.every((id) => selectedUserIds.includes(id));
     const exportColumnsBySection = useMemo(() => {
         return safeExportColumns.reduce<Record<string, UserExportColumn[]>>((groups, column) => {
             groups[column.section] = groups[column.section] ?? [];
@@ -163,6 +179,7 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
         department_id: searchForm.data.department_id || undefined,
         employee_link: searchForm.data.employee_link || undefined,
         has_direct_permissions: searchForm.data.has_direct_permissions || undefined,
+        per_page: searchForm.data.per_page !== '10' ? searchForm.data.per_page : undefined,
         ...overrides,
     });
 
@@ -241,6 +258,11 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
         });
     };
 
+    const changePerPage = (value: '10' | '25' | '50' | '100' | 'all') => {
+        searchForm.setData('per_page', value);
+        applyFilters({ per_page: value !== '10' ? value : undefined });
+    };
+
     const resetFilters = () => {
         searchForm.setData({
             search: '',
@@ -251,6 +273,7 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
             department_id: '',
             employee_link: '',
             has_direct_permissions: '',
+            per_page: '10',
         });
 
         router.get(route('access.users.index'), { approval_status: approvalStatus }, {
@@ -291,6 +314,16 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
                 },
             },
         );
+    };
+
+    const toggleSelectedUser = (userId: number, checked: boolean) => {
+        setSelectedUserIds((current) =>
+            checked ? [...new Set([...current, userId])] : current.filter((id) => id !== userId),
+        );
+    };
+
+    const toggleSelectAllUsers = (checked: boolean) => {
+        setSelectedUserIds(checked ? selectableUserIds : []);
     };
 
     const toggleExportColumn = (column: UserExportColumn, checked: boolean) => {
@@ -431,6 +464,23 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
                             >
                                 <CheckCheck className="mr-2 h-4 w-4" />
                                 Activate Selected
+                            </Button>
+                        ) : null}
+
+                        {showBulkRoleSelection ? (
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setBulkRoleModalOpen(true)}
+                            >
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Assign Roles
+                                {selectedUserIds.length > 0 ? (
+                                    <Badge className="ml-2" variant="outline">
+                                        {selectedUserIds.length}
+                                    </Badge>
+                                ) : null}
                             </Button>
                         ) : null}
                     </CardContent>
@@ -611,9 +661,20 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
                             <table className="min-w-full text-left text-sm">
                                 <thead className="border-b bg-muted/40">
                                     <tr>
-                                        {approvalStatus === 'pending' ? (
+                                        {showSelectionColumn ? (
                                             <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                                                Select
+                                                {showBulkRoleSelection ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <Checkbox
+                                                            checked={allSelectableSelected}
+                                                            onCheckedChange={(checked) => toggleSelectAllUsers(checked === true)}
+                                                            aria-label="Select all users on this page"
+                                                        />
+                                                        <span>Select</span>
+                                                    </div>
+                                                ) : (
+                                                    'Select'
+                                                )}
                                             </th>
                                         ) : null}
                                         <th className="px-6 py-4 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -665,13 +726,23 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
                                     {safeUsers.data.length > 0 ? (
                                         safeUsers.data.map((user) => (
                                             <tr key={user.id} className="border-t transition-colors hover:bg-muted/40">
-                                                {approvalStatus === 'pending' ? (
+                                                {showPendingSelection ? (
                                                     <td className="px-6 py-5">
                                                         <Checkbox
                                                             checked={pendingSelectionId === user.id}
                                                             onCheckedChange={(checked) => {
                                                                 setPendingSelectionId(checked === true ? user.id : null);
                                                             }}
+                                                        />
+                                                    </td>
+                                                ) : null}
+                                                {showBulkRoleSelection ? (
+                                                    <td className="px-6 py-5">
+                                                        <Checkbox
+                                                            checked={selectedUserIds.includes(user.id)}
+                                                            disabled={auth.user.id === user.id}
+                                                            onCheckedChange={(checked) => toggleSelectedUser(user.id, checked === true)}
+                                                            aria-label={`Select ${user.name}`}
                                                         />
                                                     </td>
                                                 ) : null}
@@ -786,7 +857,7 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={approvalStatus === 'pending' ? 8 : 7} className="px-6 py-14 text-center">
+                                            <td colSpan={showSelectionColumn ? 8 : 7} className="px-6 py-14 text-center">
                                                 <div className="mx-auto max-w-md space-y-2">
                                                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border bg-muted text-muted-foreground">
                                                         <Users className="h-5 w-5" />
@@ -805,16 +876,47 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
                             </table>
                         </div>
 
-                        {safeUsers.links.length > 0 && (
+                        {safeUsers.data.length > 0 ? (
                             <div className="flex flex-col gap-4 border-t px-6 py-4 md:flex-row md:items-center md:justify-between">
-                                <div className="text-xs text-muted-foreground">
-                                    Showing {safeUsers.from ?? 0} to {safeUsers.to ?? usersOnPage} of{' '}
-                                    <span className="font-medium text-foreground">{totalMatchingUsers}</span> matching users
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                                    <div className="text-xs text-muted-foreground">
+                                        {showingAllUsers ? (
+                                            <>
+                                                Showing all{' '}
+                                                <span className="font-medium text-foreground">{totalMatchingUsers}</span>{' '}
+                                                matching users
+                                            </>
+                                        ) : (
+                                            <>
+                                                Showing {safeUsers.from ?? 0} to {safeUsers.to ?? usersOnPage} of{' '}
+                                                <span className="font-medium text-foreground">{totalMatchingUsers}</span>{' '}
+                                                matching users
+                                            </>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">Rows</span>
+                                        <Select value={perPage} onValueChange={(value) => changePerPage(value as '10' | '25' | '50' | '100' | 'all')}>
+                                            <SelectTrigger className="h-8 w-[132px] text-xs">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="10">10 per page</SelectItem>
+                                                <SelectItem value="25">25 per page</SelectItem>
+                                                <SelectItem value="50">50 per page</SelectItem>
+                                                <SelectItem value="100">100 per page</SelectItem>
+                                                <SelectItem value="all">All users</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
 
-                                <PaginationLinks paginated={safeUsers} />
+                                {!showingAllUsers && safeUsers.last_page > 1 ? (
+                                    <PaginationLinks paginated={safeUsers} />
+                                ) : null}
                             </div>
-                        )}
+                        ) : null}
                     </CardContent>
                 </Card>
 
@@ -893,6 +995,16 @@ export default function UsersIndex({ users, filters, counts, roleOptions, depart
             </div>
 
             <DeleteUserDialog user={deleteTarget} open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} />
+
+            <BulkRoleAssignDialog
+                open={bulkRoleModalOpen}
+                onOpenChange={setBulkRoleModalOpen}
+                roleOptions={safeRoleOptions}
+                selectedUserIds={selectedUserIds}
+                totalMatchingUsers={totalMatchingUsers}
+                filterParams={buildFilterParams()}
+                onSuccess={() => setSelectedUserIds([])}
+            />
 
             <Dialog open={exportModalOpen} onOpenChange={setExportModalOpen}>
                 <DialogContent className="max-w-2xl">

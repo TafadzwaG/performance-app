@@ -9,22 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate } from '@/lib/date-utils';
-import type { BreadcrumbItem } from '@/types';
 import { cn } from '@/lib/utils';
+import type { BreadcrumbItem } from '@/types';
+import type { Option } from '@/types/performance';
 import { useForm } from '@inertiajs/react';
 import { addMonths, differenceInCalendarDays, format, isAfter, isBefore, startOfDay, subMonths } from 'date-fns';
+import { CalendarDays, CalendarRange, ClipboardList, Clock3, FileText, Info, Send, Sparkles } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
-import {
-    CalendarDays,
-    CalendarRange,
-    ChevronRight,
-    ClipboardList,
-    Clock3,
-    FileText,
-    Info,
-    Sparkles,
-    Send,
-} from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -95,12 +86,10 @@ function buildCycleDescription(data: {
     self_assessment_deadline: string;
     manager_review_deadline: string;
     approval_deadline: string;
-    status: string;
 }): string {
     const name = data.name || 'this review cycle';
     const codePart = data.code ? ` (${data.code})` : '';
     const period = data.start_date && data.end_date ? `from ${data.start_date} to ${data.end_date}` : 'for the configured period';
-    const status = data.status || 'draft';
 
     const milestones: string[] = [];
     if (data.goal_setting_deadline) milestones.push(`Goal setting deadline: ${data.goal_setting_deadline}`);
@@ -109,11 +98,9 @@ function buildCycleDescription(data: {
     if (data.approval_deadline) milestones.push(`Approval deadline: ${data.approval_deadline}`);
 
     const milestoneText =
-        milestones.length > 0
-            ? ` Key milestones include ${milestones.join('; ')}.`
-            : ' Milestones will be finalized once all deadlines are set.';
+        milestones.length > 0 ? ` Key milestones include ${milestones.join('; ')}.` : ' Milestones will be finalized once all deadlines are set.';
 
-    return `This cycle, ${name}${codePart}, runs ${period} and is currently set to ${status} status.${milestoneText}`;
+    return `This cycle, ${name}${codePart}, runs ${period} and is currently in draft status.${milestoneText}`;
 }
 
 function DatePickerField({
@@ -150,9 +137,7 @@ function DatePickerField({
 
     return (
         <div className="space-y-2">
-            <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {label}
-            </Label>
+            <Label className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</Label>
 
             <Popover>
                 <PopoverTrigger asChild>
@@ -160,7 +145,7 @@ function DatePickerField({
                         type="button"
                         variant="outline"
                         className={cn(
-                            'h-11 w-full justify-between rounded-lg bg-background px-3 font-normal',
+                            'bg-background h-11 w-full justify-between rounded-lg px-3 font-normal',
                             !selectedDate && 'text-muted-foreground',
                         )}
                     >
@@ -172,6 +157,12 @@ function DatePickerField({
                 <PopoverContent
                     align="start"
                     className="w-[420px] p-4"
+                    onWheel={(event) => {
+                        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
+                        event.preventDefault();
+                        changeVisibleMonth(event.deltaY > 0 ? addMonths(visibleMonth, 1) : subMonths(visibleMonth, 1));
+                    }}
                 >
                     <Calendar
                         mode="single"
@@ -182,12 +173,6 @@ function DatePickerField({
                         endMonth={calendarEndMonth}
                         selected={selectedDate}
                         onSelect={(date) => onChange(formatDateValue(date))}
-                        onWheel={(event) => {
-                            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-
-                            event.preventDefault();
-                            changeVisibleMonth(event.deltaY > 0 ? addMonths(visibleMonth, 1) : subMonths(visibleMonth, 1));
-                        }}
                         disabled={(date) => {
                             const current = startOfDay(date);
 
@@ -203,7 +188,7 @@ function DatePickerField({
     );
 }
 
-export default function ReviewCycleCreate() {
+export default function ReviewCycleCreate({ templateOptions }: { templateOptions: Option[] }) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         code: '',
@@ -214,7 +199,7 @@ export default function ReviewCycleCreate() {
         self_assessment_deadline: '',
         manager_review_deadline: '',
         approval_deadline: '',
-        status: 'draft',
+        template_id: '',
     });
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -225,8 +210,7 @@ export default function ReviewCycleCreate() {
     const startDate = parseDateValue(data.start_date);
     const endDate = parseDateValue(data.end_date);
     const today = startOfDay(new Date());
-    const cycleLength =
-        startDate && endDate ? Math.max(differenceInCalendarDays(endDate, startDate) + 1, 0) : null;
+    const cycleLength = startDate && endDate ? Math.max(differenceInCalendarDays(endDate, startDate) + 1, 0) : null;
 
     return (
         <PerformancePage
@@ -235,7 +219,7 @@ export default function ReviewCycleCreate() {
             breadcrumbs={breadcrumbs}
         >
             <form onSubmit={submit} className="space-y-6">
-                <div className="rounded-2xl border bg-background p-6 shadow-sm">
+                <div className="bg-background rounded-2xl border p-6 shadow-sm">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-3">
                             <Badge variant="secondary" className="w-fit">
@@ -243,27 +227,22 @@ export default function ReviewCycleCreate() {
                             </Badge>
 
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                                    Create Review Cycle
-                                </h1>
-                                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                                    Configure the parameters and lifecycle deadlines for your organizational
-                                    performance evaluation period.
+                                <h1 className="text-foreground text-3xl font-bold tracking-tight">Create Review Cycle</h1>
+                                <p className="text-muted-foreground mt-2 max-w-2xl text-sm leading-6">
+                                    Configure the parameters and lifecycle deadlines for your organizational performance evaluation period.
                                 </p>
                             </div>
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Status</div>
-                                <div className="mt-1 font-semibold text-foreground capitalize">{data.status}</div>
+                            <div className="bg-muted/30 rounded-xl border px-4 py-3 text-sm">
+                                <div className="text-muted-foreground text-xs tracking-wide uppercase">Status</div>
+                                <div className="text-foreground mt-1 font-semibold">Draft</div>
                             </div>
 
-                            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">Cycle Length</div>
-                                <div className="mt-1 font-semibold text-foreground">
-                                    {cycleLength !== null ? `${cycleLength} days` : 'Not set'}
-                                </div>
+                            <div className="bg-muted/30 rounded-xl border px-4 py-3 text-sm">
+                                <div className="text-muted-foreground text-xs tracking-wide uppercase">Cycle Length</div>
+                                <div className="text-foreground mt-1 font-semibold">{cycleLength !== null ? `${cycleLength} days` : 'Not set'}</div>
                             </div>
                         </div>
                     </div>
@@ -272,14 +251,12 @@ export default function ReviewCycleCreate() {
                 <div className="grid gap-6 xl:grid-cols-12">
                     <div className="space-y-6 xl:col-span-8">
                         <Card className="shadow-sm">
-                            <CardHeader className="border-b bg-muted/20">
+                            <CardHeader className="bg-muted/20 border-b">
                                 <div className="flex items-center gap-2">
-                                    <FileText className="h-4.5 w-4.5 text-muted-foreground" />
+                                    <FileText className="text-muted-foreground h-4.5 w-4.5" />
                                     <div>
                                         <CardTitle className="text-lg">Cycle Metadata</CardTitle>
-                                        <CardDescription>
-                                            Define the cycle identity, status, and overall purpose.
-                                        </CardDescription>
+                                        <CardDescription>Define the cycle identity, status, and overall purpose.</CardDescription>
                                     </div>
                                 </div>
                             </CardHeader>
@@ -298,17 +275,20 @@ export default function ReviewCycleCreate() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="status">Status</Label>
-                                        <Select value={data.status} onValueChange={(value) => setData('status', value)}>
-                                            <SelectTrigger id="status" className="h-11">
-                                                <SelectValue placeholder="Select status" />
+                                        <Label htmlFor="template_id">Appraisal Template</Label>
+                                        <Select value={data.template_id} onValueChange={(value) => setData('template_id', value)}>
+                                            <SelectTrigger id="template_id" className="h-11">
+                                                <SelectValue placeholder="Select template" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="draft">Draft</SelectItem>
-                                                <SelectItem value="open">Open</SelectItem>
-                                                <SelectItem value="closed">Closed</SelectItem>
+                                                {templateOptions.map((option) => (
+                                                    <SelectItem key={option.value} value={String(option.value)}>
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
+                                        <InputError message={errors.template_id} />
                                     </div>
 
                                     <div className="space-y-2">
@@ -350,7 +330,7 @@ export default function ReviewCycleCreate() {
                                         </div>
                                         <textarea
                                             id="description"
-                                            className="min-h-28 w-full rounded-md border bg-background px-3 py-3 text-sm outline-none ring-offset-background transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                            className="bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-28 w-full rounded-md border px-3 py-3 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                                             value={data.description}
                                             onChange={(event) => setData('description', event.target.value)}
                                             placeholder="Define the scope and objectives for this review cycle..."
@@ -362,14 +342,12 @@ export default function ReviewCycleCreate() {
 
                         <div className="grid gap-6 lg:grid-cols-2">
                             <Card className="shadow-sm">
-                                <CardHeader className="border-b bg-muted/20">
+                                <CardHeader className="bg-muted/20 border-b">
                                     <div className="flex items-center gap-2">
-                                        <CalendarRange className="h-4.5 w-4.5 text-muted-foreground" />
+                                        <CalendarRange className="text-muted-foreground h-4.5 w-4.5" />
                                         <div>
                                             <CardTitle className="text-lg">Evaluation Period</CardTitle>
-                                            <CardDescription>
-                                                Define the active dates for the overall review cycle.
-                                            </CardDescription>
+                                            <CardDescription>Define the active dates for the overall review cycle.</CardDescription>
                                         </div>
                                     </div>
                                 </CardHeader>
@@ -394,14 +372,12 @@ export default function ReviewCycleCreate() {
                             </Card>
 
                             <Card className="shadow-sm">
-                                <CardHeader className="border-b bg-muted/20">
+                                <CardHeader className="bg-muted/20 border-b">
                                     <div className="flex items-center gap-2">
-                                        <Clock3 className="h-4.5 w-4.5 text-muted-foreground" />
+                                        <Clock3 className="text-muted-foreground h-4.5 w-4.5" />
                                         <div>
                                             <CardTitle className="text-lg">Milestones & Deadlines</CardTitle>
-                                            <CardDescription>
-                                                Set key checkpoints for each phase of the workflow.
-                                            </CardDescription>
+                                            <CardDescription>Set key checkpoints for each phase of the workflow.</CardDescription>
                                         </div>
                                     </div>
                                 </CardHeader>
@@ -429,7 +405,12 @@ export default function ReviewCycleCreate() {
                                         label="Manager Review Deadline"
                                         value={data.manager_review_deadline}
                                         onChange={(value) => setData('manager_review_deadline', value)}
-                                        minDate={parseDateValue(data.self_assessment_deadline) ?? parseDateValue(data.goal_setting_deadline) ?? startDate ?? today}
+                                        minDate={
+                                            parseDateValue(data.self_assessment_deadline) ??
+                                            parseDateValue(data.goal_setting_deadline) ??
+                                            startDate ??
+                                            today
+                                        }
                                         maxDate={endDate}
                                         error={errors.manager_review_deadline}
                                     />
@@ -438,7 +419,13 @@ export default function ReviewCycleCreate() {
                                         label="Approval Deadline"
                                         value={data.approval_deadline}
                                         onChange={(value) => setData('approval_deadline', value)}
-                                        minDate={parseDateValue(data.manager_review_deadline) ?? parseDateValue(data.self_assessment_deadline) ?? parseDateValue(data.goal_setting_deadline) ?? startDate ?? today}
+                                        minDate={
+                                            parseDateValue(data.manager_review_deadline) ??
+                                            parseDateValue(data.self_assessment_deadline) ??
+                                            parseDateValue(data.goal_setting_deadline) ??
+                                            startDate ??
+                                            today
+                                        }
                                         maxDate={endDate}
                                         error={errors.approval_deadline}
                                     />
@@ -451,40 +438,36 @@ export default function ReviewCycleCreate() {
                         <Card className="shadow-sm">
                             <CardHeader>
                                 <div className="flex items-center gap-2">
-                                    <ClipboardList className="h-4.5 w-4.5 text-muted-foreground" />
+                                    <ClipboardList className="text-muted-foreground h-4.5 w-4.5" />
                                     <CardTitle className="text-lg">Cycle Snapshot</CardTitle>
                                 </div>
-                                <CardDescription>
-                                    Quick summary of the draft you are preparing.
-                                </CardDescription>
+                                <CardDescription>Quick summary of the draft you are preparing.</CardDescription>
                             </CardHeader>
 
                             <CardContent className="space-y-3 text-sm">
-                                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+                                <div className="bg-muted/20 flex items-center justify-between rounded-lg border px-3 py-2">
                                     <span className="text-muted-foreground">Name</span>
-                                    <span className="max-w-[55%] truncate text-right font-medium text-foreground">
-                                        {data.name || 'Not set'}
-                                    </span>
+                                    <span className="text-foreground max-w-[55%] truncate text-right font-medium">{data.name || 'Not set'}</span>
                                 </div>
 
-                                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+                                <div className="bg-muted/20 flex items-center justify-between rounded-lg border px-3 py-2">
                                     <span className="text-muted-foreground">Code</span>
-                                    <span className="font-medium text-foreground">{data.code || 'Not set'}</span>
+                                    <span className="text-foreground font-medium">{data.code || 'Not set'}</span>
                                 </div>
 
-                                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+                                <div className="bg-muted/20 flex items-center justify-between rounded-lg border px-3 py-2">
                                     <span className="text-muted-foreground">Status</span>
-                                    <span className="font-medium capitalize text-foreground">{data.status}</span>
+                                    <span className="text-foreground font-medium">Draft</span>
                                 </div>
 
-                                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+                                <div className="bg-muted/20 flex items-center justify-between rounded-lg border px-3 py-2">
                                     <span className="text-muted-foreground">Start</span>
-                                    <span className="font-medium text-foreground">{formatDate(data.start_date)}</span>
+                                    <span className="text-foreground font-medium">{formatDate(data.start_date)}</span>
                                 </div>
 
-                                <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+                                <div className="bg-muted/20 flex items-center justify-between rounded-lg border px-3 py-2">
                                     <span className="text-muted-foreground">End</span>
-                                    <span className="font-medium text-foreground">{formatDate(data.end_date)}</span>
+                                    <span className="text-foreground font-medium">{formatDate(data.end_date)}</span>
                                 </div>
                             </CardContent>
                         </Card>
@@ -492,19 +475,19 @@ export default function ReviewCycleCreate() {
                         <Card className="shadow-sm">
                             <CardHeader>
                                 <div className="flex items-center gap-2">
-                                    <Info className="h-4.5 w-4.5 text-muted-foreground" />
+                                    <Info className="text-muted-foreground h-4.5 w-4.5" />
                                     <CardTitle className="text-lg">Notes</CardTitle>
                                 </div>
                             </CardHeader>
 
-                            <CardContent className="space-y-3 text-sm text-muted-foreground">
-                                <div className="rounded-lg border bg-muted/20 p-3">
+                            <CardContent className="text-muted-foreground space-y-3 text-sm">
+                                <div className="bg-muted/20 rounded-lg border p-3">
                                     Use a clear cycle name so employees and managers can identify the review window quickly.
                                 </div>
-                                <div className="rounded-lg border bg-muted/20 p-3">
+                                <div className="bg-muted/20 rounded-lg border p-3">
                                     Milestone dates should fit within the overall cycle period for a cleaner workflow.
                                 </div>
-                                <div className="rounded-lg border bg-muted/20 p-3">
+                                <div className="bg-muted/20 rounded-lg border p-3">
                                     This page keeps your existing submit behavior and only upgrades the presentation and date selection.
                                 </div>
                             </CardContent>
@@ -513,7 +496,7 @@ export default function ReviewCycleCreate() {
                 </div>
 
                 <div className="flex flex-col gap-4 border-t pt-6 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="text-muted-foreground flex items-center gap-2 text-sm">
                         <Info className="h-4 w-4" />
                         <span>All fields stay in draft until you save the review cycle.</span>
                     </div>

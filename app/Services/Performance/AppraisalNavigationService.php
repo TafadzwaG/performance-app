@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\Gate;
 
 class AppraisalNavigationService
 {
+    public function __construct(
+        private readonly AppraisalWorkflowConfig $workflowConfig,
+    ) {}
+
     public function hasMeaningfulGoals(Appraisal $appraisal): bool
     {
         $appraisal->loadMissing('objectives');
@@ -141,7 +145,7 @@ class AppraisalNavigationService
             ? $appraisal->reopened_stage?->value
             : null;
 
-        return [
+        $steps = [
             [
                 'key' => 'goal_setting',
                 'is_complete' => $this->isGoalSettingComplete($appraisal, $hasGoals, $sentBackTo),
@@ -181,6 +185,13 @@ class AppraisalNavigationService
                     : route('performance.appraisals.finalize', $appraisal),
             ],
         ];
+
+        $enabledKeys = $this->workflowConfig->enabledStepKeys();
+
+        return array_values(array_filter(
+            $steps,
+            fn (array $step) => in_array($step['key'], $enabledKeys, true),
+        ));
     }
 
     private function isGoalSettingComplete(Appraisal $appraisal, bool $hasGoals, ?string $sentBackTo): bool

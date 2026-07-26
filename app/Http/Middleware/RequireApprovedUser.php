@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Tenancy\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,7 +14,13 @@ class RequireApprovedUser
     {
         $user = $request->user();
 
-        if ($user && ! $user->is_approved) {
+        $context = app(TenantContext::class);
+        $membershipIsActive = $user?->memberships()
+            ->where('organization_id', $context->id())
+            ->where('status', 'active')
+            ->exists();
+
+        if ($user && ! ($membershipIsActive || ($user->is_platform_admin && $context->isSupportAccess()))) {
             Auth::guard('web')->logout();
 
             $request->session()->invalidate();

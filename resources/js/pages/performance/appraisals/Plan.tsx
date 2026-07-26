@@ -6,7 +6,7 @@ import PerformancePage from '@/components/performance/PerformancePage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem, SharedData } from '@/types';
-import type { Appraisal, GoalLibraryItem, Objective, Option } from '@/types/performance';
+import type { Appraisal, GoalLibrarySearchOption, Objective, Option } from '@/types/performance';
 import { useForm, usePage } from '@inertiajs/react';
 import { AlertTriangle, BookOpen, ListChecks, Loader2, Save, Send, Target, TrendingUp } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -15,7 +15,6 @@ interface Props {
     appraisal: Appraisal;
     abilities: Record<string, boolean>;
     perspectiveOptions: Option[];
-    goalLibraryItems: GoalLibraryItem[];
 }
 
 interface PlanObjective {
@@ -40,7 +39,7 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
     { title: 'Plan', href: route('performance.appraisals.plan', appraisal.id) },
 ];
 
-export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions, goalLibraryItems }: Props) {
+export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions }: Props) {
     const { auth } = usePage<SharedData>().props;
     const [pickerOpen, setPickerOpen] = useState(false);
     const [draftSaved, setDraftSaved] = useState(false);
@@ -157,23 +156,36 @@ export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions
         );
     };
 
-    const selectLibraryGoal = (item: GoalLibraryItem) => {
+    const objectiveFromLibraryGoal = (item: GoalLibrarySearchOption): PlanObjective => ({
+        perspective_id: item.perspective_id,
+        goal_library_item_id: item.value,
+        objective_type: 'business',
+        title: item.title,
+        kpi_measure: item.kpi_measure ?? '',
+        target_definition: item.target_definition ?? '',
+        weight: item.default_weight ?? 0,
+        evidence_source: item.evidence_source ?? '',
+        due_date: '',
+        include_in_business_score: true,
+    });
+
+    const selectLibraryGoals = (items: GoalLibrarySearchOption[]) => {
         setData('objectives', [
             ...data.objectives,
-            {
-                perspective_id: item.perspective_id,
-                goal_library_item_id: item.id,
-                objective_type: 'business',
-                title: item.title,
-                kpi_measure: item.kpi_measure ?? '',
-                target_definition: item.target_definition ?? '',
-                weight: item.default_weight ?? 0,
-                evidence_source: item.evidence_source ?? '',
-                due_date: '',
-                include_in_business_score: true,
-            },
+            ...items.map(objectiveFromLibraryGoal),
         ]);
     };
+
+    const applyLibraryGoal = (index: number, item: GoalLibrarySearchOption) => {
+        const next = [...data.objectives];
+        next[index] = { ...next[index], ...objectiveFromLibraryGoal(item) };
+        setData('objectives', next);
+    };
+
+    const goalLibrarySearchEndpoint = route('performance.appraisals.plan.goal_library', appraisal.id);
+    const selectedGoalLibraryItemIds = data.objectives
+        .map((objective) => objective.goal_library_item_id)
+        .filter((id): id is number => id !== null);
 
     return (
         <PerformancePage
@@ -238,9 +250,10 @@ export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions
                                 objectives={data.objectives as unknown as Objective[]}
                                 mode="plan"
                                 perspectiveOptions={perspectiveOptions}
-                                goalLibraryItems={goalLibraryItems}
+                                goalLibrarySearchEndpoint={canStructurallyEditGoals ? goalLibrarySearchEndpoint : undefined}
                                 allowStructuralEditing={canStructurallyEditGoals}
                                 onChange={updateObjective}
+                                onApplyGoalLibrary={applyLibraryGoal}
                                 onAdd={canStructurallyEditGoals ? addObjective : undefined}
                                 onRemove={canStructurallyEditGoals ? removeObjective : undefined}
                             />
@@ -340,7 +353,13 @@ export default function AppraisalPlan({ appraisal, abilities, perspectiveOptions
             </div>
 
             {canStructurallyEditGoals ? (
-                <GoalLibraryPicker items={goalLibraryItems} open={pickerOpen} onOpenChange={setPickerOpen} onPick={selectLibraryGoal} />
+                <GoalLibraryPicker
+                    endpoint={goalLibrarySearchEndpoint}
+                    excludeIds={selectedGoalLibraryItemIds}
+                    open={pickerOpen}
+                    onOpenChange={setPickerOpen}
+                    onApply={selectLibraryGoals}
+                />
             ) : null}
         </PerformancePage>
     );

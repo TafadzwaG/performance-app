@@ -180,7 +180,7 @@ export default function UserMfaIndex({ users, filters, globalMfaRequired, canMan
                                 <Select
                                     value={searchForm.data.status || ALL_FILTER_VALUE}
                                     onValueChange={(next) => {
-                                        const value = next === ALL_FILTER_VALUE ? 'all' : next;
+                                        const value = (next === ALL_FILTER_VALUE ? 'all' : next) as 'all' | 'enabled' | 'disabled';
                                         searchForm.setData('status', value);
                                         applyFilters({ status: value === 'all' ? undefined : value });
                                     }}

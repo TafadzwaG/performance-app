@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Performance;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Services\Performance\ReportQueryService;
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,6 +24,7 @@ class ReportController extends Controller
 
         return Inertia::render('performance/reports/Index', [
             'reviewCycleOptions' => $this->reviewCycleOptions(),
+            'locationOptions' => $this->locationOptions(),
             'filters' => $this->filters($request),
             'reports' => $this->reportQueryService->comprehensiveReports($this->filters($request)),
         ]);
@@ -33,7 +35,7 @@ class ReportController extends Controller
         $this->authorizeReports($request);
 
         return Inertia::render('performance/reports/CycleSummary', [
-            'rows' => $this->reportQueryService->cycleSummary($request->integer('review_cycle_id')),
+            'rows' => $this->reportQueryService->cycleSummary($this->filters($request)),
             'reviewCycleOptions' => $this->reviewCycleOptions(),
             'filters' => $this->filters($request),
         ]);
@@ -44,7 +46,7 @@ class ReportController extends Controller
         $this->authorizeReports($request);
 
         return Inertia::render('performance/reports/DepartmentSummary', [
-            'rows' => $this->reportQueryService->departmentSummary($request->integer('review_cycle_id')),
+            'rows' => $this->reportQueryService->departmentSummary($this->filters($request)),
             'reviewCycleOptions' => $this->reviewCycleOptions(),
             'filters' => $this->filters($request),
         ]);
@@ -55,7 +57,7 @@ class ReportController extends Controller
         $this->authorizeReports($request);
 
         return Inertia::render('performance/reports/EmployeeSummary', [
-            'rows' => $this->reportQueryService->employeeSummary($request->integer('review_cycle_id')),
+            'rows' => $this->reportQueryService->employeeSummary($this->filters($request)),
             'reviewCycleOptions' => $this->reviewCycleOptions(),
             'filters' => $this->filters($request),
         ]);
@@ -66,7 +68,7 @@ class ReportController extends Controller
         $this->authorizeReports($request);
 
         return Inertia::render('performance/reports/CompletionStatus', [
-            'rows' => $this->reportQueryService->completionStatus($request->integer('review_cycle_id')),
+            'rows' => $this->reportQueryService->completionStatus($this->filters($request)),
             'reviewCycleOptions' => $this->reviewCycleOptions(),
             'filters' => $this->filters($request),
         ]);
@@ -77,7 +79,7 @@ class ReportController extends Controller
         $this->authorizeReports($request);
 
         return Inertia::render('performance/reports/RatingDistribution', [
-            'rows' => $this->reportQueryService->ratingDistribution($request->integer('review_cycle_id')),
+            'rows' => $this->reportQueryService->ratingDistribution($this->filters($request)),
             'reviewCycleOptions' => $this->reviewCycleOptions(),
             'filters' => $this->filters($request),
         ]);
@@ -88,7 +90,7 @@ class ReportController extends Controller
         $this->authorizeReports($request);
 
         return Inertia::render('performance/reports/OverdueReviews', [
-            'rows' => $this->reportQueryService->overdueReviews($request->integer('review_cycle_id')),
+            'rows' => $this->reportQueryService->overdueReviews($this->filters($request)),
             'reviewCycleOptions' => $this->reviewCycleOptions(),
             'filters' => $this->filters($request),
         ]);
@@ -101,8 +103,14 @@ class ReportController extends Controller
 
     private function filters(Request $request): array
     {
+        $validated = $request->validate([
+            'review_cycle_id' => ['nullable', 'integer', TenantRule::exists('review_cycles')],
+            'location_id' => ['nullable', 'integer', TenantRule::visibleLocation()],
+        ]);
+
         return [
-            'review_cycle_id' => $request->integer('review_cycle_id') ?: null,
+            'review_cycle_id' => filled($validated['review_cycle_id'] ?? null) ? (int) $validated['review_cycle_id'] : null,
+            'location_id' => filled($validated['location_id'] ?? null) ? (int) $validated['location_id'] : null,
         ];
     }
 }

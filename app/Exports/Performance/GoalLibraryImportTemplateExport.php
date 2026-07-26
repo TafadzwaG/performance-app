@@ -2,6 +2,7 @@
 
 namespace App\Exports\Performance;
 
+use App\Support\Tenancy\TenantStoragePath;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Writer\XLSX\Writer;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -10,7 +11,7 @@ class GoalLibraryImportTemplateExport
 {
     public function download(string $filename): BinaryFileResponse
     {
-        $directory = storage_path('app/exports');
+        $directory = TenantStoragePath::exportDirectory();
 
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);

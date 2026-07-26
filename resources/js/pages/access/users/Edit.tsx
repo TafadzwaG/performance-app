@@ -40,16 +40,21 @@ interface Props {
     permissionGroups: PermissionGroup[];
     selectedRoleIds: number[];
     selectedPermissionIds: number[];
+    locationOptions: Option[];
+    selectedLocationIds: number[];
+    accessAllLocations: boolean;
 }
 
 interface UserEditFormData {
-    [key: string]: string | number[];
+    [key: string]: string | number[] | boolean;
     name: string;
     email: string;
     password: string;
     password_confirmation: string;
     role_ids: number[];
     permission_ids: number[];
+    access_all_locations: boolean;
+    location_ids: number[];
 }
 
 function formatPermissionName(value: string) {
@@ -84,7 +89,7 @@ function getGroupIcon(group: string) {
     return KeyRound;
 }
 
-export default function UserEdit({ userRecord, roleOptions, permissionGroups, selectedRoleIds, selectedPermissionIds }: Props) {
+export default function UserEdit({ userRecord, roleOptions, permissionGroups, selectedRoleIds, selectedPermissionIds, locationOptions, selectedLocationIds, accessAllLocations }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Performance', href: '/performance/dashboard' },
         { title: 'Users', href: route('access.users.index') },
@@ -102,6 +107,8 @@ export default function UserEdit({ userRecord, roleOptions, permissionGroups, se
         password_confirmation: '',
         role_ids: selectedRoleIds,
         permission_ids: selectedPermissionIds,
+        access_all_locations: accessAllLocations,
+        location_ids: selectedLocationIds,
     });
 
     const selectedRoles = useMemo(
@@ -281,6 +288,21 @@ export default function UserEdit({ userRecord, roleOptions, permissionGroups, se
                                         />
                                     </div>
                                 </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardDescription className="text-[11px] font-medium uppercase tracking-[0.18em]">Location scope</CardDescription>
+                                <CardTitle>Accessible Locations</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <label className="flex items-center gap-3 rounded-lg border px-4 py-3"><Checkbox checked={data.access_all_locations} onCheckedChange={(checked) => setData('access_all_locations', !!checked)} /><span className="text-sm font-medium">Head office access to all locations</span></label>
+                                {!data.access_all_locations ? locationOptions.map((location) => {
+                                    const id = Number(location.value);
+                                    return <label key={id} className="flex items-center gap-3 rounded-lg border px-4 py-3"><Checkbox checked={data.location_ids.includes(id)} onCheckedChange={() => setData('location_ids', data.location_ids.includes(id) ? data.location_ids.filter((value) => value !== id) : [...data.location_ids, id])} /><span className="text-sm">{location.label}</span></label>;
+                                }) : null}
+                                <InputError message={errors.location_ids} />
                             </CardContent>
                         </Card>
 

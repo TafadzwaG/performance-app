@@ -20,8 +20,7 @@ test('login redirects to email verification when mfa is enabled', function () {
     ]);
 
     $this->post('/login', [
-        'login_method' => 'employee_number',
-        'employee_number' => $profile->employee_number,
+        'email' => $user->email,
         'password' => 'password',
     ])
         ->assertRedirect(route('two-factor.login'));
@@ -39,8 +38,7 @@ test('user can complete login with a valid email verification code', function ()
     ]);
 
     $this->post('/login', [
-        'login_method' => 'employee_number',
-        'employee_number' => $profile->employee_number,
+        'email' => $user->email,
         'password' => 'password',
     ])->assertRedirect(route('two-factor.login'));
 
@@ -49,7 +47,7 @@ test('user can complete login with a valid email verification code', function ()
 
     $this->withSession(['login.id' => $user->id, 'login.remember' => false])
         ->post(route('two-factor.verify'), ['code' => $code])
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('organizations.select', absolute: false));
 
     $this->assertAuthenticatedAs($user);
 });
@@ -61,8 +59,7 @@ test('invalid verification code is rejected', function () {
     ]);
 
     $this->post('/login', [
-        'login_method' => 'employee_number',
-        'employee_number' => $profile->employee_number,
+        'email' => $user->email,
         'password' => 'password',
     ]);
 
@@ -116,11 +113,10 @@ test('users without mfa can still log in normally', function () {
     ]);
 
     $this->post('/login', [
-        'login_method' => 'employee_number',
-        'employee_number' => $profile->employee_number,
+        'email' => $user->email,
         'password' => 'password',
     ])
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('organizations.select', absolute: false));
 
     $this->assertAuthenticatedAs($user);
 });
@@ -140,8 +136,7 @@ test('global email mfa requires verification even when user mfa is disabled', fu
     ]);
 
     $this->post('/login', [
-        'login_method' => 'employee_number',
-        'employee_number' => $profile->employee_number,
+        'email' => $user->email,
         'password' => 'password',
     ])
         ->assertRedirect(route('two-factor.login'));

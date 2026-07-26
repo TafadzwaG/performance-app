@@ -32,7 +32,7 @@ test('welcome page renders live platform stats', function () {
             ->where('platformStats.has_data', false));
 });
 
-test('welcome platform stats reflect finalized reviews and cycle activity', function () {
+test('welcome platform stats never expose tenant appraisal activity', function () {
     Cache::forget('welcome.platform_stats');
     Cache::forget('welcome.platform_stats.v2');
 
@@ -81,15 +81,12 @@ test('welcome platform stats reflect finalized reviews and cycle activity', func
 
     $stats = app(WelcomePlatformStatsService::class)->snapshot();
 
-    expect($stats['has_data'])->toBeTrue()
-        ->and($stats['performance_trend']['sample_size'])->toBe(1)
-        ->and($stats['competency_mix']['items'][0]['name'])->toBe('Values')
-        ->and($stats['goals']['completed'])->toBe(1)
-        ->and($stats['goals']['total'])->toBe(1)
-        ->and($stats['feedback_velocity']['total_this_month'])->toBeGreaterThanOrEqual(1);
+    expect($stats['has_data'])->toBeFalse()
+        ->and($stats['performance_trend']['sample_size'])->toBe(0)
+        ->and($stats['company_values'])->toBeEmpty();
 });
 
-test('welcome platform stats include active value competencies as company values', function () {
+test('welcome platform stats never expose tenant setup values', function () {
     Cache::forget('welcome.platform_stats');
     Cache::forget('welcome.platform_stats.v2');
 
@@ -119,7 +116,6 @@ test('welcome platform stats include active value competencies as company values
 
     $stats = app(WelcomePlatformStatsService::class)->snapshot();
 
-    expect($stats['company_values'])->toHaveCount(1)
-        ->and($stats['company_values'][0]['name'])->toBe('Integrity')
-        ->and($stats['company_values'][0]['description'])->toBe('We act with honesty and transparency.');
+    expect($stats['has_data'])->toBeFalse()
+        ->and($stats['company_values'])->toBeEmpty();
 });

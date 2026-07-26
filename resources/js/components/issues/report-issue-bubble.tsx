@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type SharedData } from '@/types';
 import { issueTypeLabels, type IssueType } from '@/types/issues';
 import { useForm, usePage } from '@inertiajs/react';
@@ -13,7 +14,7 @@ const issueTypes = Object.entries(issueTypeLabels) as Array<[IssueType, string]>
 const selectClassName =
     'flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
-export default function ReportIssueBubble() {
+export default function ReportIssueBubble({ variant = 'floating' }: { variant?: 'floating' | 'sidebar' }) {
     const { auth } = usePage<SharedData>().props;
     const permissions = auth.permissions ?? [];
     const roles = auth.roles ?? [];
@@ -56,19 +57,37 @@ export default function ReportIssueBubble() {
 
     return (
         <Dialog open={open} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-                <button
-                    type="button"
-                    className="bg-brand-ink text-brand-cream hover:bg-brand-pine focus-visible:outline-brand-pine fixed right-5 bottom-5 z-50 flex items-center gap-2.5 rounded-full px-5 py-3 text-[12px] font-medium tracking-wide shadow-[0_18px_40px_-12px_rgba(37,38,39,0.55)] transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_56px_-12px_rgba(37,38,39,0.65)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 lg:right-8 lg:bottom-8"
-                    aria-label="Report an issue"
-                >
-                    <span className="bg-brand-sand text-brand-ink relative flex h-6 w-6 items-center justify-center rounded-full">
-                        <LifeBuoy className="h-3.5 w-3.5" />
-                        <span className="bg-brand-sand absolute inset-0 animate-brand-pulse-ring rounded-full" />
-                    </span>
-                    <span className="font-mono-brand text-[10px] tracking-[0.18em] uppercase">Report an issue</span>
-                </button>
-            </DialogTrigger>
+            {variant === 'sidebar' ? (
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <DialogTrigger asChild>
+                            <SidebarMenuButton
+                                type="button"
+                                tooltip="Report an issue"
+                                aria-label="Report an issue"
+                                className="bg-brand-ink text-brand-cream hover:bg-brand-pine hover:text-brand-cream active:bg-brand-pine active:text-brand-cream dark:bg-brand-ink dark:text-brand-cream dark:hover:bg-brand-pine font-medium"
+                            >
+                                <LifeBuoy />
+                                <span>Report an issue</span>
+                            </SidebarMenuButton>
+                        </DialogTrigger>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            ) : (
+                <DialogTrigger asChild>
+                    <button
+                        type="button"
+                        className="bg-brand-ink text-brand-cream hover:bg-brand-pine focus-visible:outline-brand-pine fixed right-5 bottom-5 z-50 flex items-center gap-2.5 rounded-full px-5 py-3 text-[12px] font-medium tracking-wide shadow-[0_18px_40px_-12px_rgba(37,38,39,0.55)] transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_56px_-12px_rgba(37,38,39,0.65)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 lg:right-8 lg:bottom-8"
+                        aria-label="Report an issue"
+                    >
+                        <span className="bg-brand-sand text-brand-ink relative flex h-6 w-6 items-center justify-center rounded-full">
+                            <LifeBuoy className="h-3.5 w-3.5" />
+                            <span className="bg-brand-sand absolute inset-0 animate-brand-pulse-ring rounded-full" />
+                        </span>
+                        <span className="font-mono-brand text-[10px] tracking-[0.18em] uppercase">Report an issue</span>
+                    </button>
+                </DialogTrigger>
+            )}
 
             <DialogContent
                 className="bg-card w-[calc(100vw-2rem)] sm:max-w-5xl"

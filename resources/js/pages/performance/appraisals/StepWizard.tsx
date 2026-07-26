@@ -279,7 +279,7 @@ function getCurrentStepKey(status: string, reopenedStage?: string | null): StepK
     return map[status] ?? 'goal_setting';
 }
 
-function isMeaningfulGoal(appraisal: Appraisal, objective: Appraisal['objectives'][number]) {
+function isMeaningfulGoal(appraisal: Appraisal, objective: NonNullable<Appraisal['objectives']>[number]) {
     const title = objective.title?.trim() ?? '';
     const kpi = objective.kpi_measure?.trim() ?? '';
     const target = objective.target_definition?.trim() ?? '';

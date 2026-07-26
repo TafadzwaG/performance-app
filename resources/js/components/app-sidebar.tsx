@@ -1,5 +1,7 @@
+import ReportIssueBubble from '@/components/issues/report-issue-bubble';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
+import { NavPlatformAdmin } from '@/components/nav-platform-admin';
 import { NavProfile } from '@/components/nav-profile';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -43,11 +45,16 @@ import {
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
-    const { auth, nav } = usePage<SharedData>().props;
+    const { auth, nav, tenant } = usePage<SharedData>().props;
     const permissions = auth.permissions ?? [];
     const roles = auth.roles ?? [];
     const can = (...required: string[]) => required.some((permission) => permissions.includes(permission));
     const isSuperAdminRole = roles.some((role) => role.toLowerCase() === 'super admin');
+    const isPlatformAdmin = Boolean(auth.user?.is_platform_admin);
+    const canManageSettings =
+        isPlatformAdmin ||
+        isSuperAdminRole ||
+        can('system.settings.manage', 'system.disaster_recovery.manage');
     const isEmployeeRole = roles.some((role) => role.toLowerCase() === 'employee');
     const showMyKpisNav = nav?.showMyKpis === true;
     const impersonation = auth.impersonation;
@@ -56,6 +63,15 @@ export function AppSidebar() {
         typeof nav?.pendingAppraisalsCount === 'number' ? nav.pendingAppraisalsCount : null;
     const showPendingAppraisalsNav = pendingAppraisalsCount !== null;
     const setupItems: NavItem[] = [
+        ...(can('performance.setup.locations.view')
+            ? [
+                  {
+                      title: 'Locations',
+                      url: '/performance/setup/locations',
+                      icon: Building2,
+                  } satisfies NavItem,
+              ]
+            : []),
         ...(can('performance.setup.departments.view')
             ? [
                   {
@@ -164,7 +180,7 @@ export function AppSidebar() {
                   } satisfies NavItem,
               ]
             : []),
-        ...(can('system.settings.manage', 'system.disaster_recovery.manage')
+        ...(canManageSettings && !isPlatformAdmin
             ? [
                   {
                       title: 'Settings',
@@ -174,6 +190,30 @@ export function AppSidebar() {
               ]
             : []),
     ];
+
+    const platformAdminNavItems: NavItem[] = isPlatformAdmin
+        ? [
+              {
+                  title: 'Organizations',
+                  url: '/platform/organizations',
+                  icon: Building2,
+              } satisfies NavItem,
+              {
+                  title: 'Memberships',
+                  url: '/platform/memberships',
+                  icon: Users,
+              } satisfies NavItem,
+              ...(canManageSettings
+                  ? [
+                        {
+                            title: 'Settings',
+                            url: route('settings.index'),
+                            icon: Settings2,
+                        } satisfies NavItem,
+                    ]
+                  : []),
+          ]
+        : [];
 
     const mainNavItems: NavItem[] = [
         {
@@ -289,6 +329,15 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent className="pt-4">
+                {tenant?.supportAccess ? (
+                    <SidebarGroup className="pb-0">
+                        <SidebarGroupLabel>Platform support</SidebarGroupLabel>
+                        <SidebarGroupContent className="space-y-2">
+                            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs group-data-[collapsible=icon]:hidden">Audited support access is active for {tenant.current?.name}.</div>
+                            <SidebarMenu><SidebarMenuItem><SidebarMenuButton type="button" onClick={() => router.delete(route('platform.support.exit'))}><LogOut /><span>Exit support access</span></SidebarMenuButton></SidebarMenuItem></SidebarMenu>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+                ) : null}
                 {impersonation?.isImpersonating && (
                     <SidebarGroup className="pb-0">
                         <SidebarGroupLabel>Impersonation</SidebarGroupLabel>
@@ -339,7 +388,7 @@ export function AppSidebar() {
                                     </Link>
                                 </SidebarMenuButton>
                                 {pendingAppraisalsCount > 0 ? (
-                                    <SidebarMenuBadge className="h-5 min-w-5 rounded-full bg-destructive px-1.5 text-[0.6875rem] font-semibold text-destructive-foreground">
+                                    <SidebarMenuBadge className="h-5 min-w-5 rounded-full bg-destructive px-1.5 text-[0.6875rem] font-semibold text-destructive-foreground peer-hover/menu-button:bg-destructive peer-hover/menu-button:text-destructive-foreground peer-data-[active=true]/menu-button:bg-destructive peer-data-[active=true]/menu-button:text-destructive-foreground">
                                         {pendingAppraisalsCount > 99 ? '99+' : pendingAppraisalsCount}
                                     </SidebarMenuBadge>
                                 ) : null}
@@ -370,10 +419,12 @@ export function AppSidebar() {
                     </SidebarGroup>
                 ) : null}
 
+                <NavPlatformAdmin items={platformAdminNavItems} />
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 
             <SidebarFooter>
+                <ReportIssueBubble variant="sidebar" />
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavProfile />
                 <NavUser />

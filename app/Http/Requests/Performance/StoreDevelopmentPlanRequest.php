@@ -4,6 +4,7 @@ namespace App\Http\Requests\Performance;
 
 use App\Models\Appraisal;
 use App\Models\DevelopmentPlan;
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -34,7 +35,7 @@ class StoreDevelopmentPlanRequest extends FormRequest
                 'follow_up_notes' => ['nullable', 'string'],
                 'actions' => ['nullable', 'array'],
                 'actions.*.action' => ['required_with:actions', 'string', 'max:255'],
-                'actions.*.owner_user_id' => ['nullable', 'exists:users,id'],
+                'actions.*.owner_user_id' => ['nullable', TenantRule::activeMember()],
                 'actions.*.due_date' => ['nullable', 'date'],
                 'actions.*.status' => ['nullable', Rule::in(['pending', 'in_progress', 'completed'])],
                 'actions.*.follow_up_status' => ['nullable', 'string', 'max:255'],
@@ -47,7 +48,7 @@ class StoreDevelopmentPlanRequest extends FormRequest
                 'improvement_areas' => ['prohibited'],
                 'follow_up_notes' => ['nullable', 'string'],
                 'actions' => ['nullable', 'array'],
-                'actions.*.id' => ['required_with:actions', 'integer', 'exists:development_plan_actions,id'],
+                'actions.*.id' => ['required_with:actions', 'integer', TenantRule::exists('development_plan_actions')],
                 'actions.*.action' => ['prohibited'],
                 'actions.*.owner_user_id' => ['prohibited'],
                 'actions.*.due_date' => ['prohibited'],

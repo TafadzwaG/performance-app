@@ -48,6 +48,8 @@ test('user update cannot assign permissions without assign_permissions permissio
         ->put(route('access.users.update', $target), [
             'name' => $target->name,
             'email' => $target->email,
+            'access_all_locations' => false,
+            'location_ids' => [],
             'permission_ids' => [$permission->id],
         ])
         ->assertForbidden();
@@ -67,6 +69,8 @@ test('user update cannot assign roles without assign_users permission', function
         ->put(route('access.users.update', $target), [
             'name' => $target->name,
             'email' => $target->email,
+            'access_all_locations' => false,
+            'location_ids' => [],
             'role_ids' => [$role->id],
         ])
         ->assertForbidden();

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Performance\Setup;
 
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,12 +18,12 @@ class UpdateCompetencyRequest extends FormRequest
         $competency = $this->route('competency');
 
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:100', Rule::unique('competencies', 'code')->ignore($competency?->id)],
+            'name' => ['required', 'string', 'max:255', TenantRule::unique('competencies', 'name', $competency?->id)],
+            'code' => ['required', 'string', 'max:100', TenantRule::unique('competencies', 'code', $competency?->id)],
             'description' => ['nullable', 'string'],
             'category' => ['required', Rule::in(['competency', 'value', 'behaviour'])],
-            'department_id' => ['nullable', 'exists:departments,id'],
-            'job_title_id' => ['nullable', 'exists:job_titles,id'],
+            'department_id' => ['nullable', TenantRule::exists('departments')],
+            'job_title_id' => ['nullable', TenantRule::exists('job_titles')],
             'is_active' => ['nullable', 'boolean'],
         ];
     }

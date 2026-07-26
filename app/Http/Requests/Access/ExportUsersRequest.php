@@ -4,6 +4,7 @@ namespace App\Http\Requests\Access;
 
 use App\Models\User;
 use App\Support\Access\UserExportColumnRegistry;
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,8 +22,8 @@ class ExportUsersRequest extends FormRequest
             'approval_status' => ['nullable', 'string', Rule::in(['active', 'pending'])],
             'sort_by' => ['nullable', 'string', Rule::in(['name', 'email', 'employee_number', 'created_at', 'updated_at'])],
             'sort_dir' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
-            'role_id' => ['nullable', 'integer', 'exists:roles,id'],
-            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'role_id' => ['nullable', 'integer', TenantRule::exists('roles')],
+            'department_id' => ['nullable', 'integer', TenantRule::exists('departments')],
             'employee_link' => ['nullable', 'string', Rule::in(['linked', 'unlinked'])],
             'has_direct_permissions' => ['nullable', 'string', Rule::in(['yes', 'no'])],
             'columns' => ['nullable', 'array', 'min:1'],

@@ -7,6 +7,7 @@ use App\Models\Appraisal;
 use App\Models\EmployeeProfile;
 use App\Models\ReviewCycle;
 use App\Models\User;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -26,7 +27,7 @@ class ReportQueryService
     public function dashboard(User $user): array
     {
         return Cache::remember(
-            "performance:dashboard:user:{$user->id}",
+            'performance:dashboard:organization:'.app(TenantContext::class)->requireId().":user:{$user->id}",
             self::DASHBOARD_CACHE_TTL_SECONDS,
             fn () => $this->buildDashboard($user),
         );
@@ -207,6 +208,7 @@ class ReportQueryService
         return Appraisal::query()
             ->when($filters['review_cycle_id'] ?? null, fn (Builder $query, int $reviewCycleId) => $query->where('review_cycle_id', $reviewCycleId))
             ->when($filters['department_id'] ?? null, fn (Builder $query, int $departmentId) => $query->whereHas('employeeProfile', fn (Builder $profile) => $profile->where('department_id', $departmentId)))
+            ->when($filters['location_id'] ?? null, fn (Builder $query, int $locationId) => $query->whereHas('employeeProfile', fn (Builder $profile) => $profile->where('location_id', $locationId)))
             ->when($filters['employee_profile_id'] ?? null, fn (Builder $query, int $employeeProfileId) => $query->where('employee_profile_id', $employeeProfileId));
     }
 

@@ -5,6 +5,8 @@ namespace App\Support\Performance;
 use App\Enums\EmploymentStatus;
 use App\Models\EmployeeProfile;
 use App\Services\Performance\EmployeeFieldConfigService;
+use App\Support\Tenancy\TenantRule;
+use App\Tenancy\TenantContext;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Validation\Rule;
 
@@ -34,10 +36,15 @@ class EmployeeProfileFieldRules
 
     private static function baseRules(string $fieldKey, ?EmployeeProfile $profile, ?Authenticatable $user): ?array
     {
+        $organizationId = app(TenantContext::class)->id();
+        $tenantUnique = fn (string $column) => Rule::unique('employee_profiles', $column)
+            ->where(fn ($query) => $query->where('organization_id', $organizationId))
+            ->ignore($profile?->id);
+
         return match ($fieldKey) {
-            'user_id' => ['exists:users,id', Rule::unique('employee_profiles', 'user_id')->ignore($profile?->id)],
-            'employee_number' => ['string', 'max:100', Rule::unique('employee_profiles', 'employee_number')->ignore($profile?->id)],
-            'national_id' => ['string', 'max:100', Rule::unique('employee_profiles', 'national_id')->ignore($profile?->id)],
+            'user_id' => [TenantRule::activeMember(), $tenantUnique('user_id')],
+            'employee_number' => ['string', 'max:100', $tenantUnique('employee_number')],
+            'national_id' => ['string', 'max:100', $tenantUnique('national_id')],
             'date_of_birth', 'hire_date', 'probation_end_date', 'confirmation_date', 'review_eligibility_date' => ['date'],
             'gender' => [Rule::in(['male', 'female', 'other', 'prefer_not_to_say'])],
             'marital_status' => [Rule::in(['single', 'married', 'divorced', 'widowed', 'separated'])],
@@ -46,10 +53,11 @@ class EmployeeProfileFieldRules
             'city', 'state_province', 'country' => ['string', 'max:100'],
             'postal_code' => ['string', 'max:30'],
             'emergency_contact_name', 'work_location' => ['string', 'max:255'],
-            'department_id' => ['exists:departments,id'],
-            'job_title_id' => ['exists:job_titles,id'],
-            'line_manager_user_id' => ['exists:users,id', $user ? Rule::notIn([$user->getAuthIdentifier()]) : 'different:user_id'],
-            'approving_manager_user_id' => ['exists:users,id', $user ? Rule::notIn([$user->getAuthIdentifier()]) : 'different:user_id'],
+            'department_id' => [TenantRule::exists('departments')],
+            'location_id' => [TenantRule::visibleLocation()],
+            'job_title_id' => [TenantRule::exists('job_titles')],
+            'line_manager_user_id' => [TenantRule::activeMember(), $user ? Rule::notIn([$user->getAuthIdentifier()]) : 'different:user_id'],
+            'approving_manager_user_id' => [TenantRule::activeMember(), $user ? Rule::notIn([$user->getAuthIdentifier()]) : 'different:user_id'],
             'employment_status' => [Rule::in(array_map(fn (EmploymentStatus $status) => $status->value, EmploymentStatus::cases()))],
             'employment_type' => [Rule::in(['permanent', 'contract', 'temporary', 'intern', 'consultant'])],
             'is_review_eligible', 'is_active' => ['boolean'],

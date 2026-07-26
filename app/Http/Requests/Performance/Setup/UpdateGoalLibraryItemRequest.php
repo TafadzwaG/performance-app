@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Performance\Setup;
 
 use App\Services\Performance\GoalLibraryScopeService;
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateGoalLibraryItemRequest extends FormRequest
@@ -26,9 +27,9 @@ class UpdateGoalLibraryItemRequest extends FormRequest
         $scoped = app(GoalLibraryScopeService::class)->appliesTo($this->user());
 
         return [
-            'department_id' => [$scoped ? 'required' : 'nullable', 'exists:departments,id'],
-            'job_title_id' => [$scoped ? 'required' : 'nullable', 'exists:job_titles,id'],
-            'perspective_id' => ['required', 'exists:perspectives,id'],
+            'department_id' => [$scoped ? 'required' : 'nullable', TenantRule::exists('departments')],
+            'job_title_id' => [$scoped ? 'required' : 'nullable', TenantRule::exists('job_titles')],
+            'perspective_id' => ['required', TenantRule::exists('perspectives')],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'kpi_measure' => ['nullable', 'string'],

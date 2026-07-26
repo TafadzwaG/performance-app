@@ -2,6 +2,7 @@ import AppraisalSteps, {
     AppraisalHeaderAction,
     getAppraisalContinueAction,
     getAppraisalWaitingAction,
+    useEnabledAppraisalStages,
 } from '@/components/performance/AppraisalSteps';
 import ApprovalTimeline from '@/components/performance/ApprovalTimeline';
 import CommentPanel from '@/components/performance/CommentPanel';
@@ -51,12 +52,13 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
 
 export default function AppraisalShow({ appraisal, abilities }: Props) {
     const { auth } = usePage<SharedData>().props;
+    const enabledStages = useEnabledAppraisalStages();
     const isFinalized = appraisal.status === 'finalized';
     const hasGoals = (appraisal.objectives ?? []).some((objective) => isMeaningfulGoal(appraisal, objective));
     const canOpenDevelopmentPlan =
         auth.permissions.includes('performance.development_plans.view') || auth.permissions.includes('performance.development_plans.update');
-    const continueAction = getAppraisalContinueAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
-    const waitingAction = getAppraisalWaitingAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
+    const continueAction = getAppraisalContinueAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages);
+    const waitingAction = getAppraisalWaitingAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages);
 
     const effectiveOverallScore = appraisal.calibrated_overall_score ?? appraisal.overall_score;
     const overallRating = appraisal.calibrated_overall_rating_level?.label ?? appraisal.overall_rating_level?.label ?? 'Not rated yet';
@@ -763,7 +765,7 @@ function formatStatus(value: string) {
     return value.replace(/_/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function isMeaningfulGoal(appraisal: Appraisal, objective: Appraisal['objectives'][number]) {
+function isMeaningfulGoal(appraisal: Appraisal, objective: NonNullable<Appraisal['objectives']>[number]) {
     const title = objective.title?.trim() ?? '';
     const kpi = objective.kpi_measure?.trim() ?? '';
     const target = objective.target_definition?.trim() ?? '';

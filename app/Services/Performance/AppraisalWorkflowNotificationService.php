@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\Performance\AppraisalAssignedNotification;
 use App\Notifications\Performance\AppraisalFinalizationRequestedNotification;
 use App\Notifications\Performance\AppraisalFinalizedNotification;
+use App\Notifications\Performance\AppraisalSelfAssessmentReadyNotification;
 use App\Notifications\Performance\AppraisalSentBackNotification;
 use App\Notifications\Performance\AppraisalStepCompletedNotification;
 use App\Notifications\Performance\ApprovalRequestedNotification;
@@ -26,10 +27,12 @@ class AppraisalWorkflowNotificationService
 
         match ($event->event) {
             'assigned' => $appraisal->employee?->notify(new AppraisalAssignedNotification($appraisal)),
+            'auto_self_assessment_ready' => $appraisal->employee?->notify(new AppraisalSelfAssessmentReadyNotification($appraisal)),
             'goal_plan_submitted' => $this->notifyGoalPlanSubmitted($appraisal, $event->actor),
             'self_submitted' => $this->notifySelfAssessmentSubmitted($appraisal, $event->actor),
             'approval_requested' => $this->notifyManagerReviewSubmitted($appraisal, $event->actor),
             'calibration_requested' => $this->notifyApprovalSubmitted($appraisal, $event->actor),
+            'calibration_skipped' => $this->notifyFinalizers($appraisal),
             'calibration_completed' => $this->notifyCalibrationCompleted($appraisal, $event->actor),
             'finalized' => $this->notifyFinalized($appraisal, $event->actor),
             'sent_back' => $this->notifySentBack($appraisal, $event->actor),

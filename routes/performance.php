@@ -26,15 +26,17 @@ use App\Http\Controllers\Performance\ReportController;
 use App\Http\Controllers\Performance\ReportExportController;
 use App\Http\Controllers\Performance\ReviewCycleController;
 use App\Http\Controllers\Performance\Setup\AppraisalTemplateController;
+use App\Http\Controllers\Performance\Setup\AppraisalTemplateSharedController;
 use App\Http\Controllers\Performance\Setup\CompetencyController;
 use App\Http\Controllers\Performance\Setup\DepartmentController;
 use App\Http\Controllers\Performance\Setup\GoalLibraryController;
 use App\Http\Controllers\Performance\Setup\JobTitleController;
+use App\Http\Controllers\Performance\Setup\LocationController;
 use App\Http\Controllers\Performance\Setup\PerspectiveController;
 use App\Http\Controllers\Performance\Setup\RatingScaleController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.complete'])->prefix('performance')->as('performance.')->group(function () {
+Route::middleware(['auth', 'tenant', 'approved', 'password.change', 'employee.profile.complete'])->prefix('performance')->as('performance.')->group(function () {
     Route::get('dashboard', DashboardController::class)
         ->name('dashboard');
     Route::get('dashboard/goals/lookup', [DashboardGoalsController::class, 'lookup'])
@@ -59,6 +61,10 @@ Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.comp
         ->parameters(['departments' => 'department'])
         ->names('setup.departments');
 
+    Route::resource('setup/locations', LocationController::class)
+        ->only(['index', 'store', 'update', 'destroy'])
+        ->names('setup.locations');
+
     Route::resource('setup/job-titles', JobTitleController::class)
         ->parameters(['job-titles' => 'job_title'])
         ->names('setup.job_titles');
@@ -80,6 +86,8 @@ Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.comp
         ->parameters(['review-cycles' => 'review_cycle'])
         ->names('review_cycles');
     Route::post('review-cycles/{review_cycle}/open', [ReviewCycleController::class, 'open'])->name('review_cycles.open');
+    Route::get('review-cycles/{review_cycle}/automation-readiness', [ReviewCycleController::class, 'readiness'])->name('review_cycles.automation_readiness');
+    Route::post('review-cycles/{review_cycle}/sync-eligible-employees', [ReviewCycleController::class, 'sync'])->name('review_cycles.sync_eligible');
     Route::post('review-cycles/{review_cycle}/close', [ReviewCycleController::class, 'close'])->name('review_cycles.close');
     Route::get('review-cycles/{review_cycle}/assign-employees', [CycleAssignmentController::class, 'edit'])->name('review_cycles.assign');
     Route::get('review-cycles/{review_cycle}/assign-employees/options', [CycleAssignmentController::class, 'employeeOptions'])->name('review_cycles.assign.employee_options');
@@ -93,6 +101,11 @@ Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.comp
     Route::get('templates/{template}/print/pdf/inline', [AppraisalTemplatePrintController::class, 'inline'])->name('templates.print.pdf.inline');
     Route::get('templates/{template}/preview/layout', [AppraisalTemplatePrintController::class, 'layout'])->name('templates.preview.layout');
 
+    Route::get('templates/shared/{organization}/{template}', [AppraisalTemplateSharedController::class, 'show'])
+        ->name('templates.shared.show');
+    Route::post('templates/shared/{organization}/{template}/import', [AppraisalTemplateSharedController::class, 'import'])
+        ->name('templates.shared.import');
+
     Route::resource('templates', AppraisalTemplateController::class)
         ->parameters(['templates' => 'template'])
         ->names('templates');
@@ -103,6 +116,9 @@ Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.comp
     Route::post('goal-library/upload', [GoalLibraryController::class, 'uploadStore'])->name('goal_library.upload.store');
     Route::get('goal-library/upload/template', [GoalLibraryController::class, 'downloadUploadTemplate'])->name('goal_library.upload.template');
     Route::get('goal-library/export', [GoalLibraryController::class, 'export'])->name('goal_library.export');
+    Route::patch('goal-library/{goal_library_item}/weight', [GoalLibraryController::class, 'updateWeight'])->name('goal_library.update_weight');
+    Route::patch('goal-library/{goal_library_item}/quick', [GoalLibraryController::class, 'quickUpdate'])->name('goal_library.quick_update');
+    Route::patch('goal-library/{goal_library_item}/deactivate', [GoalLibraryController::class, 'deactivate'])->name('goal_library.deactivate');
     Route::resource('goal-library', GoalLibraryController::class)
         ->parameters(['goal-library' => 'goal_library_item'])
         ->names('goal_library');

@@ -70,9 +70,9 @@ test('goal library lookup returns goals for employee department and job title', 
     $this->actingAs($user)
         ->getJson(route('performance.appraisals.plan.goal_library', $appraisal))
         ->assertOk()
-        ->assertJsonCount(2, 'results')
-        ->assertJsonFragment(['label' => 'Department revenue goal'])
+        ->assertJsonCount(1, 'results')
         ->assertJsonFragment(['label' => 'Analyst accuracy goal'])
+        ->assertJsonMissing(['label' => 'Department revenue goal'])
         ->assertJsonMissing(['label' => 'Manager coaching goal'])
         ->assertJsonMissing(['label' => 'Other department goal']);
 
@@ -118,12 +118,20 @@ test('goal library lookup excludes already selected goals on the plan', function
         ->for($perspective)
         ->create(['title' => 'Selected analyst goal']);
 
-    $availableGoal = GoalLibraryItem::factory()
+    GoalLibraryItem::factory()
         ->for($department)
         ->for($perspective)
         ->create([
             'job_title_id' => null,
             'title' => 'Department revenue goal',
+        ]);
+
+    $availableGoal = GoalLibraryItem::factory()
+        ->for($department)
+        ->for($jobTitle)
+        ->for($perspective)
+        ->create([
+            'title' => 'Available analyst goal',
         ]);
 
     $this->actingAs($user)
@@ -133,6 +141,57 @@ test('goal library lookup excludes already selected goals on the plan', function
         ]))
         ->assertOk()
         ->assertJsonCount(1, 'results')
-        ->assertJsonFragment(['label' => 'Department revenue goal'])
+        ->assertJsonFragment(['label' => 'Available analyst goal'])
+        ->assertJsonMissing(['label' => 'Department revenue goal'])
         ->assertJsonMissing(['label' => 'Selected analyst goal']);
+});
+
+test('goal setting lookup matches my kpis exact job title scope', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+    $user->givePermissionTo([
+        Permission::findOrCreate('performance.appraisals.plan_own', 'web'),
+        Permission::findOrCreate('performance.appraisals.view_own', 'web'),
+    ]);
+
+    $department = Department::factory()->create(['name' => 'Finance']);
+    $jobTitle = JobTitle::factory()->create(['name' => 'Analyst']);
+    $perspective = Perspective::factory()->create();
+
+    $profile = EmployeeProfile::factory()
+        ->for($user)
+        ->for($department)
+        ->for($jobTitle)
+        ->create();
+
+    $cycle = ReviewCycle::factory()->create(['status' => ReviewCycleStatus::Open]);
+
+    $appraisal = Appraisal::factory()
+        ->for($cycle, 'reviewCycle')
+        ->for($profile, 'employeeProfile')
+        ->create([
+            'employee_user_id' => $user->id,
+            'status' => AppraisalStatus::GoalSetting,
+        ]);
+
+    foreach (range(1, 4) as $index) {
+        GoalLibraryItem::factory()
+            ->for($department)
+            ->for($jobTitle)
+            ->for($perspective)
+            ->create(['title' => "My KPI {$index}"]);
+    }
+
+    GoalLibraryItem::factory()
+        ->for($department)
+        ->for($perspective)
+        ->create([
+            'job_title_id' => null,
+            'title' => 'Department-wide duplicate',
+        ]);
+
+    $this->actingAs($user)
+        ->getJson(route('performance.appraisals.plan.goal_library', $appraisal))
+        ->assertOk()
+        ->assertJsonCount(4, 'results')
+        ->assertJsonMissing(['label' => 'Department-wide duplicate']);
 });

@@ -12,7 +12,6 @@ use App\Models\AppraisalObjective;
 use App\Models\Competency;
 use App\Models\ReviewCycle;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 
 class WelcomePlatformStatsService
 {
@@ -27,7 +26,15 @@ class WelcomePlatformStatsService
      */
     public function snapshot(): array
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL_SECONDS, fn () => $this->buildSnapshot());
+        return [
+            'has_data' => false,
+            'company_values' => [],
+            'performance_trend' => ['points' => [], 'ytd_change' => null, 'sample_size' => 0, 'period_label' => ''],
+            'competency_mix' => ['items' => [], 'pillar_count' => 0],
+            'snapshot' => ['score' => null, 'previous_score' => null, 'max_score' => 100],
+            'goals' => ['completed' => 0, 'total' => 0, 'completion_rate' => 0.0, 'cycle_label' => null],
+            'feedback_velocity' => ['total_this_month' => 0, 'weekly_counts' => [], 'period_growth_percent' => null],
+        ];
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Listeners\Performance;
 
 use App\Events\Performance\AppraisalStatusChanged;
+use App\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
 
 class InvalidateDashboardCache
@@ -19,7 +20,8 @@ class InvalidateDashboardCache
         ]);
 
         foreach (array_unique($userIds) as $userId) {
-            Cache::forget("performance:dashboard:user:{$userId}");
+            $organizationId = $appraisal->organization_id ?? app(TenantContext::class)->id();
+            Cache::forget("performance:dashboard:organization:{$organizationId}:user:{$userId}");
         }
     }
 }

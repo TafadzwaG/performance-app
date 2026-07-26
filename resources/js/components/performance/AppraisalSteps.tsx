@@ -1,7 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Appraisal } from '@/types/performance';
-import { Link } from '@inertiajs/react';
+import type { SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import { ArrowRight, BadgeCheck, CheckCircle2, ClipboardCheck, Clock, FileCheck2, ListChecks, Lock, Sparkles, Target, UserCheck } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -47,10 +48,12 @@ export default function AppraisalSteps({
     currentStepKey,
     showStartButton = true,
 }: Props) {
-    const continueAction = getAppraisalContinueAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
-    const waitingAction = getAppraisalWaitingAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
-    const steps = buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
-    const pendingStepKey = getNextPendingStepKey(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
+    const enabledStages = useEnabledAppraisalStages();
+    const continueAction = getAppraisalContinueAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages);
+    const waitingAction = getAppraisalWaitingAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages);
+    const steps = buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages);
+    const pendingStepKey = getNextPendingStepKey(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages);
+    const columnCount = Math.max(steps.length, 1);
 
     return (
         <section className="mb-6 space-y-4">
@@ -78,7 +81,10 @@ export default function AppraisalSteps({
             </div>
 
             <div className="overflow-x-auto pb-2">
-                <div className="grid min-w-[920px] grid-cols-6 items-start gap-3">
+                <div
+                    className="grid items-start gap-3"
+                    style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(140px, 1fr))`, minWidth: `${columnCount * 150}px` }}
+                >
                     {steps.map((step, index) => {
                         const Icon = step.icon;
                         const isCurrent = currentStepKey ? step.key === currentStepKey : step.key === pendingStepKey;
@@ -155,18 +161,35 @@ function StepLabels({ step, isCurrent }: { step: AppraisalStep; isCurrent: boole
     );
 }
 
+export const DEFAULT_APPRAISAL_STEP_KEYS: AppraisalStepKey[] = [
+    'goal_setting',
+    'self_assessment',
+    'manager_review',
+    'approval',
+    'calibration',
+    'final_record',
+];
+
+export function useEnabledAppraisalStages(): AppraisalStepKey[] {
+    const { tenant } = usePage<SharedData>().props;
+    const stages = tenant?.workflow?.enabled_stages;
+
+    return Array.isArray(stages) && stages.length > 0 ? stages : DEFAULT_APPRAISAL_STEP_KEYS;
+}
+
 export function buildAppraisalSteps(
     appraisal: Appraisal,
     abilities: Record<string, boolean>,
     hasGoals: boolean,
     canOpenDevelopmentPlan: boolean,
+    enabledStages: AppraisalStepKey[] = DEFAULT_APPRAISAL_STEP_KEYS,
 ): AppraisalStep[] {
     const sentBackTo = appraisal.status === 'sent_back' ? appraisal.reopened_stage : null;
 
     const steps: AppraisalStep[] = [
         {
             key: 'goal_setting',
-            title: '1. Agree your goals',
+            title: 'Agree your goals',
             description: 'Write the work goals, how they will be measured, the target, evidence, and weight.',
             href: route('performance.appraisals.plan', appraisal.id),
             canOpen: abilities.plan,
@@ -176,7 +199,7 @@ export function buildAppraisalSteps(
         },
         {
             key: 'self_assessment',
-            title: '2. Do your self assessment',
+            title: 'Do your self assessment',
             description: 'Add what you achieved, upload evidence where needed, and rate your own performance.',
             href: route('performance.appraisals.self_assessment', appraisal.id),
             canOpen: abilities.selfAssess,
@@ -186,7 +209,7 @@ export function buildAppraisalSteps(
         },
         {
             key: 'manager_review',
-            title: '3. Manager review',
+            title: 'Manager review',
             description: 'Your manager reviews the evidence, adds comments, and gives manager ratings.',
             href: route('performance.appraisals.manager_review', appraisal.id),
             canOpen: abilities.managerReview,
@@ -196,7 +219,7 @@ export function buildAppraisalSteps(
         },
         {
             key: 'approval',
-            title: '4. Approval',
+            title: 'Approval',
             description: 'The approving manager checks the appraisal and either approves it or sends it back.',
             href: route('performance.appraisals.approval', appraisal.id),
             canOpen: abilities.approve,
@@ -206,7 +229,7 @@ export function buildAppraisalSteps(
         },
         {
             key: 'calibration',
-            title: '5. Calibration',
+            title: 'Calibration',
             description: 'The calibration team confirms the final result before the appraisal is closed.',
             href: route('performance.appraisals.calibration', appraisal.id),
             canOpen: abilities.calibrate,
@@ -216,7 +239,7 @@ export function buildAppraisalSteps(
         },
         {
             key: 'final_record',
-            title: '6. Final record',
+            title: 'Final record',
             description: 'The final appraisal is locked. A development plan can be created after this point.',
             href:
                 appraisal.status === 'finalized'
@@ -233,7 +256,12 @@ export function buildAppraisalSteps(
         },
     ];
 
-    return steps;
+    return steps
+        .filter((step) => enabledStages.includes(step.key))
+        .map((step, index) => ({
+            ...step,
+            title: `${index + 1}. ${step.title}`,
+        }));
 }
 
 export function getNextPendingStepKey(
@@ -241,8 +269,9 @@ export function getNextPendingStepKey(
     abilities: Record<string, boolean>,
     hasGoals: boolean,
     canOpenDevelopmentPlan: boolean,
+    enabledStages: AppraisalStepKey[] = DEFAULT_APPRAISAL_STEP_KEYS,
 ): AppraisalStepKey | null {
-    const pending = buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan).find(
+    const pending = buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages).find(
         (step) => !step.isComplete && step.canOpen,
     );
 
@@ -255,8 +284,9 @@ export function isAppraisalStepComplete(
     abilities: Record<string, boolean>,
     hasGoals: boolean,
     canOpenDevelopmentPlan: boolean,
+    enabledStages: AppraisalStepKey[] = DEFAULT_APPRAISAL_STEP_KEYS,
 ): boolean {
-    return buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan).find((step) => step.key === stepKey)?.isComplete ?? false;
+    return buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages).find((step) => step.key === stepKey)?.isComplete ?? false;
 }
 
 export function appraisalHasStarted(appraisal: Appraisal, hasGoals: boolean): boolean {
@@ -314,8 +344,9 @@ export function getAppraisalContinueAction(
     abilities: Record<string, boolean>,
     hasGoals: boolean,
     canOpenDevelopmentPlan: boolean,
+    enabledStages: AppraisalStepKey[] = DEFAULT_APPRAISAL_STEP_KEYS,
 ): AppraisalStartAction | null {
-    const steps = buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
+    const steps = buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages);
     const pending = steps.find((step) => !step.isComplete && canEditAppraisalStep(step.key, abilities));
     const hasStarted = appraisalHasStarted(appraisal, hasGoals);
 
@@ -343,12 +374,13 @@ export function getAppraisalWaitingAction(
     abilities: Record<string, boolean>,
     hasGoals: boolean,
     canOpenDevelopmentPlan: boolean,
+    enabledStages: AppraisalStepKey[] = DEFAULT_APPRAISAL_STEP_KEYS,
 ): AppraisalWaitingAction | null {
-    if (getAppraisalContinueAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan)) {
+    if (getAppraisalContinueAction(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages)) {
         return null;
     }
 
-    const pendingStep = buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan).find((step) => !step.isComplete);
+    const pendingStep = buildAppraisalSteps(appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages).find((step) => !step.isComplete);
 
     if (!pendingStep || canEditAppraisalStep(pendingStep.key, abilities)) {
         return null;
@@ -521,7 +553,8 @@ export function AppraisalStepSubmitActions({
     canOpenDevelopmentPlan,
     children,
 }: AppraisalStepSubmitActionsProps) {
-    const stepComplete = isAppraisalStepComplete(stepKey, appraisal, abilities, hasGoals, canOpenDevelopmentPlan);
+    const enabledStages = useEnabledAppraisalStages();
+    const stepComplete = isAppraisalStepComplete(stepKey, appraisal, abilities, hasGoals, canOpenDevelopmentPlan, enabledStages);
     const canEdit = canEditAppraisalStep(stepKey, abilities);
 
     if (!stepComplete && canEdit) {

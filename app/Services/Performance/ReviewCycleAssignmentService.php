@@ -3,6 +3,7 @@
 namespace App\Services\Performance;
 
 use App\Enums\AppraisalStatus;
+use App\Enums\ReviewCycleStatus;
 use App\Events\Performance\AppraisalStatusChanged;
 use App\Models\Appraisal;
 use App\Models\AppraisalTemplate;
@@ -17,20 +18,25 @@ class ReviewCycleAssignmentService
 {
     public function __construct(
         private readonly AppraisalTemplateInstantiationService $instantiationService,
-    ) {
-    }
+    ) {}
 
     public function assign(ReviewCycle $cycle, iterable $profiles, AppraisalTemplate $template, User $actor): Collection
     {
+        if ($cycle->status !== ReviewCycleStatus::Draft) {
+            throw ValidationException::withMessages([
+                'review_cycle_id' => 'Manual employee assignment is only available while a cycle is draft. Use Sync Eligible Employees for an open cycle.',
+            ]);
+        }
+
         $assigned = collect();
 
         DB::transaction(function () use ($cycle, $profiles, $template, $actor, &$assigned) {
             foreach (Collection::make($profiles) as $profile) {
-                if (!$profile instanceof EmployeeProfile) {
+                if (! $profile instanceof EmployeeProfile) {
                     $profile = EmployeeProfile::query()->findOrFail($profile);
                 }
 
-                if (!$profile->approving_manager_user_id) {
+                if (! $profile->approving_manager_user_id) {
                     throw ValidationException::withMessages([
                         'employee_profiles' => "Employee {$profile->employee_number} must have an approving manager before assignment.",
                     ]);

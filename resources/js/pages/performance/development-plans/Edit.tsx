@@ -52,6 +52,7 @@ export default function DevelopmentPlanEdit({
         setData('actions', [
             ...data.actions,
             {
+                id: null,
                 action: '',
                 owner_user_id: null,
                 due_date: '',

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\SystemSetting;
 use App\Services\Auth\EmailOtpService;
+use App\Services\Auth\PostLoginRedirector;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,6 +23,7 @@ class AuthenticatedSessionController extends Controller
     {
         return Inertia::render('auth/login', [
             'canResetPassword' => Route::has('password.request'),
+            'canRegister' => Route::has('register') && (bool) SystemSetting::current()->open_registration_enabled,
             'status' => $request->session()->get('status'),
         ]);
     }
@@ -29,11 +31,11 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request, EmailOtpService $emailOtp): RedirectResponse
+    public function store(LoginRequest $request, EmailOtpService $emailOtp, PostLoginRedirector $redirector): RedirectResponse
     {
         $user = $request->validateCredentials();
 
-        if (! $user->is_approved) {
+        if (! $user->is_platform_admin && ! $user->memberships()->where('status', 'active')->exists()) {
             return redirect()
                 ->route('pending-approval')
                 ->with('error', 'Your account is pending admin approval.');
@@ -53,15 +55,7 @@ class AuthenticatedSessionController extends Controller
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        if ($request->user()?->force_password_change) {
-            return redirect()->route('password.edit');
-        }
-
-        if (! $request->user()?->employeeProfile()->exists()) {
-            return redirect()->route('employee-profile.complete');
-        }
-
-        return redirect()->intended(route('dashboard', absolute: false));
+        return $redirector->redirect($request);
     }
 
     /**

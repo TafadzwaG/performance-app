@@ -9,6 +9,7 @@ use App\Models\Competency;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\JobTitle;
+use App\Models\Location;
 use App\Models\Permission;
 use App\Models\Perspective;
 use App\Models\RatingScale;
@@ -16,6 +17,7 @@ use App\Models\ReviewCycle;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\Performance\PerformancePermissions;
+use App\Tenancy\TenantContext;
 
 trait BuildsPerformanceViewData
 {
@@ -64,6 +66,44 @@ trait BuildsPerformanceViewData
                 'code' => $jobTitle->code,
             ])
             ->all();
+    }
+
+    /**
+     * @return array{createDepartment:bool,createJobTitle:bool}
+     */
+    protected function setupQuickCreateFlags(?User $user = null): array
+    {
+        $user ??= auth()->user();
+
+        $completingProfile = $user && ! $user->employeeProfile()->exists();
+
+        return [
+            'createDepartment' => $user?->can('performance.setup.departments.create')
+                || $user?->can('performance.employees.create')
+                || $user?->can('performance.employees.update')
+                || $completingProfile,
+            'createJobTitle' => $user?->can('performance.setup.job_titles.create')
+                || $user?->can('performance.employees.create')
+                || $user?->can('performance.employees.update')
+                || $completingProfile,
+        ];
+    }
+
+    protected function locationOptions(): array
+    {
+        $query = Location::query()->where('is_active', true);
+        $user = auth()->user();
+        $allowedIds = $user ? app(TenantContext::class)->allowedLocationIds($user) : null;
+
+        return $query
+            ->when($allowedIds !== null, fn ($locations) => $locations->whereIn('id', $allowedIds))
+            ->orderBy('name')
+            ->get(['id', 'name', 'code'])
+            ->map(fn (Location $location) => [
+                'value' => $location->id,
+                'label' => $location->name,
+                'code' => $location->code,
+            ])->all();
     }
 
     protected function userOptions(): array
@@ -150,6 +190,8 @@ trait BuildsPerformanceViewData
     protected function templateOptions(): array
     {
         return AppraisalTemplate::query()
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'version'])
             ->map(fn (AppraisalTemplate $template) => [

@@ -145,7 +145,7 @@ export default function BrandingLogoDropzone({
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
-                    <Button type="button" variant="outline" onClick={() => router.reload({ preserveScroll: true })}>
+                    <Button type="button" variant="outline" onClick={() => router.reload()}>
                         Refresh Preview
                     </Button>
                     <Button type="button" variant="outline" disabled={!logoUrl || isUploading} onClick={resetLogo}>

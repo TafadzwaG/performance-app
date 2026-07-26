@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Performance;
 
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class UpdateReviewCycleRequest extends FormRequest
@@ -18,8 +18,8 @@ class UpdateReviewCycleRequest extends FormRequest
         $cycle = $this->route('review_cycle');
 
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:100', Rule::unique('review_cycles', 'code')->ignore($cycle?->id)],
+            'name' => ['required', 'string', 'max:255', TenantRule::unique('review_cycles', 'name', $cycle?->id)],
+            'code' => ['required', 'string', 'max:100', TenantRule::unique('review_cycles', 'code', $cycle?->id)],
             'description' => ['nullable', 'string'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
@@ -27,6 +27,10 @@ class UpdateReviewCycleRequest extends FormRequest
             'self_assessment_deadline' => ['nullable', 'date'],
             'manager_review_deadline' => ['nullable', 'date'],
             'approval_deadline' => ['nullable', 'date'],
+            'template_id' => [
+                'required',
+                TenantRule::exists('appraisal_templates')->where(fn ($query) => $query->where('is_active', true)),
+            ],
             'status' => ['prohibited'],
         ];
     }
@@ -36,7 +40,37 @@ class UpdateReviewCycleRequest extends FormRequest
         $validator->after(function (Validator $validator) {
             $this->validateDeadlineWindow($validator);
             $this->validateDeadlineOrder($validator);
+            $this->validateTemplateChange($validator);
         });
+    }
+
+    private function validateTemplateChange(Validator $validator): void
+    {
+        $cycle = $this->route('review_cycle');
+
+        if (! $cycle || (int) $cycle->template_id === $this->integer('template_id')) {
+            return;
+        }
+
+        if ($cycle->status?->value !== 'draft') {
+            $validator->errors()->add('template_id', 'The appraisal template cannot be changed after the cycle is opened.');
+
+            return;
+        }
+
+        $hasProgressedAppraisals = $cycle->appraisals()
+            ->where(function ($query) {
+                $query->whereNotIn('status', ['draft', 'goal_setting'])
+                    ->orWhereNotNull('goal_submitted_at')
+                    ->orWhereNotNull('self_assessment_submitted_at')
+                    ->orWhereNotNull('manager_reviewed_at')
+                    ->orWhereNotNull('approved_at');
+            })
+            ->exists();
+
+        if ($hasProgressedAppraisals) {
+            $validator->errors()->add('template_id', 'The appraisal template cannot be changed because an appraisal has already progressed.');
+        }
     }
 
     private function validateDeadlineWindow(Validator $validator): void

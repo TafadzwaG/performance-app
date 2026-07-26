@@ -3,8 +3,9 @@
 namespace App\Services\Performance\Export;
 
 use App\Models\GoalLibraryItem;
-use App\Models\SystemSetting;
 use App\Models\User;
+use App\Support\Branding;
+use App\Support\Tenancy\TenantStoragePath;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use OpenSpout\Common\Entity\Row;
@@ -26,7 +27,7 @@ class GoalLibraryExportService
         $context = $this->buildContext($rows, $actor, $filters);
 
         $fileName = 'goal-library-'.Carbon::now()->format('Ymd-Hi').'.xlsx';
-        $filePath = storage_path('app/exports/'.$fileName);
+        $filePath = TenantStoragePath::export($fileName);
         $this->ensureDirectory(dirname($filePath));
 
         $options = new Options;
@@ -60,15 +61,15 @@ class GoalLibraryExportService
 
     private function buildContext(Collection $rows, User $actor, array $filters): array
     {
-        $settings = SystemSetting::query()->first();
+        $branding = Branding::exportHeaderContext();
 
         return [
             'rows' => $rows,
             'filters' => $filters,
-            'settings' => $settings,
-            'companyName' => $settings?->company_name ?? 'Performance Appraisal Studio',
-            'companyAddress' => $settings?->formattedAddress(),
-            'reportFooter' => $settings?->report_footer,
+            'settings' => $branding['settings'],
+            'companyName' => $branding['companyName'],
+            'companyAddress' => $branding['companyAddress'],
+            'reportFooter' => $branding['reportFooter'],
             'exportedBy' => $actor->name,
             'exportedByEmail' => $actor->email,
             'exportedAt' => Carbon::now(),

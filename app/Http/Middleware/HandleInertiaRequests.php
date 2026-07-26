@@ -2,14 +2,20 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\OrganizationContextController;
 use App\Models\EmployeeProfile;
+use App\Models\Organization;
 use App\Models\SystemSetting;
+use App\Models\User;
+use App\Services\Performance\AppraisalWorkflowConfig;
 use App\Services\Performance\PendingAppraisalNavService;
 use App\Support\Branding;
+use App\Tenancy\TenantContext;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Lab404\Impersonate\Services\ImpersonateManager;
+use Spatie\Permission\PermissionRegistrar;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -47,15 +53,28 @@ class HandleInertiaRequests extends Middleware
             ? $impersonationManager->getImpersonator()
             : null;
         $user = $request->user();
-        $canViewEmployees = $user?->can('performance.employees.view')
+        $tenantContext = app(TenantContext::class);
+        $currentOrganization = $tenantContext->organization();
+        [$roles, $permissions] = $this->resolveAuthorizationContext($request, $user, $currentOrganization);
+        $hasEmployeeProfile = $user !== null
+            && $currentOrganization !== null
+            && $user->employeeProfile()->exists();
+        $canViewEmployees = $currentOrganization && ($user?->can('performance.employees.view')
             || $user?->can('performance.employees.create')
-            || $user?->can('performance.employees.update');
+            || $user?->can('performance.employees.update'));
         $pendingAppraisalNav = app(PendingAppraisalNavService::class);
         $systemSettings = SystemSetting::query()->first();
-        $showMyKpisNav = $user !== null;
+        $showMyKpisNav = $user !== null && $currentOrganization !== null;
+        $organizationOptions = $user
+            ? OrganizationContextController::availableOrganizationsFor($user)
+                ->map(fn (Organization $organization) => [
+                    'id' => $organization->id,
+                    'name' => $organization->name,
+                    'slug' => $organization->slug,
+                ])->values()->all()
+            : [];
 
         return array_merge(parent::share($request), [
-            ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'flash' => [
@@ -67,15 +86,15 @@ class HandleInertiaRequests extends Middleware
             ],
             'auth' => [
                 'user' => $request->user(),
-                'roles' => $request->user()?->getRoleNames()->values()->all() ?? [],
-                'permissions' => $request->user()?->getAllPermissions()->pluck('name')->values()->all() ?? [],
+                'roles' => $roles,
+                'permissions' => $permissions,
                 'requiresPasswordChange' => (bool) $request->user()?->force_password_change,
-                'hasEmployeeProfile' => (bool) $request->user()?->employeeProfile()->exists(),
-                'requiresEmployeeProfileCompletion' => $request->user()
-                    ? ! $request->user()->employeeProfile()->exists()
-                    : false,
+                'hasEmployeeProfile' => $hasEmployeeProfile,
+                'requiresEmployeeProfileCompletion' => $user !== null
+                    && $currentOrganization !== null
+                    && ! $hasEmployeeProfile,
                 'emailMfaEnabled' => (bool) $request->user()?->email_mfa_enabled,
-                'canReportIssue' => (bool) ($request->user()?->can('issues.create') ?? false),
+                'canReportIssue' => $currentOrganization ? (bool) ($request->user()?->can('issues.create') ?? false) : false,
                 'impersonation' => [
                     'isImpersonating' => $impersonationManager->isImpersonating(),
                     'impersonator' => $impersonator
@@ -87,22 +106,59 @@ class HandleInertiaRequests extends Middleware
                         : null,
                 ],
             ],
+            'tenant' => [
+                'current' => $currentOrganization ? [
+                    'id' => $currentOrganization->id,
+                    'name' => $currentOrganization->name,
+                    'slug' => $currentOrganization->slug,
+                    'timezone' => $currentOrganization->timezone,
+                ] : null,
+                'organizations' => $organizationOptions,
+                'supportAccess' => $tenantContext->isSupportAccess(),
+                'workflow' => $currentOrganization
+                    ? app(AppraisalWorkflowConfig::class)->toSharedPayload()
+                    : null,
+            ],
             'nav' => [
                 'employeesCount' => $canViewEmployees ? EmployeeProfile::query()->count() : null,
-                'pendingAppraisalsCount' => $user && $pendingAppraisalNav->shouldShowFor($user)
+                'pendingAppraisalsCount' => $user && $currentOrganization && $pendingAppraisalNav->shouldShowFor($user)
                     ? $pendingAppraisalNav->countFor($user)
                     : null,
                 'showMyKpis' => $showMyKpisNav,
-                'profileUrl' => $user
-                    ? ($user->employeeProfile()->exists()
+                'profileUrl' => $user && $currentOrganization
+                    ? ($hasEmployeeProfile
                         ? route('performance.profile.show')
                         : route('employee-profile.complete'))
                     : null,
             ],
             'branding' => [
                 'logoUrl' => Branding::logoUrl(),
-                'companyName' => $systemSettings?->company_name,
+                'companyName' => $currentOrganization?->name ?? $systemSettings?->company_name,
             ],
         ]);
+    }
+
+    /**
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function resolveAuthorizationContext(Request $request, ?User $user, ?Organization $currentOrganization): array
+    {
+        if (! $user) {
+            return [[], []];
+        }
+
+        $organizationId = $currentOrganization?->id ?? $request->session()->get('organization_id');
+
+        if ($organizationId === null) {
+            return [[], []];
+        }
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId((int) $organizationId);
+        $user->unsetRelation('roles')->unsetRelation('permissions');
+
+        return [
+            $user->getRoleNames()->values()->all(),
+            $user->getAllPermissions()->pluck('name')->values()->all(),
+        ];
     }
 }

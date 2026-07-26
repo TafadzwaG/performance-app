@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Performance;
 
 use App\Http\Controllers\Controller;
+use App\Services\Performance\DashboardGoalSettingCoverageService;
 use App\Services\Performance\DashboardGoalsViewService;
 use App\Services\Performance\ReportQueryService;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ class DashboardController extends Controller
     public function __construct(
         private readonly ReportQueryService $reportQueryService,
         private readonly DashboardGoalsViewService $goalsViewService,
+        private readonly DashboardGoalSettingCoverageService $goalSettingCoverageService,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -61,6 +63,10 @@ class DashboardController extends Controller
             'myScoreSummary' => $this->goalsViewService->latestScoreSummaryFor($request->user()),
             'assignedGoalCycles' => $this->goalsViewService->assignedGoalCycles($request->user()),
             'goalsLookupEndpoint' => route('performance.dashboard.goals.lookup'),
+            'goalSettingCoverage' => $request->user()->can('performance.goal_library.view')
+                || $request->user()->can('performance.review_cycles.view')
+                ? $this->goalSettingCoverageService->report()
+                : null,
         ]);
     }
 }

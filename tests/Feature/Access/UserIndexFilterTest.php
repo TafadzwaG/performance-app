@@ -79,3 +79,32 @@ test('users index can filter by direct permission assignment', function () {
             ->has('users.data', 1)
             ->where('users.data.0.name', 'Report Viewer'));
 });
+
+test('users index can show all matching users without pagination', function () {
+    $admin = User::factory()->create(['is_approved' => true]);
+    EmployeeProfile::factory()->for($admin)->create();
+    Permission::findOrCreate('access.users.view', 'web');
+    $admin->givePermissionTo('access.users.view');
+
+    User::factory()->count(12)->create(['is_approved' => true])->each(
+        fn (User $user) => EmployeeProfile::factory()->for($user)->create(),
+    );
+
+    $this->actingAs($admin)
+        ->get(route('access.users.index', ['per_page' => '10']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('access/users/Index')
+            ->where('filters.per_page', '10')
+            ->where('users.per_page', 10)
+            ->where('users.last_page', 2));
+
+    $this->actingAs($admin)
+        ->get(route('access.users.index', ['per_page' => 'all']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('access/users/Index')
+            ->where('filters.per_page', 'all')
+            ->where('users.last_page', 1)
+            ->where('users.total', 13));
+});

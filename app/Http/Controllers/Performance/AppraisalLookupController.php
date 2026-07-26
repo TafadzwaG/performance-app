@@ -16,7 +16,7 @@ use Illuminate\Http\Request;
  * on the appraisal create / bulk-assign screens.
  *
  * Each endpoint:
- *   - returns at most 25 results (small payload, fast roundtrip)
+ *   - returns compact result rows for async dropdowns
  *   - matches partial strings on common identifiers
  *   - returns enough metadata to render a rich result row
  */
@@ -46,7 +46,6 @@ class AppraisalLookupController extends Controller
             ->when(! empty($excludeIds), fn (Builder $query) => $query->whereNotIn('id', $excludeIds))
             ->where('is_active', true)
             ->orderBy('employee_number')
-            ->limit(25)
             ->get();
 
         return response()->json([

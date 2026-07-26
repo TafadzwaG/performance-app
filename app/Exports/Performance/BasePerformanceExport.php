@@ -2,7 +2,8 @@
 
 namespace App\Exports\Performance;
 
-use App\Models\SystemSetting;
+use App\Support\Branding;
+use App\Support\Tenancy\TenantStoragePath;
 use Illuminate\Support\Collection;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Writer\XLSX\Writer;
@@ -44,7 +45,7 @@ abstract class BasePerformanceExport
 
     public function download(string $filename): BinaryFileResponse
     {
-        $directory = storage_path('app/exports');
+        $directory = TenantStoragePath::exportDirectory();
 
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
@@ -76,13 +77,17 @@ abstract class BasePerformanceExport
 
     private function organizationHeaderRows(): array
     {
-        $settings = SystemSetting::query()->first();
+        $context = Branding::exportHeaderContext();
 
-        return $settings?->exportHeaderRows() ?? [];
+        return array_values(array_filter([
+            [$context['companyName']],
+            filled($context['companyAddress']) ? [$context['companyAddress']] : null,
+            [''],
+        ]));
     }
 
     private function organizationFooter(): ?string
     {
-        return SystemSetting::query()->first()?->report_footer;
+        return Branding::exportHeaderContext()['reportFooter'];
     }
 }

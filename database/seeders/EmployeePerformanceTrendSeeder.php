@@ -11,9 +11,11 @@ use App\Models\AppraisalTemplate;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\JobTitle;
+use App\Models\Location;
 use App\Models\ReviewCycle;
 use App\Models\User;
 use App\Services\Performance\EmployeePerformanceAnalyticsService;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -199,6 +201,17 @@ class EmployeePerformanceTrendSeeder extends Seeder
             ],
         );
 
+        $user->memberships()->updateOrCreate(
+            ['organization_id' => app(TenantContext::class)->requireId()],
+            [
+                'status' => 'active',
+                'is_default' => true,
+                'access_all_locations' => true,
+                'invited_at' => now(),
+                'activated_at' => now(),
+            ],
+        );
+
         if (! $user->hasRole('Employee')) {
             $user->assignRole('Employee');
         }
@@ -217,6 +230,7 @@ class EmployeePerformanceTrendSeeder extends Seeder
             [
                 'employee_number' => $config['employee_number'],
                 'department_id' => $department->id,
+                'location_id' => Location::query()->where('is_active', true)->value('id'),
                 'job_title_id' => $jobTitle->id,
                 'employment_status' => EmploymentStatus::Active,
                 'employment_type' => 'permanent',

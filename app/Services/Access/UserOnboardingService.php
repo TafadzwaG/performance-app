@@ -5,8 +5,10 @@ namespace App\Services\Access;
 use App\Models\Role;
 use App\Models\User;
 use App\Notifications\Access\UserOnboardingNotification;
+use App\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class UserOnboardingService
 {
@@ -40,6 +42,7 @@ class UserOnboardingService
                     plainPassword: $result['plain_password'],
                     forcePasswordChange: $result['user']->force_password_change,
                     createdByName: $actor?->name,
+                    organizationId: app(TenantContext::class)->id(),
                 ));
 
                 $result['user']->forceFill([
@@ -65,14 +68,32 @@ class UserOnboardingService
         $forcePasswordChange = (bool) ($row['force_password_change'] ?? $defaults['force_password_change'] ?? true);
         $sendCredentialsEmail = (bool) ($row['send_credentials_email'] ?? $defaults['send_credentials_email'] ?? true);
 
-        $user = User::query()->create([
+        $organizationId = app(TenantContext::class)->requireId();
+        $user = User::withoutGlobalScopes()->where('email', Str::lower((string) $row['email']))->first();
+
+        if ($user?->memberships()->where('organization_id', $organizationId)->exists()) {
+            throw ValidationException::withMessages(['email' => 'This user already belongs to the current organization.']);
+        }
+
+        $user ??= User::withoutGlobalScopes()->create([
             'name' => (string) $row['name'],
-            'email' => (string) $row['email'],
+            'email' => Str::lower((string) $row['email']),
             'email_verified_at' => now(),
             'password' => $plainPassword,
             'force_password_change' => $forcePasswordChange,
             'password_changed_at' => $forcePasswordChange ? null : now(),
+            'is_approved' => true,
         ]);
+
+        $user->memberships()->create([
+            'organization_id' => $organizationId,
+            'status' => 'active',
+            'is_default' => ! $user->memberships()->where('status', 'active')->exists(),
+            'access_all_locations' => (bool) ($row['access_all_locations'] ?? false),
+            'invited_at' => now(),
+            'activated_at' => now(),
+        ]);
+        $user->locations()->sync($row['location_ids'] ?? []);
 
         if ($roleIds !== []) {
             $roles = Role::query()->whereIn('id', $roleIds)->get();

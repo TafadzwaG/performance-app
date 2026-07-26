@@ -2,6 +2,8 @@
 
 namespace App\Notifications\Access;
 
+use App\Notifications\Concerns\ActivatesTenantContext;
+use App\Support\Tenancy\TenantAwareUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -9,16 +11,19 @@ use Illuminate\Notifications\Notification;
 
 class UserOnboardingNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use ActivatesTenantContext, Queueable;
 
     public function __construct(
         public readonly string $plainPassword,
         public readonly bool $forcePasswordChange,
         public readonly ?string $createdByName = null,
+        public readonly ?int $organizationId = null,
     ) {}
 
     public function via(object $notifiable): array
     {
+        $this->activateTenantContext($this->organizationId);
+
         return ['mail'];
     }
 
@@ -40,7 +45,9 @@ class UserOnboardingNotification extends Notification implements ShouldQueue
         }
 
         return $mail
-            ->action('Sign in to the system', route('login'))
+            ->action('Sign in to the system', $this->organizationId
+                ? TenantAwareUrl::forOrganization($this->organizationId, route('dashboard'))
+                : route('login'))
             ->line('Keep this message secure and delete it after you have signed in successfully.');
     }
 }

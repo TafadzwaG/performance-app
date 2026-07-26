@@ -14,21 +14,32 @@ test('audit trail records mutating web requests', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
+        ->withSession(['organization_id' => $user->memberships()->firstOrFail()->organization_id])
         ->post('/testing/audit-record', [
             'foo' => 'bar',
             'password' => 'secret-value',
         ])
         ->assertNoContent();
 
-    $auditTrail = AuditTrail::query()->first();
+    $auditTrail = AuditTrail::withoutGlobalScopes()->first();
 
     expect($auditTrail)->not->toBeNull();
     expect($auditTrail?->user_id)->toBe($user->id);
+    expect($auditTrail?->organization_id)->toBe($user->memberships()->firstOrFail()->organization_id);
     expect($auditTrail?->response_status)->toBe(204);
     expect($auditTrail?->request_payload)->toMatchArray([
         'foo' => 'bar',
     ]);
     expect($auditTrail?->request_payload)->not->toHaveKey('password');
+});
+
+test('login without tenant context does not crash when audit cannot resolve organization', function () {
+    $this->post(route('login'), [
+        'email' => 'missing-user@example.com',
+        'password' => 'wrong-password',
+    ])->assertRedirect();
+
+    expect(AuditTrail::withoutGlobalScopes()->count())->toBe(0);
 });
 
 test('authorized user can view the audit trail page', function () {
@@ -37,7 +48,10 @@ test('authorized user can view the audit trail page', function () {
     Permission::findOrCreate('access.audit_trails.view', 'web');
     $user->givePermissionTo('access.audit_trails.view');
 
-    AuditTrail::query()->create([
+    $organizationId = $user->memberships()->firstOrFail()->organization_id;
+
+    AuditTrail::withoutGlobalScopes()->create([
+        'organization_id' => $organizationId,
         'user_id' => $user->id,
         'action' => 'create',
         'method' => 'POST',
@@ -51,6 +65,7 @@ test('authorized user can view the audit trail page', function () {
     ]);
 
     $this->actingAs($user)
+        ->withSession(['organization_id' => $organizationId])
         ->get(route('access.audit-trails.index'))
         ->assertOk()
         ->assertSee('access\\/audit-trails\\/Index', false)

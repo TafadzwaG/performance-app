@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import type { BreadcrumbItem } from '@/types';
-import type { EmployeePerformanceMovementReport } from '@/types/performance';
+import type { EmployeePerformanceMovementReport, Option } from '@/types/performance';
 import { Link, router } from '@inertiajs/react';
 import {
     ArrowRight,
@@ -104,7 +104,8 @@ type ReportsPayload = {
 
 type Props = {
     reviewCycleOptions: Option[];
-    filters: { review_cycle_id?: number | null };
+    locationOptions: Option[];
+    filters: { review_cycle_id?: number | null; location_id?: number | null };
     reports: ReportsPayload;
 };
 
@@ -203,15 +204,15 @@ function movementRowCells(row: EmployeePerformanceMovementReport['movement_rows'
     ];
 }
 
-export default function ReportsIndex({ reviewCycleOptions, filters, reports }: Props) {
+export default function ReportsIndex({ reviewCycleOptions, locationOptions, filters, reports }: Props) {
     const selectedCycleLabel =
         reviewCycleOptions.find((option) => String(option.value) === String(filters.review_cycle_id ?? ''))?.label ??
         'All cycles';
 
-    const applyFilter = (value: string) => {
+    const applyFilter = (key: 'review_cycle_id' | 'location_id', value: string) => {
         router.get(
             route('performance.reports.index'),
-            { review_cycle_id: value || undefined },
+            { ...filters, [key]: value || undefined },
             { preserveState: true, preserveScroll: true, replace: true },
         );
     };
@@ -231,7 +232,7 @@ export default function ReportsIndex({ reviewCycleOptions, filters, reports }: P
                                 This page combines operational reporting, exceptions, accountability, rating quality, and cycle-over-cycle movement for the selected review cycle.
                             </p>
                         </div>
-                        <div className="grid gap-2 sm:grid-cols-[260px_auto] sm:items-end">
+                        <div className="grid gap-2 sm:grid-cols-[220px_220px_auto] sm:items-end">
                             <div className="space-y-2">
                                 <label htmlFor="report-cycle" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                                     Review Cycle
@@ -240,7 +241,7 @@ export default function ReportsIndex({ reviewCycleOptions, filters, reports }: P
                                     id="report-cycle"
                                     className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     value={filters.review_cycle_id ?? ''}
-                                    onChange={(event) => applyFilter(event.target.value)}
+                                    onChange={(event) => applyFilter('review_cycle_id', event.target.value)}
                                 >
                                     <option value="">All cycles</option>
                                     {reviewCycleOptions.map((option) => (
@@ -250,8 +251,15 @@ export default function ReportsIndex({ reviewCycleOptions, filters, reports }: P
                                     ))}
                                 </select>
                             </div>
+                            <div className="space-y-2">
+                                <label htmlFor="report-location" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Location</label>
+                                <select id="report-location" className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm" value={filters.location_id ?? ''} onChange={(event) => applyFilter('location_id', event.target.value)}>
+                                    <option value="">All authorized locations</option>
+                                    {locationOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                </select>
+                            </div>
                             <Button asChild variant="outline">
-                                <Link href={route('performance.reports.cycle_summary', { review_cycle_id: filters.review_cycle_id ?? undefined })}>
+                                <Link href={route('performance.reports.cycle_summary', { review_cycle_id: filters.review_cycle_id ?? undefined, location_id: filters.location_id ?? undefined })}>
                                     Export Views
                                     <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>
@@ -280,9 +288,9 @@ export default function ReportsIndex({ reviewCycleOptions, filters, reports }: P
                                     <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/20">
                                         <StatIcon className="h-5 w-5 text-muted-foreground" />
                                     </div>
-                                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</div>
-                                    <div className="mt-2 text-3xl font-bold tracking-tight text-foreground">{value}</div>
-                                    <p className="mt-2 text-xs text-muted-foreground">{helper}</p>
+                                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{String(label)}</div>
+                                    <div className="mt-2 text-3xl font-bold tracking-tight text-foreground">{String(value)}</div>
+                                    <p className="mt-2 text-xs text-muted-foreground">{String(helper)}</p>
                                 </CardContent>
                             </Card>
                         );
@@ -619,8 +627,8 @@ export default function ReportsIndex({ reviewCycleOptions, filters, reports }: P
                                         <ReportIcon className="h-5 w-5 text-muted-foreground" />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <div className="font-semibold text-foreground">{title}</div>
-                                        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+                                        <div className="font-semibold text-foreground">{String(title)}</div>
+                                        <p className="mt-1 text-sm text-muted-foreground">{String(description)}</p>
                                         <Button asChild variant="link" className="mt-2 h-auto p-0">
                                             <Link href={route(String(routeName), { review_cycle_id: filters.review_cycle_id ?? undefined })}>
                                                 Open detailed table

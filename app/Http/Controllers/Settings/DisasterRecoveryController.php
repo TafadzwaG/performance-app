@@ -6,6 +6,7 @@ use App\Enums\DisasterRecovery\BackupStatus;
 use App\Http\Controllers\Controller;
 use App\Models\DisasterRecoveryBackup;
 use App\Models\DisasterRecoveryRestoreRequest;
+use App\Services\DisasterRecovery\BackupStorage;
 use App\Services\DisasterRecovery\DisasterRecoveryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,7 +43,7 @@ class DisasterRecoveryController extends Controller
     public function showBackup(DisasterRecoveryBackup $backup)
     {
         abort_unless($backup->status === BackupStatus::Completed && $backup->disk && $backup->path, 404);
-        abort_unless(Storage::disk($backup->disk)->exists($backup->path), 404);
+        abort_unless(BackupStorage::exists($backup->disk, $backup->path), 404);
 
         return Storage::disk($backup->disk)->download($backup->path, $backup->filename ?: basename($backup->path));
     }

@@ -9,20 +9,37 @@ test('login screen can be rendered', function () {
     $response->assertStatus(200);
 });
 
-test('users can authenticate using the login screen', function () {
+test('users can authenticate using email', function () {
     $user = User::factory()->create();
     $profile = EmployeeProfile::factory()->for($user)->create([
         'employee_number' => 'EMP-AUTH-001',
     ]);
 
     $response = $this->post('/login', [
-        'login_method' => 'employee_number',
-        'employee_number' => $profile->employee_number,
+        'email' => $user->email,
         'password' => 'password',
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertRedirect(route('organizations.select', absolute: false));
+});
+
+test('users reach the dashboard after choosing an organization', function () {
+    $user = User::factory()->create();
+    EmployeeProfile::factory()->for($user)->create([
+        'employee_number' => 'EMP-AUTH-003',
+    ]);
+
+    $organization = $user->memberships()->first()->organization;
+
+    $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertRedirect(route('organizations.select'));
+
+    $this->post(route('organizations.switch'), [
+        'organization_id' => $organization->id,
+    ])->assertRedirect(route('dashboard', absolute: false));
 });
 
 test('users can not authenticate with invalid password', function () {
@@ -32,15 +49,14 @@ test('users can not authenticate with invalid password', function () {
     ]);
 
     $this->post('/login', [
-        'login_method' => 'employee_number',
-        'employee_number' => $profile->employee_number,
+        'email' => $user->email,
         'password' => 'wrong-password',
     ]);
 
     $this->assertGuest();
 });
 
-test('users without an employee profile can not authenticate', function () {
+test('employee number is not accepted as a login identifier', function () {
     User::factory()->create([
         'email' => 'no.profile@example.com',
     ]);
@@ -52,7 +68,7 @@ test('users without an employee profile can not authenticate', function () {
             'password' => 'password',
         ])
         ->assertRedirect('/login')
-        ->assertSessionHasErrors('employee_number');
+        ->assertSessionHasErrors('email');
 
     $this->assertGuest();
 });
@@ -63,13 +79,12 @@ test('users can authenticate with email when they have no employee profile', fun
     ]);
 
     $response = $this->post('/login', [
-        'login_method' => 'email',
         'email' => $user->email,
         'password' => 'password',
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('employee-profile.complete', absolute: false));
+    $response->assertRedirect(route('organizations.select', absolute: false));
 });
 
 test('users can logout', function () {

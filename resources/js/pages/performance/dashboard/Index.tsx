@@ -1,4 +1,5 @@
 import AppraisalStatusBadge from '@/components/performance/AppraisalStatusBadge';
+import GoalSettingCoverageTab from '@/components/performance/dashboard/GoalSettingCoverageTab';
 import ScoreSummaryCard from '@/components/performance/ScoreSummaryCard';
 import { AsyncSearchSelect, type AsyncOption } from '@/components/async-search-select';
 import PerformancePage from '@/components/performance/PerformancePage';
@@ -8,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { BreadcrumbItem, SharedData } from '@/types';
-import type { Appraisal, CurrentGoalView, ScoreSummaryView } from '@/types/performance';
+import type { Appraisal, CurrentGoalView, GoalSettingCoverageReport, ScoreSummaryView } from '@/types/performance';
 import { Link, usePage } from '@inertiajs/react';
 import { differenceInCalendarDays, format, isBefore, parseISO } from 'date-fns';
 import {
@@ -20,6 +21,7 @@ import {
     CircleAlert,
     ClipboardCheck,
     Clock3,
+    ClipboardList,
     Download,
     Eye,
     FileSpreadsheet,
@@ -103,6 +105,7 @@ type Props = {
     myScoreSummary: ScoreSummaryView | null;
     assignedGoalCycles: GoalCycleOption[];
     goalsLookupEndpoint: string;
+    goalSettingCoverage?: GoalSettingCoverageReport | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
@@ -961,8 +964,19 @@ function GoalsAssessmentTab({
     );
 }
 
-export default function DashboardIndex({ dashboard, myAppraisals, teamPending, approvalQueue, overdueQueue, currentGoals, myScoreSummary, assignedGoalCycles, goalsLookupEndpoint }: Props) {
-    const [activeTab, setActiveTab] = useState<'overview' | 'goals'>('goals');
+export default function DashboardIndex({
+    dashboard,
+    myAppraisals,
+    teamPending,
+    approvalQueue,
+    overdueQueue,
+    currentGoals,
+    myScoreSummary,
+    assignedGoalCycles,
+    goalsLookupEndpoint,
+    goalSettingCoverage = null,
+}: Props) {
+    const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'goal-setting'>('goals');
     const { auth } = usePage<SharedData>().props;
     const permissions = new Set(auth.permissions ?? []);
     const metrics = Object.entries(dashboard.metrics ?? {}).map(([key, value]) => ({
@@ -973,6 +987,7 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
     const focusCycle = dashboard.focus_cycle;
     const canAssignEmployees = permissions.has('performance.review_cycles.assign_employees');
     const canViewReviewCycles = permissions.has('performance.review_cycles.view');
+    const showGoalSettingTab = goalSettingCoverage !== null;
 
     return (
         <PerformancePage
@@ -1003,6 +1018,12 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
                     <Target className="mr-2 h-4 w-4" />
                     Goals
                 </Button>
+                {showGoalSettingTab ? (
+                    <Button type="button" size="sm" variant={activeTab === 'goal-setting' ? 'default' : 'ghost'} onClick={() => setActiveTab('goal-setting')}>
+                        <ClipboardList className="mr-2 h-4 w-4" />
+                        Goal Setting
+                    </Button>
+                ) : null}
                 <Button type="button" size="sm" variant={activeTab === 'overview' ? 'default' : 'ghost'} onClick={() => setActiveTab('overview')}>
                     <Gauge className="mr-2 h-4 w-4" />
                     Overview
@@ -1200,9 +1221,9 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
                                                     <div className="bg-muted/20 flex h-10 w-10 items-center justify-center rounded-lg border">
                                                         <ActionIcon className="text-muted-foreground h-5 w-5" />
                                                     </div>
-                                                    <div className="text-foreground text-3xl font-bold tracking-tight">{value}</div>
+                                                    <div className="text-foreground text-3xl font-bold tracking-tight">{String(value)}</div>
                                                 </div>
-                                                <div className="text-foreground mt-4 text-sm font-medium">{label}</div>
+                                                <div className="text-foreground mt-4 text-sm font-medium">{String(label)}</div>
                                             </div>
                                         );
                                     })}
@@ -1675,6 +1696,8 @@ export default function DashboardIndex({ dashboard, myAppraisals, teamPending, a
                         />
                     </section>
                 </div>
+            ) : activeTab === 'goal-setting' && goalSettingCoverage ? (
+                <GoalSettingCoverageTab coverage={goalSettingCoverage} />
             ) : (
                 <GoalsAssessmentTab
                     currentGoals={currentGoals}

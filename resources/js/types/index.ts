@@ -38,6 +38,17 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    tenant?: {
+        current: { id: number; name: string; slug: string; timezone: string } | null;
+        organizations: Array<{ id: number; name: string; slug: string }>;
+        supportAccess: boolean;
+        workflow?: {
+            calibration_enabled: boolean;
+            enabled_stages: Array<
+                'goal_setting' | 'self_assessment' | 'manager_review' | 'approval' | 'calibration' | 'final_record'
+            >;
+        } | null;
+    };
     nav?: {
         employeesCount?: number | null;
         pendingAppraisalsCount?: number | null;
@@ -67,5 +78,6 @@ export interface User {
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
+    is_platform_admin?: boolean;
     [key: string]: unknown; // This allows for additional properties...
 }

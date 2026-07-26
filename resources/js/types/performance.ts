@@ -162,6 +162,7 @@ export interface GoalLibraryItem {
 
 /** Async goal-library lookup row (plan / goal setting). */
 export interface GoalLibrarySearchOption {
+    [key: string]: unknown;
     value: number;
     label: string;
     perspective_id: number;
@@ -350,6 +351,7 @@ export interface EmployeeProfile {
 }
 
 export interface EmployeeFieldConfigItem {
+    [key: string]: FormDataConvertible;
     field_key: string;
     label: string;
     section: string;
@@ -363,6 +365,7 @@ export interface EmployeeFieldConfigItem {
 }
 
 export interface EmployeeFieldConfigScreen {
+    [key: string]: FormDataConvertible;
     key: string;
     label: string;
     fields: EmployeeFieldConfigItem[];
@@ -386,6 +389,7 @@ export interface EmployeeProfileFormData {
     emergency_contact_name: string;
     emergency_contact_phone: string;
     department_id: string;
+    location_id: string;
     job_title_id: string;
     line_manager_user_id: string;
     approving_manager_user_id: string;
@@ -413,11 +417,108 @@ export interface ReviewCycle {
     self_assessment_deadline?: string | null;
     manager_review_deadline?: string | null;
     approval_deadline?: string | null;
+    template_id?: number | null;
+    template?: Template | null;
     status: string;
     opened_at?: string | null;
     closed_at?: string | null;
     created_at?: string | null;
     appraisals_count?: number;
+}
+
+export interface AutomationReadinessMatchingKpi {
+    id: number;
+    title: string;
+    description?: string | null;
+    default_weight: number;
+    perspective_id?: number;
+    perspective_name?: string | null;
+    kpi_measure?: string | null;
+}
+
+export interface ReviewCycleAutomationReadiness {
+    ready: boolean;
+    eligible: number;
+    excluded: number;
+    existing: number;
+    to_create: number;
+    to_prepare: number;
+    objective_count: number;
+    template?: {
+        name: string;
+        min_objectives: number;
+        max_objectives: number;
+    } | null;
+    blockers: Array<{
+        employee_profile_id: number | null;
+        employee_number: string | null;
+        employee_name: string;
+        department_id?: number | null;
+        department_name?: string | null;
+        job_title_id?: number | null;
+        job_title_name?: string | null;
+        reasons: string[];
+        matching_kpis?: AutomationReadinessMatchingKpi[];
+        kpi_weight_total?: number;
+    }>;
+}
+
+export interface GoalSettingCoverageEmployee {
+    id: number;
+    name: string;
+    email?: string | null;
+    employee_number?: string | null;
+    department_name?: string | null;
+    job_title_name?: string | null;
+}
+
+export interface GoalSettingCoverageScope {
+    department_id: number;
+    department_name: string;
+    job_title_id: number;
+    job_title_name: string;
+    kpi_count: number;
+    kpi_weight_total: number;
+    status: 'ready' | 'blocked';
+    issues: string[];
+    issue_messages: string[];
+    employee_count: number;
+    employees: GoalSettingCoverageEmployee[];
+}
+
+export interface GoalSettingCoverageReport {
+    organization: {
+        id: number | null;
+        name: string | null;
+    };
+    template: {
+        name: string;
+        min_objectives: number;
+        max_objectives: number;
+        source: 'open_cycle' | 'default_template' | 'fallback';
+        cycle_name?: string | null;
+    };
+    summary: {
+        eligible_employees: number;
+        scoped_employees: number;
+        incomplete_profiles: number;
+        total_scopes: number;
+        ready_scopes: number;
+        blocked_scopes: number;
+        employees_ready: number;
+        employees_blocked: number;
+        departments_with_gaps: number;
+    };
+    departments: Array<{
+        department_id: number;
+        department_name: string;
+        scope_count: number;
+        blocked_scope_count: number;
+        employee_count: number;
+        employees_blocked: number;
+    }>;
+    scopes: GoalSettingCoverageScope[];
+    incomplete_profiles: GoalSettingCoverageEmployee[];
 }
 
 export interface ObjectiveEvidence {
@@ -434,6 +535,7 @@ export interface Objective {
     id: number;
     appraisal_id: number;
     perspective_id: number;
+    template_item_id?: number | null;
     goal_library_item_id?: number | null;
     objective_type?: string | null;
     title: string;

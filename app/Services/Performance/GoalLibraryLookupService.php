@@ -16,6 +16,7 @@ class GoalLibraryLookupService
         return $this->queryForProfile(
             $appraisal->employeeProfile?->department_id,
             $appraisal->employeeProfile?->job_title_id,
+            requireJobTitleMatch: true,
         );
     }
 
@@ -29,8 +30,12 @@ class GoalLibraryLookupService
         );
     }
 
-    public function queryForProfile(?int $departmentId, ?int $jobTitleId, bool $activeOnly = true): Builder
-    {
+    public function queryForProfile(
+        ?int $departmentId,
+        ?int $jobTitleId,
+        bool $activeOnly = true,
+        bool $requireJobTitleMatch = false,
+    ): Builder {
         if (! $departmentId) {
             return GoalLibraryItem::query()->whereRaw('0 = 1');
         }
@@ -40,6 +45,7 @@ class GoalLibraryLookupService
             $departmentId,
             $jobTitleId,
             $activeOnly,
+            $requireJobTitleMatch,
         );
     }
 

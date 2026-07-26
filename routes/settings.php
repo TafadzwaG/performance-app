@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BrandingController;
+use App\Http\Controllers\Settings\AccessSettingsController;
 use App\Http\Controllers\Settings\DisasterRecoveryController;
 use App\Http\Controllers\Settings\EmailMfaController;
 use App\Http\Controllers\Settings\PasswordController;
@@ -10,21 +11,26 @@ use App\Http\Controllers\Settings\SystemSettingsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::middleware(['auth', 'approved', 'password.change'])->group(function () {
+Route::middleware(['auth', 'tenant', 'approved', 'password.change'])->group(function () {
     Route::get('settings', [SystemSettingsController::class, 'index'])->name('settings.index');
 
     Route::middleware('can:system.settings.manage')->group(function () {
         Route::put('settings', [SystemSettingsController::class, 'update'])->name('settings.update');
-        Route::post('settings/test-email', [SystemSettingsController::class, 'testEmail'])->name('settings.test_email');
+        Route::get('settings/access', [AccessSettingsController::class, 'edit'])->name('settings.access.edit');
+        Route::put('settings/access', [AccessSettingsController::class, 'update'])->name('settings.access.update');
         Route::post('settings/logo', [BrandingController::class, 'update'])->name('settings.logo.update');
         Route::delete('settings/logo', [BrandingController::class, 'destroy'])->name('settings.logo.destroy');
+    });
+
+    Route::middleware(['platform.admin', 'can:system.settings.manage'])->group(function () {
+        Route::post('settings/test-email', [SystemSettingsController::class, 'testEmail'])->name('settings.test_email');
         Route::post('settings/operations/failed-jobs/{job}/retry', [SystemOperationsController::class, 'retryFailedJob'])->name('settings.operations.failed_jobs.retry');
         Route::delete('settings/operations/failed-jobs/{job}', [SystemOperationsController::class, 'forgetFailedJob'])->name('settings.operations.failed_jobs.forget');
         Route::delete('settings/operations/failed-jobs', [SystemOperationsController::class, 'flushFailedJobs'])->name('settings.operations.failed_jobs.flush');
         Route::delete('settings/operations/pending-jobs/{job}', [SystemOperationsController::class, 'deletePendingJob'])->name('settings.operations.pending_jobs.destroy');
     });
 
-    Route::prefix('settings/disaster-recovery')->name('settings.disaster_recovery.')->group(function () {
+    Route::middleware('platform.admin')->prefix('settings/disaster-recovery')->name('settings.disaster_recovery.')->group(function () {
         Route::get('/', [DisasterRecoveryController::class, 'index'])->name('index');
         Route::post('backups', [DisasterRecoveryController::class, 'storeBackup'])->name('backups.store');
         Route::get('backups/{backup}', [DisasterRecoveryController::class, 'showBackup'])->name('backups.show');

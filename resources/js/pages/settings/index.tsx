@@ -46,6 +46,7 @@ type SystemSettings = {
     mail_reply_to_name: string | null;
     mail_notifications_enabled: boolean;
     email_mfa_required: boolean;
+    calibration_enabled?: boolean;
 };
 
 type SettingsForm = {
@@ -75,6 +76,7 @@ type SettingsForm = {
     mail_reply_to_name: string;
     mail_notifications_enabled: boolean;
     email_mfa_required: boolean;
+    calibration_enabled: boolean;
 };
 
 interface Props {
@@ -84,6 +86,7 @@ interface Props {
     can: {
         manageSettings: boolean;
         manageDisasterRecovery: boolean;
+        manageInfrastructure: boolean;
     };
 }
 
@@ -114,12 +117,16 @@ const emptySettings: SystemSettings = {
     mail_reply_to_name: null,
     mail_notifications_enabled: false,
     email_mfa_required: false,
+    calibration_enabled: true,
 };
 
 function availableTabsFor(can: Props['can']): SettingsTab[] {
     const tabs: SettingsTab[] = [];
     if (can.manageSettings) {
-        tabs.push('general', 'operations');
+        tabs.push('general');
+    }
+    if (can.manageInfrastructure) {
+        tabs.push('operations');
     }
     if (can.manageDisasterRecovery) {
         tabs.push('disaster-recovery');
@@ -205,6 +212,7 @@ export default function SettingsIndex({ settings, operations, disasterRecovery, 
         mail_reply_to_name: value(formSettings.mail_reply_to_name),
         mail_notifications_enabled: formSettings.mail_notifications_enabled,
         email_mfa_required: formSettings.email_mfa_required,
+        calibration_enabled: formSettings.calibration_enabled ?? true,
     });
 
     useEffect(() => setDrafts(palette), [palette]);
@@ -277,6 +285,34 @@ export default function SettingsIndex({ settings, operations, disasterRecovery, 
                 <Card className="border shadow-sm">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
+                            <Settings2 className="h-5 w-5 text-primary" />
+                            Appraisal workflow
+                        </CardTitle>
+                        <CardDescription>
+                            Choose which optional stages this organization uses during appraisals.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <label className="flex items-start gap-3 rounded-lg border bg-muted/10 px-4 py-3">
+                            <Checkbox
+                                checked={data.calibration_enabled}
+                                onCheckedChange={(checked) => setData('calibration_enabled', checked === true)}
+                            />
+                            <span>
+                                <span className="block text-sm font-medium text-foreground">Require Calibration stage</span>
+                                <span className="text-xs text-muted-foreground">
+                                    When off, Approval goes straight to Final Record. Appraisals already waiting on
+                                    Calibration become finalize-ready immediately.
+                                </span>
+                            </span>
+                        </label>
+                        <InputError message={errors.calibration_enabled ?? undefined} />
+                    </CardContent>
+                </Card>
+
+                {can.manageInfrastructure ? <Card className="border shadow-sm">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
                             <ShieldCheck className="h-5 w-5 text-primary" />
                             Email MFA Security
                         </CardTitle>
@@ -294,7 +330,7 @@ export default function SettingsIndex({ settings, operations, disasterRecovery, 
                         </label>
                         <InputError message={errors.email_mfa_required ?? undefined} />
                     </CardContent>
-                </Card>
+                </Card> : null}
 
                 <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                     <Card className="border shadow-sm">
@@ -419,7 +455,7 @@ export default function SettingsIndex({ settings, operations, disasterRecovery, 
                     </div>
                 </div>
 
-                <Card className="border shadow-sm">
+                {can.manageInfrastructure ? <Card className="border shadow-sm">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Mail className="h-5 w-5 text-primary" />
@@ -486,7 +522,7 @@ export default function SettingsIndex({ settings, operations, disasterRecovery, 
                             </Button>
                         </div>
                     </CardContent>
-                </Card>
+                </Card> : null}
 
                 <div className="flex justify-end">
                     <Button type="submit" disabled={processing}>

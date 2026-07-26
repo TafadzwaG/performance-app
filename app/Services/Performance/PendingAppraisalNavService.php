@@ -45,19 +45,14 @@ class PendingAppraisalNavService
                 $builder->orWhere('employee_user_id', $user->id);
             }
 
-            if ($user->can('performance.appraisals.plan_manage')) {
-                $builder->orWhere(fn (Builder $scoped) => $this->applyLineManagerPlanningScope($scoped, $user));
+            if ($user->can('performance.appraisals.plan_manage')
+                || $user->can('performance.appraisals.manager_review')) {
+                $builder->orWhere('line_manager_user_id', $user->id);
             }
 
-            if ($user->can('performance.appraisals.manager_review')) {
-                $builder->orWhere(fn (Builder $scoped) => $this->applyLineManagerActionScope($scoped, $user));
-            }
+            $builder->orWhere('approving_manager_user_id', $user->id);
 
-            if ($user->can('performance.appraisals.approve')) {
-                $builder->orWhere(fn (Builder $scoped) => $this->applyApprovingManagerActionScope($scoped, $user));
-            }
-
-            if ($user->can('performance.appraisals.calibrate')) {
+            if ($user->can('performance.appraisals.calibrate') && app(AppraisalWorkflowConfig::class)->calibrationEnabled()) {
                 $builder->orWhere(fn (Builder $scoped) => $this->applyCalibrationActionScope($scoped));
             }
 
@@ -82,11 +77,9 @@ class PendingAppraisalNavService
                 $builder->orWhere(fn (Builder $scoped) => $this->applyLineManagerActionScope($scoped, $user));
             }
 
-            if ($user->can('performance.appraisals.approve')) {
-                $builder->orWhere(fn (Builder $scoped) => $this->applyApprovingManagerActionScope($scoped, $user));
-            }
+            $builder->orWhere(fn (Builder $scoped) => $this->applyApprovingManagerActionScope($scoped, $user));
 
-            if ($user->can('performance.appraisals.calibrate')) {
+            if ($user->can('performance.appraisals.calibrate') && app(AppraisalWorkflowConfig::class)->calibrationEnabled()) {
                 $builder->orWhere(fn (Builder $scoped) => $this->applyCalibrationActionScope($scoped));
             }
 

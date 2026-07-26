@@ -25,6 +25,7 @@ interface PermissionGroup {
 interface Props {
     roleOptions: Option[];
     permissionGroups: PermissionGroup[];
+    locationOptions: Option[];
 }
 
 interface CreateUserFormData {
@@ -37,13 +38,15 @@ interface CreateUserFormData {
     force_password_change: boolean;
     role_ids: number[];
     permission_ids: number[];
+    access_all_locations: boolean;
+    location_ids: number[];
 }
 
 function formatPermissionName(value: string) {
     return value.replaceAll('.', ' / ').replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export default function UserCreate({ roleOptions, permissionGroups }: Props) {
+export default function UserCreate({ roleOptions, permissionGroups, locationOptions }: Props) {
     const { flash } = usePage<SharedData>().props;
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Performance', href: '/performance/dashboard' },
@@ -60,6 +63,8 @@ export default function UserCreate({ roleOptions, permissionGroups }: Props) {
         force_password_change: true,
         role_ids: [],
         permission_ids: [],
+        access_all_locations: false,
+        location_ids: [],
     });
 
     const selectedPermissions = useMemo(
@@ -228,6 +233,24 @@ export default function UserCreate({ roleOptions, permissionGroups }: Props) {
 
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
                     <div className="space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <CardDescription className="text-[11px] font-medium uppercase tracking-[0.18em]">Location scope</CardDescription>
+                                <CardTitle>Accessible Locations</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <label className="flex items-center gap-3 rounded-lg border px-4 py-3">
+                                    <Checkbox checked={data.access_all_locations} onCheckedChange={(checked) => setData('access_all_locations', !!checked)} />
+                                    <span className="text-sm font-medium">Head office access to all locations</span>
+                                </label>
+                                {!data.access_all_locations ? locationOptions.map((location) => {
+                                    const id = Number(location.value);
+                                    return <label key={id} className="flex items-center gap-3 rounded-lg border px-4 py-3"><Checkbox checked={data.location_ids.includes(id)} onCheckedChange={() => setData('location_ids', data.location_ids.includes(id) ? data.location_ids.filter((value) => value !== id) : [...data.location_ids, id])} /><span className="text-sm">{location.label}</span></label>;
+                                }) : null}
+                                <InputError message={errors.location_ids} />
+                            </CardContent>
+                        </Card>
+
                         <Card>
                             <CardHeader>
                                 <CardDescription className="text-[11px] font-medium uppercase tracking-[0.18em]">

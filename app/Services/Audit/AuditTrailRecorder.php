@@ -3,10 +3,13 @@
 namespace App\Services\Audit;
 
 use App\Models\AuditTrail;
+use App\Models\OrganizationMembership;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Lab404\Impersonate\Services\ImpersonateManager;
 use Symfony\Component\HttpFoundation\Response;
@@ -24,6 +27,12 @@ class AuditTrailRecorder
             return;
         }
 
+        $organizationId = $this->resolveOrganizationId($request);
+
+        if ($organizationId === null) {
+            return;
+        }
+
         $subject = collect($request->route()?->parametersWithoutNulls() ?? [])
             ->first(fn (mixed $parameter) => $parameter instanceof Model);
 
@@ -31,22 +40,66 @@ class AuditTrailRecorder
             ? $this->impersonateManager->getImpersonator()
             : null;
 
-        AuditTrail::query()->create([
-            'user_id' => $request->user()?->getKey(),
-            'impersonator_user_id' => $impersonator?->getKey(),
-            'action' => $this->resolveAction($request, $exception),
-            'method' => strtoupper($request->method()),
-            'route_name' => $request->route()?->getName(),
-            'url' => $request->fullUrl(),
-            'ip_address' => $request->ip(),
-            'user_agent' => Str::limit((string) $request->userAgent(), 1000, '...'),
-            'subject_type' => $subject?->getMorphClass(),
-            'subject_id' => $subject?->getKey(),
-            'subject_label' => $this->resolveSubjectLabel($subject),
-            'request_payload' => $this->sanitizePayload($request),
-            'response_status' => $exception ? 500 : ($response?->getStatusCode() ?? 200),
-            'occurred_at' => now(),
-        ]);
+        try {
+            AuditTrail::query()->create([
+                'organization_id' => $organizationId,
+                'user_id' => $request->user()?->getKey(),
+                'impersonator_user_id' => $impersonator?->getKey(),
+                'action' => $this->resolveAction($request, $exception),
+                'method' => strtoupper($request->method()),
+                'route_name' => $request->route()?->getName(),
+                'url' => $request->fullUrl(),
+                'ip_address' => $request->ip(),
+                'user_agent' => Str::limit((string) $request->userAgent(), 1000, '...'),
+                'subject_type' => $subject?->getMorphClass(),
+                'subject_id' => $subject?->getKey(),
+                'subject_label' => $this->resolveSubjectLabel($subject),
+                'request_payload' => array_filter([
+                    ...$this->sanitizePayload($request),
+                    '_platform_support_reason' => $request->session()->get('platform_support_reason'),
+                ], fn ($value) => $value !== null),
+                'response_status' => $exception ? 500 : ($response?->getStatusCode() ?? 200),
+                'occurred_at' => now(),
+            ]);
+        } catch (Throwable $auditException) {
+            // Never break the primary request because audit logging failed.
+            report($auditException);
+            Log::warning('Failed to record audit trail.', [
+                'route' => $request->route()?->getName(),
+                'url' => $request->fullUrl(),
+                'error' => $auditException->getMessage(),
+            ]);
+        }
+    }
+
+    protected function resolveOrganizationId(Request $request): ?int
+    {
+        $contextId = app(TenantContext::class)->id();
+
+        if ($contextId !== null) {
+            return $contextId;
+        }
+
+        $sessionOrganizationId = $request->session()->get('organization_id');
+
+        if ($sessionOrganizationId) {
+            return (int) $sessionOrganizationId;
+        }
+
+        $user = $request->user();
+
+        if (! $user) {
+            return null;
+        }
+
+        $membershipOrganizationId = OrganizationMembership::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->whereHas('organization', fn ($query) => $query->where('status', 'active'))
+            ->orderByDesc('is_default')
+            ->value('organization_id');
+
+        return $membershipOrganizationId !== null ? (int) $membershipOrganizationId : null;
     }
 
     protected function shouldRecord(Request $request): bool

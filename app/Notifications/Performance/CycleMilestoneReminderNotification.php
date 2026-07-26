@@ -3,7 +3,9 @@
 namespace App\Notifications\Performance;
 
 use App\Models\Appraisal;
+use App\Notifications\Concerns\ActivatesTenantContext;
 use App\Support\Notifications\PerformanceNotificationChannels;
+use App\Support\Tenancy\TenantAwareUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -12,7 +14,7 @@ use Illuminate\Support\Carbon;
 
 class CycleMilestoneReminderNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use ActivatesTenantContext, Queueable;
 
     public function __construct(
         public readonly Appraisal $appraisal,
@@ -25,6 +27,8 @@ class CycleMilestoneReminderNotification extends Notification implements ShouldQ
 
     public function via(object $notifiable): array
     {
+        $this->activateTenantContext($this->appraisal->organization_id);
+
         return PerformanceNotificationChannels::forAppraisalWorkflow();
     }
 
@@ -41,7 +45,7 @@ class CycleMilestoneReminderNotification extends Notification implements ShouldQ
             ->line('Deadline: '.$this->deadline->format('d M Y'))
             ->line('Employee: '.$this->appraisal->employee_name_snapshot)
             ->line('Reference: '.($this->appraisal->employee_number_snapshot ?? 'N/A'))
-            ->action('Open appraisal', $this->actionUrl)
+            ->action('Open appraisal', TenantAwareUrl::forOrganization($this->appraisal->organization_id, $this->actionUrl))
             ->line('Please complete the required workflow step before the milestone deadline.');
     }
 
@@ -61,7 +65,7 @@ class CycleMilestoneReminderNotification extends Notification implements ShouldQ
             'days_remaining' => $this->daysRemaining,
             'employee' => $this->appraisal->employee_name_snapshot,
             'cycle' => $this->appraisal->cycle_name_snapshot,
-            'route' => $this->actionUrl,
+            'route' => TenantAwareUrl::forOrganization($this->appraisal->organization_id, $this->actionUrl),
         ];
     }
 }

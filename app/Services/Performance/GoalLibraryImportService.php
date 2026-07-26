@@ -7,6 +7,7 @@ use App\Models\GoalLibraryItem;
 use App\Models\JobTitle;
 use App\Models\Perspective;
 use App\Models\User;
+use App\Support\Tenancy\TenantStoragePath;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -219,7 +220,7 @@ class GoalLibraryImportService
     public function storeUploadForSession(UploadedFile $file): string
     {
         $extension = $file->getClientOriginalExtension() ?: 'csv';
-        $path = 'imports/goal-library/'.Str::uuid().'.'.$extension;
+        $path = TenantStoragePath::privateImport('goal-library', Str::uuid().'.'.$extension);
 
         Storage::disk('local')->put($path, file_get_contents($file->getRealPath()));
 

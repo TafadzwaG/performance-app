@@ -9,6 +9,9 @@ use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Performance\StoreReviewCycleRequest;
 use App\Http\Requests\Performance\UpdateReviewCycleRequest;
 use App\Models\ReviewCycle;
+use App\Services\Performance\ReviewCycleAutomationService;
+use App\Tenancy\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,8 +22,10 @@ class ReviewCycleController extends Controller
 {
     use BuildsPerformanceViewData;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly ReviewCycleAutomationService $automationService,
+        private readonly TenantContext $tenantContext,
+    ) {
         $this->authorizeResource(ReviewCycle::class, 'review_cycle');
     }
 
@@ -54,7 +59,9 @@ class ReviewCycleController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('performance/review-cycles/Create');
+        return Inertia::render('performance/review-cycles/Create', [
+            'templateOptions' => $this->templateOptions(),
+        ]);
     }
 
     public function store(StoreReviewCycleRequest $request): RedirectResponse
@@ -68,7 +75,7 @@ class ReviewCycleController extends Controller
 
     public function show(Request $request, ReviewCycle $reviewCycle): Response
     {
-        $reviewCycle->loadCount('appraisals');
+        $reviewCycle->load('template')->loadCount('appraisals');
         $existingCounts = DB::table('appraisals')
             ->where('review_cycle_id', $reviewCycle->id)
             ->selectRaw('status, count(*) as total')
@@ -82,15 +89,30 @@ class ReviewCycleController extends Controller
             ->merge($existingCounts)
             ->all();
 
+        $canOpen = $request->user()->can('performance.review_cycles.open')
+            && $request->user()->can('update', $reviewCycle)
+            && $this->hasTenantWideAccess($request);
+        $canSync = $request->user()->can('performance.review_cycles.assign_employees')
+            && $request->user()->can('update', $reviewCycle)
+            && $this->hasTenantWideAccess($request);
+
         return Inertia::render('performance/review-cycles/Show', [
             'reviewCycle' => $reviewCycle,
             'statusCounts' => $statusCounts,
+            'automationReadiness' => ($canOpen || $canSync) && $reviewCycle->status !== ReviewCycleStatus::Closed
+                ? $this->automationService->readiness($reviewCycle)
+                : null,
+            'perspectiveOptions' => ($canOpen || $canSync) && $reviewCycle->status !== ReviewCycleStatus::Closed
+                ? $this->perspectiveOptions()
+                : [],
             'templateOptions' => $this->templateOptions(),
             'employeeProfileOptions' => $request->user()->can('performance.review_cycles.assign_employees')
                 ? $this->employeeProfileOptions()
                 : [],
             'can' => [
                 'assignEmployees' => $request->user()->can('performance.review_cycles.assign_employees'),
+                'open' => $canOpen,
+                'sync' => $canSync,
             ],
         ]);
     }
@@ -98,7 +120,8 @@ class ReviewCycleController extends Controller
     public function edit(ReviewCycle $reviewCycle): Response
     {
         return Inertia::render('performance/review-cycles/Edit', [
-            'reviewCycle' => $reviewCycle,
+            'reviewCycle' => $reviewCycle->loadCount('appraisals'),
+            'templateOptions' => $this->templateOptions(),
         ]);
     }
 
@@ -133,13 +156,37 @@ class ReviewCycleController extends Controller
     {
         abort_unless($request->user()->can('performance.review_cycles.open'), 403);
         $this->authorize('update', $reviewCycle);
+        $this->authorizeTenantWideAccess($request);
 
-        $reviewCycle->update([
-            'status' => ReviewCycleStatus::Open,
-            'opened_at' => now(),
-        ]);
+        $this->automationService->open($reviewCycle, $request->user());
 
-        return to_route('performance.review_cycles.show', $reviewCycle);
+        return to_route('performance.review_cycles.show', $reviewCycle)
+            ->with('success', 'Review cycle opened. Eligible employees can now start their self assessments.');
+    }
+
+    public function readiness(Request $request, ReviewCycle $reviewCycle): JsonResponse
+    {
+        $this->authorize('update', $reviewCycle);
+        abort_unless(
+            $request->user()->can('performance.review_cycles.open')
+            || $request->user()->can('performance.review_cycles.assign_employees'),
+            403,
+        );
+        $this->authorizeTenantWideAccess($request);
+
+        return response()->json($this->automationService->readiness($reviewCycle));
+    }
+
+    public function sync(Request $request, ReviewCycle $reviewCycle): RedirectResponse
+    {
+        $this->authorize('update', $reviewCycle);
+        abort_unless($request->user()->can('performance.review_cycles.assign_employees'), 403);
+        $this->authorizeTenantWideAccess($request);
+
+        $result = $this->automationService->sync($reviewCycle, $request->user());
+
+        return to_route('performance.review_cycles.show', $reviewCycle)
+            ->with('success', "Synchronized {$result['created']} newly eligible employee appraisal(s).");
     }
 
     public function close(Request $request, ReviewCycle $reviewCycle): RedirectResponse
@@ -153,5 +200,15 @@ class ReviewCycleController extends Controller
         ]);
 
         return to_route('performance.review_cycles.show', $reviewCycle);
+    }
+
+    private function hasTenantWideAccess(Request $request): bool
+    {
+        return $this->tenantContext->allowedLocationIds($request->user()) === null;
+    }
+
+    private function authorizeTenantWideAccess(Request $request): void
+    {
+        abort_unless($this->hasTenantWideAccess($request), 403, 'All-location organization access is required for this action.');
     }
 }

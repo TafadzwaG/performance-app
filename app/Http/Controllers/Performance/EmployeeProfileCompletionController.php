@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Performance\CompleteEmployeeProfileRequest;
 use App\Models\EmployeeProfile;
+use App\Models\Location;
 use App\Models\User;
 use App\Services\Performance\EmployeeFieldConfigService;
 use App\Support\Performance\EmployeeFieldRegistry;
+use App\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,12 +22,11 @@ class EmployeeProfileCompletionController extends Controller
 
     public function __construct(
         private readonly EmployeeFieldConfigService $fieldConfigService,
-    ) {
-    }
+    ) {}
 
     public function create(Request $request): Response|RedirectResponse
     {
-        if ($request->user()->employeeProfile()->exists()) {
+        if ($this->activeEmployeeProfile($request->user())) {
             return to_route('dashboard');
         }
 
@@ -43,6 +44,7 @@ class EmployeeProfileCompletionController extends Controller
             'fieldConfig' => $this->fieldConfigService->forScreen(EmployeeFieldRegistry::SCREEN_COMPLETE_PROFILE)->all(),
             'can' => [
                 'assignRoles' => false,
+                ...$this->setupQuickCreateFlags($request->user()),
             ],
         ]);
     }
@@ -50,19 +52,55 @@ class EmployeeProfileCompletionController extends Controller
     public function store(CompleteEmployeeProfileRequest $request): RedirectResponse
     {
         $user = $request->user();
+        $existing = $this->findCompletionProfile($user);
 
-        if ($user->employeeProfile()->exists()) {
+        if ($existing && ! $existing->trashed()) {
             return to_route('dashboard');
         }
 
-        EmployeeProfile::create($request->validated() + [
+        $attributes = $this->profileAttributesFromRequest($request, $user);
+
+        if ($existing?->trashed()) {
+            $existing->restore();
+            $existing->update($attributes);
+        } else {
+            EmployeeProfile::query()->create($attributes);
+        }
+
+        return to_route('dashboard')->with('success', 'Employee profile completed successfully.');
+    }
+
+    private function activeEmployeeProfile(User $user): ?EmployeeProfile
+    {
+        $profile = $this->findCompletionProfile($user);
+
+        return $profile && ! $profile->trashed() ? $profile : null;
+    }
+
+    private function findCompletionProfile(User $user): ?EmployeeProfile
+    {
+        $organizationId = app(TenantContext::class)->requireId();
+
+        return EmployeeProfile::query()
+            ->withoutGlobalScope('location_visibility')
+            ->withTrashed()
+            ->where('user_id', $user->id)
+            ->where('organization_id', $organizationId)
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function profileAttributesFromRequest(CompleteEmployeeProfileRequest $request, User $user): array
+    {
+        return $request->validated() + [
             'user_id' => $user->id,
+            'location_id' => Location::query()->where('is_active', true)->value('id'),
             'employment_status' => $request->validated('employment_status', 'active'),
             'is_active' => (bool) $request->validated('is_active', true),
             'is_review_eligible' => (bool) $request->validated('is_review_eligible', true),
-        ]);
-
-        return to_route('dashboard')->with('success', 'Employee profile completed successfully.');
+        ];
     }
 
     private function formDefaults(User $user): array

@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\SystemSetting;
+use App\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 
@@ -16,12 +17,22 @@ class Branding
             return null;
         }
 
-        return asset('branding/'.basename($path).'?v='.filemtime($path));
+        $publicRoot = rtrim(str_replace('\\', '/', public_path()), '/').'/';
+        $relativePath = str_replace('\\', '/', $path);
+        $relativePath = str_starts_with($relativePath, $publicRoot)
+            ? substr($relativePath, strlen($publicRoot))
+            : 'branding/'.basename($path);
+
+        return asset($relativePath).'?v='.filemtime($path);
     }
 
     public static function logoAbsolutePath(): ?string
     {
-        $files = glob(public_path('branding/system-logo.*')) ?: [];
+        $organizationId = app(TenantContext::class)->id();
+        $pattern = $organizationId
+            ? public_path("branding/organizations/{$organizationId}/logo.*")
+            : public_path('branding/system-logo.*');
+        $files = glob($pattern) ?: [];
 
         if (count($files) === 0) {
             return null;
@@ -88,7 +99,8 @@ class Branding
     public static function exportRevision(): int
     {
         $settings = SystemSetting::query()->first();
-        $settingsTimestamp = $settings?->updated_at?->getTimestamp() ?? 0;
+        $tenantSettingsTimestamp = app(TenantContext::class)->organization()?->settings?->updated_at?->getTimestamp() ?? 0;
+        $settingsTimestamp = max($settings?->updated_at?->getTimestamp() ?? 0, $tenantSettingsTimestamp);
         $logoPath = static::logoAbsolutePath();
         $logoTimestamp = ($logoPath !== null && file_exists($logoPath)) ? (int) filemtime($logoPath) : 0;
 
@@ -116,6 +128,8 @@ class Branding
     public static function exportHeaderContext(): array
     {
         $settings = SystemSetting::current();
+        $organization = app(TenantContext::class)->organization();
+        $organizationSettings = $organization?->settings;
         $logoPath = static::logoAbsolutePath();
         $poweredByPath = static::poweredByPath();
 
@@ -131,11 +145,13 @@ class Branding
             'poweredByDataUri' => static::poweredByDataUri(),
             'poweredByPdfSrc' => static::pdfImageSrc($poweredByPath),
             'poweredByExists' => $poweredByPath !== null,
-            'companyName' => filled($settings->company_name)
-                ? $settings->company_name
-                : 'Performance Appraisal Studio',
-            'companyAddress' => $settings->formattedAddress(),
-            'reportFooter' => $settings->report_footer,
+            'companyName' => filled($organization?->name)
+                ? $organization->name
+                : (filled($settings->company_name)
+                    ? $settings->company_name
+                    : 'Performance Appraisal Studio'),
+            'companyAddress' => $organizationSettings ? collect([$organizationSettings->address_line_1, $organizationSettings->address_line_2, $organizationSettings->city, $organizationSettings->state_province, $organizationSettings->postal_code, $organizationSettings->country])->filter()->join(', ') : $settings->formattedAddress(),
+            'reportFooter' => $organizationSettings?->report_footer ?? $settings->report_footer,
         ];
     }
 
@@ -152,26 +168,30 @@ class Branding
 
     public static function updateLogo(UploadedFile $file): void
     {
-        $directory = public_path('branding');
+        $organizationId = app(TenantContext::class)->requireId();
+        $directory = public_path("branding/organizations/{$organizationId}");
 
         if (! File::exists($directory)) {
             File::makeDirectory($directory, 0755, true);
         }
 
-        foreach (glob($directory.'/system-logo.*') ?: [] as $existing) {
+        foreach (glob($directory.'/logo.*') ?: [] as $existing) {
             File::delete($existing);
         }
 
         $extension = strtolower($file->getClientOriginalExtension() ?: 'png');
-        $filename = 'system-logo.'.$extension;
+        $filename = 'logo.'.$extension;
 
         $file->move($directory, $filename);
+        app(TenantContext::class)->organization()?->settings()->updateOrCreate([], ['logo_path' => "branding/organizations/{$organizationId}/{$filename}"]);
     }
 
     public static function removeLogo(): void
     {
-        foreach (glob(public_path('branding/system-logo.*')) ?: [] as $existing) {
+        $organizationId = app(TenantContext::class)->requireId();
+        foreach (glob(public_path("branding/organizations/{$organizationId}/logo.*")) ?: [] as $existing) {
             File::delete($existing);
         }
+        app(TenantContext::class)->organization()?->settings()->updateOrCreate([], ['logo_path' => null]);
     }
 }

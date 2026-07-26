@@ -7,12 +7,15 @@ use App\Enums\ReviewCycleStatus;
 use App\Enums\WorkflowStage;
 use App\Models\Appraisal;
 use App\Models\AppraisalMilestoneReminder;
+use App\Models\Organization;
 use App\Models\ReviewCycle;
 use App\Models\User;
 use App\Notifications\Performance\CycleMilestoneReminderNotification;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Carbon;
+use Spatie\Permission\PermissionRegistrar;
 
 class CycleMilestoneReminderService
 {
@@ -25,17 +28,50 @@ class CycleMilestoneReminderService
 
     public function sendDueReminders(?Carbon $onDate = null): int
     {
-        $onDate ??= now()->startOfDay();
+        $context = app(TenantContext::class);
+
+        if ($context->id() !== null) {
+            return $this->sendForCurrentOrganization($onDate ?? now($context->organization()?->timezone)->startOfDay());
+        }
+
+        $sent = 0;
+
+        Organization::query()->where('status', 'active')->each(function (Organization $organization) use (&$sent, $onDate, $context): void {
+            $context->set($organization);
+            app(PermissionRegistrar::class)->setPermissionsTeamId($organization->id);
+
+            $locations = $organization->locations()->where('is_active', true)->get();
+            if ($locations->isEmpty()) {
+                $sent += $this->sendForCurrentOrganization($onDate ?? now($organization->timezone)->startOfDay());
+            } else {
+                foreach ($locations as $location) {
+                    $timezone = $location->timezone ?: $organization->timezone;
+                    $sent += $this->sendForCurrentOrganization(
+                        $onDate ?? now($timezone)->startOfDay(),
+                        $location->id,
+                    );
+                }
+            }
+
+            $context->clear();
+            app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        });
+
+        return $sent;
+    }
+
+    private function sendForCurrentOrganization(Carbon $onDate, ?int $locationId = null): int
+    {
         $sent = 0;
 
         foreach (self::REMINDER_DAYS as $daysBefore) {
-            $sent += $this->sendRemindersForLeadTime($daysBefore, $onDate);
+            $sent += $this->sendRemindersForLeadTime($daysBefore, $onDate, $locationId);
         }
 
         return $sent;
     }
 
-    private function sendRemindersForLeadTime(int $daysBefore, Carbon $onDate): int
+    private function sendRemindersForLeadTime(int $daysBefore, Carbon $onDate, ?int $locationId = null): int
     {
         $targetDeadline = $onDate->copy()->addDays($daysBefore);
         $sent = 0;
@@ -44,8 +80,12 @@ class CycleMilestoneReminderService
             ReviewCycle::query()
                 ->where('status', ReviewCycleStatus::Open)
                 ->whereDate($milestone['deadline_column'], $targetDeadline->toDateString())
-                ->with(['appraisals' => function ($query) use ($milestone) {
+                ->with(['appraisals' => function ($query) use ($milestone, $locationId) {
                     $milestone['scopeAppraisals']($query);
+                    $query->when($locationId, fn ($appraisals) => $appraisals->whereHas(
+                        'employeeProfile',
+                        fn ($profiles) => $profiles->withoutGlobalScope('location_visibility')->where('location_id', $locationId),
+                    ));
                     $query->with(['employee', 'lineManager', 'approvingManager', 'reviewCycle']);
                 }])
                 ->each(function (ReviewCycle $cycle) use ($milestoneKey, $milestone, $daysBefore, &$sent) {

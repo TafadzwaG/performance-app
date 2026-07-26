@@ -54,6 +54,18 @@ class RequireEmployeeProfileCompletion
             return true;
         }
 
+        if (str_starts_with($routeName, 'performance.') && $user->getAllPermissions()->contains(
+            fn ($permission) => str_starts_with($permission->name, 'performance.')
+                && ! in_array($permission->name, [
+                    'performance.appraisals.view_own',
+                    'performance.appraisals.view',
+                    'performance.appraisals.self_assess',
+                    'performance.development_plans.view',
+                ], true),
+        )) {
+            return true;
+        }
+
         return false;
     }
 

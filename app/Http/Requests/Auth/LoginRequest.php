@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
-use App\Services\Performance\EmployeeIdentityService;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,7 +10,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
@@ -32,9 +30,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'login_method' => ['required', Rule::in(['employee_number', 'email'])],
-            'employee_number' => ['required_if:login_method,employee_number', 'nullable', 'string', 'max:100'],
-            'email' => ['required_if:login_method,email', 'nullable', 'string', 'email', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'string'],
         ];
     }
@@ -99,45 +95,21 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate($this->loginMethod().'|'.$this->loginIdentifier().'|'.$this->ip());
-    }
-
-    public function loginMethod(): string
-    {
-        return $this->string('login_method')->toString();
+        return Str::transliterate('email|'.$this->loginIdentifier().'|'.$this->ip());
     }
 
     public function credentialField(): string
     {
-        return $this->usesEmailLogin() ? 'email' : 'employee_number';
-    }
-
-    public function usesEmailLogin(): bool
-    {
-        return $this->loginMethod() === 'email';
+        return 'email';
     }
 
     private function loginIdentifier(): string
     {
-        if ($this->usesEmailLogin()) {
-            return Str::lower(trim($this->string('email')->toString()));
-        }
-
-        return app(EmployeeIdentityService::class)->normalizeEmployeeNumber(
-            $this->string('employee_number')->toString(),
-        );
+        return Str::lower(trim($this->string('email')->toString()));
     }
 
     private function resolveUser(): ?User
     {
-        if ($this->usesEmailLogin()) {
-            return User::query()
-                ->where('email', $this->loginIdentifier())
-                ->first();
-        }
-
-        return app(EmployeeIdentityService::class)->findUserByEmployeeNumber(
-            $this->string('employee_number')->toString(),
-        );
+        return User::query()->where('email', $this->loginIdentifier())->first();
     }
 }

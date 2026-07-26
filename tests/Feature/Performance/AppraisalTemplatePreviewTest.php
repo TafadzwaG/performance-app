@@ -3,9 +3,9 @@
 use App\Models\AppraisalTemplate;
 use App\Models\EmployeeProfile;
 use App\Models\Permission;
-use App\Models\SystemSetting;
 use App\Models\User;
 use App\Support\Branding;
+use App\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -49,8 +49,9 @@ test('template layout preview uses latest company branding', function () {
         'name' => 'Branded Template',
     ]);
 
-    SystemSetting::current()->update([
-        'company_name' => 'Monomotapa Hotel Group',
+    $organization = app(TenantContext::class)->organization();
+    $organization->update(['name' => 'Monomotapa Hotel Group']);
+    $organization->settings()->updateOrCreate([], [
         'address_line_1' => '1 Sam Nujoma Street',
         'city' => 'Harare',
         'country' => 'Zimbabwe',
@@ -64,7 +65,7 @@ test('template layout preview uses latest company branding', function () {
     $response->assertOk()
         ->assertSee('Monomotapa Hotel Group', false)
         ->assertSee('1 Sam Nujoma Street', false)
-        ->assertSee('branding/system-logo', false);
+        ->assertSee("branding/organizations/{$organization->id}", false);
 
     expect($response->headers->get('Cache-Control'))->toContain('no-store');
 });

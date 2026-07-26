@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Performance\Setup;
 
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateJobTitleRequest extends FormRequest
 {
@@ -17,8 +17,8 @@ class UpdateJobTitleRequest extends FormRequest
         $jobTitle = $this->route('job_title');
 
         return [
-            'name' => ['required', 'string', 'max:255', Rule::unique('job_titles', 'name')->ignore($jobTitle?->id)],
-            'code' => ['required', 'string', 'max:100', Rule::unique('job_titles', 'code')->ignore($jobTitle?->id)],
+            'name' => ['required', 'string', 'max:255', TenantRule::unique('job_titles', 'name', $jobTitle?->id)],
+            'code' => ['required', 'string', 'max:100', TenantRule::unique('job_titles', 'code', $jobTitle?->id)],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ];

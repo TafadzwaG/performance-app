@@ -5,7 +5,10 @@ use App\Models\EmployeeProfile;
 use App\Models\Permission;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\DisasterRecovery\DisasterRecoveryService;
 use App\Services\Settings\MailSettingsService;
+use App\Services\Settings\SystemOperationsService;
+use App\Tenancy\TenantContext;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,9 +37,12 @@ test('system settings page shows company and smtp settings without exposing smtp
     $user = User::factory()->create(['is_approved' => true]);
     grantSystemSettingsPermission($user);
 
+    app(TenantContext::class)->organization()->update([
+        'name' => 'Nhaka Performance Group',
+        'email' => 'people@nhaka.test',
+    ]);
+
     SystemSetting::query()->create([
-        'company_name' => 'Nhaka Performance Group',
-        'company_email' => 'people@nhaka.test',
         'smtp_host' => 'smtp.nhaka.test',
         'smtp_port' => 587,
         'smtp_username' => 'mailer',
@@ -52,8 +58,8 @@ test('system settings page shows company and smtp settings without exposing smtp
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('settings/index')
-            ->has('operations.queue')
-            ->has('operations.storage')
+            ->where('operations', null)
+            ->where('disasterRecovery', null)
             ->where('settings.company_name', 'Nhaka Performance Group')
             ->where('settings.company_email', 'people@nhaka.test')
             ->where('settings.smtp_host', 'smtp.nhaka.test')
@@ -62,6 +68,28 @@ test('system settings page shows company and smtp settings without exposing smtp
             ->where('settings.mail_notifications_enabled', true)
             ->where('settings.email_mfa_required', false)
         );
+});
+
+test('general settings does not build hidden operations or disaster recovery snapshots', function () {
+    $user = User::factory()->create(['is_approved' => true]);
+    grantSystemSettingsPermission($user);
+
+    $operations = Mockery::mock(SystemOperationsService::class);
+    $operations->shouldNotReceive('snapshot');
+    $this->app->instance(SystemOperationsService::class, $operations);
+
+    $disasterRecovery = Mockery::mock(DisasterRecoveryService::class);
+    $disasterRecovery->shouldNotReceive('snapshot');
+    $this->app->instance(DisasterRecoveryService::class, $disasterRecovery);
+
+    $this->actingAs($user)
+        ->get(route('settings.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('settings/index')
+            ->where('operations', null)
+            ->where('disasterRecovery', null)
+            ->has('settings'));
 });
 
 test('system settings update persists company profile and encrypted smtp settings', function () {
@@ -95,13 +123,16 @@ test('system settings update persists company profile and encrypted smtp setting
             'mail_reply_to_name' => 'TJT HR',
             'mail_notifications_enabled' => true,
             'email_mfa_required' => true,
+            'calibration_enabled' => true,
         ])
         ->assertRedirect(route('settings.index'));
 
     $settings = SystemSetting::query()->firstOrFail();
+    $organization = app(TenantContext::class)->organization()->fresh();
+    $tenantSettings = $organization->settings;
 
-    expect($settings->company_name)->toBe('TJT Appraisals')
-        ->and($settings->company_legal_name)->toBe('TJT Appraisals Private Limited')
+    expect($organization->name)->toBe('TJT Appraisals')
+        ->and($tenantSettings->legal_name)->toBe('TJT Appraisals Private Limited')
         ->and($settings->smtp_host)->toBe('smtp.tjt.test')
         ->and($settings->smtp_password)->toBe('smtp-secret')
         ->and($settings->getRawOriginal('smtp_password'))->not->toBe('smtp-secret')
@@ -135,8 +166,10 @@ test('mail settings service applies smtp settings from database at runtime', fun
 });
 
 test('employee export includes configured company identity above headings', function () {
-    SystemSetting::query()->create([
-        'company_name' => 'Nhaka Performance Group',
+    $user = User::factory()->create();
+    $organization = app(TenantContext::class)->organization();
+    $organization->update(['name' => 'Nhaka Performance Group']);
+    $organization->settings()->updateOrCreate([], [
         'address_line_1' => '12 First Street',
         'city' => 'Harare',
         'country' => 'Zimbabwe',
@@ -180,14 +213,15 @@ test('authorized users can upload and reset the company logo from settings', fun
         ->assertRedirect()
         ->assertSessionHas('success');
 
-    expect(glob(public_path('branding/system-logo.*')) ?: [])->not->toBeEmpty();
+    $organizationId = app(TenantContext::class)->requireId();
+    expect(glob(public_path("branding/organizations/{$organizationId}/logo.*")) ?: [])->not->toBeEmpty();
 
     $this->actingAs($user)
         ->delete(route('settings.logo.destroy'))
         ->assertRedirect()
         ->assertSessionHas('success');
 
-    expect(glob(public_path('branding/system-logo.*')) ?: [])->toBeEmpty();
+    expect(glob(public_path("branding/organizations/{$organizationId}/logo.*")) ?: [])->toBeEmpty();
 });
 
 test('users without settings permission cannot upload company logo', function () {
@@ -201,6 +235,7 @@ test('users without settings permission cannot upload company logo', function ()
 
 function grantSystemSettingsPermission(User $user): void
 {
+    $user->forceFill(['is_platform_admin' => true])->save();
     Permission::findOrCreate('system.settings.manage', 'web');
     $user->givePermissionTo('system.settings.manage');
 }

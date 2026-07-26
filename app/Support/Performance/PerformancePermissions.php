@@ -20,6 +20,13 @@ class PerformancePermissions
                 'performance.setup.departments.update',
                 'performance.setup.departments.archive',
             ],
+            'Locations' => [
+                'performance.setup.locations.view',
+                'performance.setup.locations.create',
+                'performance.setup.locations.update',
+                'performance.setup.locations.archive',
+                'performance.locations.view_all',
+            ],
             'Job Titles' => [
                 'performance.setup.job_titles.view',
                 'performance.setup.job_titles.create',
@@ -145,6 +152,11 @@ class PerformancePermissions
         return [
             'Super Admin' => $all,
             'HR Admin' => [
+                'performance.setup.locations.view',
+                'performance.setup.locations.create',
+                'performance.setup.locations.update',
+                'performance.setup.locations.archive',
+                'performance.locations.view_all',
                 'performance.dashboard.view',
                 'performance.setup.departments.view',
                 'performance.setup.departments.create',

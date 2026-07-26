@@ -9,7 +9,7 @@ use App\Http\Controllers\Access\UserImpersonationController;
 use App\Http\Controllers\Access\UserMfaController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.complete'])->prefix('access')->as('access.')->group(function () {
+Route::middleware(['auth', 'tenant', 'approved', 'password.change', 'employee.profile.complete'])->prefix('access')->as('access.')->group(function () {
     Route::get('help', [HelpController::class, 'index'])->name('help.index');
     Route::get('help/preview/{document}', [HelpController::class, 'preview'])->name('help.preview');
     Route::get('help/download/{document}/{format}', [HelpController::class, 'download'])->name('help.download');
@@ -29,6 +29,7 @@ Route::middleware(['auth', 'approved', 'password.change', 'employee.profile.comp
     Route::post('users/import', [UserController::class, 'importStore'])->name('users.import.store');
     Route::get('users/import/template', [UserController::class, 'downloadImportTemplate'])->name('users.import.template');
     Route::get('users/export', [UserController::class, 'export'])->name('users.export');
+    Route::post('users/bulk-roles', [UserController::class, 'bulkAssignRoles'])->name('users.bulk_roles');
     Route::get('users/mfa', [UserMfaController::class, 'index'])->name('users.mfa.index');
     Route::put('users/{user}/mfa', [UserMfaController::class, 'update'])->name('users.mfa.update');
 

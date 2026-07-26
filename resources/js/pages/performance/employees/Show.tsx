@@ -299,23 +299,20 @@ export default function EmployeeShow({
                                                     <Button
                                                         type="button"
                                                         disabled={managerForm.processing}
-                                                        onClick={() =>
-                                                            managerForm
-                                                                .transform((data) => ({
-                                                                    ...data,
-                                                                    line_manager_user_id:
-                                                                        data.line_manager_user_id === 'none'
-                                                                            ? null
-                                                                            : data.line_manager_user_id,
-                                                                }))
-                                                                .patch(
-                                                                    route('performance.employees.line_manager.update', employeeProfile.id),
-                                                                    {
-                                                                        preserveScroll: true,
-                                                                        onSuccess: () => setLineManagerModalOpen(false),
-                                                                    },
-                                                                )
-                                                        }
+                                                        onClick={() => {
+                                                            managerForm.transform((data) => ({
+                                                                ...data,
+                                                                line_manager_user_id:
+                                                                    data.line_manager_user_id === 'none' ? null : data.line_manager_user_id,
+                                                            }));
+                                                            managerForm.patch(
+                                                                route('performance.employees.line_manager.update', employeeProfile.id),
+                                                                {
+                                                                    preserveScroll: true,
+                                                                    onSuccess: () => setLineManagerModalOpen(false),
+                                                                },
+                                                            );
+                                                        }}
                                                     >
                                                         Save Manager
                                                     </Button>

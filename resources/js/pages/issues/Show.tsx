@@ -384,7 +384,7 @@ export default function IssuesShow({ issue, statusOptions, typeOptions, assignee
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {statusOptions.map((option) => (
-                                                        <SelectItem key={option.value} value={option.value}>
+                                                        <SelectItem key={option.value} value={String(option.value)}>
                                                             {option.label}
                                                         </SelectItem>
                                                     ))}

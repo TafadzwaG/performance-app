@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem, SharedData } from '@/types';
-import type { Appraisal, Objective, Option } from '@/types/performance';
+import type { Appraisal, Objective, Option, RatingScaleLevel } from '@/types/performance';
 import { router, useForm, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
@@ -77,7 +77,7 @@ export default function ManagerReview({ appraisal, abilities }: Props) {
     const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
 
     const appraisalRecord = appraisal as unknown as LooseRecord;
-    const objectiveLevels = (appraisal.template?.objective_rating_scale?.levels ?? []) as Array<LooseRecord>;
+    const objectiveLevels = appraisal.template?.objective_rating_scale?.levels ?? [];
     const hasGoals = (appraisal.objectives ?? []).length > 0;
     const canOpenDevelopmentPlan =
         auth.permissions.includes('performance.development_plans.view') || auth.permissions.includes('performance.development_plans.update');
@@ -682,7 +682,7 @@ function firstNonEmpty(...values: Array<string | null | undefined>) {
     return null;
 }
 
-function getRatingLabel(levels: Array<LooseRecord>, selectedValue: unknown) {
+function getRatingLabel(levels: RatingScaleLevel[], selectedValue: unknown) {
     if (selectedValue === null || selectedValue === undefined) return null;
 
     const selected = String(selectedValue).trim();
@@ -691,9 +691,7 @@ function getRatingLabel(levels: Array<LooseRecord>, selectedValue: unknown) {
     const match = levels.find((level) => String(level.id ?? '').trim() === selected);
     if (!match) return null;
 
-    const label = firstNonEmpty(typeof match.label === 'string' ? match.label : null, typeof match.name === 'string' ? match.name : null);
-
-    return label ?? null;
+    return match.label;
 }
 
 function toDisplayValue(value: string | null | undefined, fallback = 'Not provided') {

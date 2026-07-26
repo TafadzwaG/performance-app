@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Access;
 use App\Exports\Access\UserImportTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
+use App\Http\Requests\Access\BulkAssignRolesRequest;
 use App\Http\Requests\Access\BulkStoreUsersRequest;
 use App\Http\Requests\Access\DeleteUserRequest;
 use App\Http\Requests\Access\ExportUsersRequest;
@@ -14,19 +15,23 @@ use App\Http\Requests\Access\UpdateUserRequest;
 use App\Mail\UserApprovedNotification;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
+use App\Models\Location;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Access\Export\UserExportService;
 use App\Services\Access\UserDeletionService;
 use App\Services\Access\UserImportService;
 use App\Services\Access\UserOnboardingService;
+use App\Services\Performance\EmployeeProfileDeletionService;
 use App\Support\Access\AccessAssignmentGuard;
 use App\Support\Access\UserExportColumnRegistry;
 use App\Support\Access\UserProvisionRules;
+use App\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
@@ -48,12 +53,26 @@ class UserController extends Controller
     {
         $filters = $this->resolveUserIndexFilters($request);
 
-        $pendingCount = User::query()->where('is_approved', false)->count();
-        $activeCount = User::query()->where('is_approved', true)->count();
+        $organizationId = app(TenantContext::class)->requireId();
+        $pendingCount = User::query()->whereHas('memberships', fn ($query) => $query->where('organization_id', $organizationId)->where('status', 'invited'))->count();
+        $activeCount = User::query()->whereHas('memberships', fn ($query) => $query->where('organization_id', $organizationId)->where('status', 'active'))->count();
 
-        $users = $this->usersIndexQuery($filters)
-            ->paginate(10)
-            ->withQueryString();
+        $usersQuery = $this->usersIndexQuery($filters);
+
+        if ($filters['per_page'] === 'all') {
+            $items = $usersQuery->get();
+            $users = new LengthAwarePaginator(
+                $items,
+                $items->count(),
+                max($items->count(), 1),
+                1,
+                ['path' => $request->url(), 'query' => $request->query()],
+            );
+        } else {
+            $users = $usersQuery
+                ->paginate((int) $filters['per_page'])
+                ->withQueryString();
+        }
 
         return Inertia::render('access/users/Index', [
             'users' => $users,
@@ -65,7 +84,56 @@ class UserController extends Controller
                 'active' => $activeCount,
                 'pending' => $pendingCount,
             ],
+            'canBulkAssignRoles' => $request->user()->hasRole('Super Admin'),
         ]);
+    }
+
+    public function bulkAssignRoles(BulkAssignRolesRequest $request): RedirectResponse
+    {
+        AccessAssignmentGuard::authorizeRoleAssignment($request->user());
+
+        $validated = $request->validated();
+        $roles = Role::query()->whereIn('id', $validated['role_ids'])->get();
+        $mode = $validated['mode'];
+
+        if ($validated['apply_to_filter']) {
+            $filters = $this->resolveUserIndexFilters($request);
+            $users = $this->usersIndexQuery($filters)->get();
+        } else {
+            $users = User::query()
+                ->whereIn('id', $validated['user_ids'])
+                ->get();
+        }
+
+        $updatedCount = 0;
+
+        foreach ($users as $user) {
+            if (! $request->user()->can('update', $user)) {
+                continue;
+            }
+
+            match ($mode) {
+                'add' => $user->assignRole($roles),
+                'remove' => $roles->each(fn (Role $role) => $user->removeRole($role)),
+                default => $user->syncRoles($roles),
+            };
+
+            $updatedCount++;
+        }
+
+        $filters = $this->resolveUserIndexFilters($request);
+
+        return to_route('access.users.index', array_filter([
+            'search' => $filters['search'] ?: null,
+            'sort_by' => $filters['sort_by'],
+            'sort_dir' => $filters['sort_dir'],
+            'approval_status' => $filters['approval_status'],
+            'role_id' => $filters['role_id'],
+            'department_id' => $filters['department_id'],
+            'employee_link' => $filters['employee_link'],
+            'has_direct_permissions' => $filters['has_direct_permissions'],
+            'per_page' => $filters['per_page'] !== '10' ? $filters['per_page'] : null,
+        ]))->with('success', "Roles updated for {$updatedCount} user".($updatedCount === 1 ? '' : 's').'.');
     }
 
     public function export(ExportUsersRequest $request, UserExportService $userExportService): BinaryFileResponse
@@ -105,6 +173,7 @@ class UserController extends Controller
         return Inertia::render('access/users/Create', [
             'roleOptions' => $this->roleOptions(),
             'permissionGroups' => $this->permissionGroups(),
+            'locationOptions' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(fn (Location $location) => ['value' => $location->id, 'label' => $location->name]),
         ]);
     }
 
@@ -160,6 +229,9 @@ class UserController extends Controller
             'permissionGroups' => $this->permissionGroups(),
             'selectedRoleIds' => $user->roles->pluck('id')->all(),
             'selectedPermissionIds' => $user->permissions->pluck('id')->all(),
+            'locationOptions' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name'])->map(fn (Location $location) => ['value' => $location->id, 'label' => $location->name]),
+            'selectedLocationIds' => $user->locations()->pluck('locations.id')->all(),
+            'accessAllLocations' => (bool) $user->memberships()->where('organization_id', app(TenantContext::class)->requireId())->value('access_all_locations'),
         ]);
     }
 
@@ -187,6 +259,11 @@ class UserController extends Controller
             AccessAssignmentGuard::authorizePermissionAssignment($request->user());
             $user->syncPermissions($request->validated('permission_ids', []));
         }
+
+        $user->memberships()->where('organization_id', app(TenantContext::class)->requireId())->update([
+            'access_all_locations' => $request->boolean('access_all_locations'),
+        ]);
+        $user->locations()->sync($request->validated('location_ids', []));
 
         return to_route('access.users.show', $user);
     }
@@ -290,12 +367,27 @@ class UserController extends Controller
         return response()->json($userDeletionService->impact($user));
     }
 
-    public function destroy(DeleteUserRequest $request, User $user, UserDeletionService $userDeletionService): RedirectResponse
+    public function destroy(DeleteUserRequest $request, User $user, UserDeletionService $userDeletionService, EmployeeProfileDeletionService $profileDeletionService): RedirectResponse
     {
-        $userDeletionService->delete($user, $request->user());
+        $organizationId = app(TenantContext::class)->requireId();
+        $profile = $user->employeeProfile()->first();
+
+        if ($profile) {
+            $profileDeletionService->delete($profile, $request->user());
+        }
+
+        $user->syncRoles([]);
+        $user->syncPermissions([]);
+        $locationIds = Location::query()->pluck('id');
+        $user->locations()->detach($locationIds);
+        $user->memberships()->where('organization_id', $organizationId)->delete();
+
+        if (! $user->memberships()->exists() && ! $user->is_platform_admin) {
+            $user->forceFill(['is_approved' => false])->save();
+        }
 
         return to_route('access.users.index')
-            ->with('success', "{$user->name} and all associated records were deleted permanently.");
+            ->with('success', "{$user->name} was removed from this organization. Other memberships were preserved.");
     }
 
     public function approve(Request $request, User $user): RedirectResponse
@@ -318,6 +410,11 @@ class UserController extends Controller
         $user->forceFill([
             'is_approved' => true,
         ])->save();
+        $user->memberships()->where('organization_id', app(TenantContext::class)->requireId())->update([
+            'status' => 'active',
+            'activated_at' => now(),
+            'suspended_at' => null,
+        ]);
 
         $this->sendApprovalNotification($user, $request->user());
 
@@ -336,6 +433,7 @@ class UserController extends Controller
      *     department_id: ?int,
      *     employee_link: ?string,
      *     has_direct_permissions: ?string,
+     *     per_page: string,
      * }
      */
     private function resolveUserIndexFilters(Request $request): array
@@ -365,6 +463,11 @@ class UserController extends Controller
             $hasDirectPermissions = '';
         }
 
+        $perPage = (string) $request->string('per_page', '10');
+        if (! in_array($perPage, ['10', '25', '50', '100', 'all'], true)) {
+            $perPage = '10';
+        }
+
         return [
             'search' => $search,
             'sort_by' => $sortBy,
@@ -374,6 +477,7 @@ class UserController extends Controller
             'department_id' => $departmentId,
             'employee_link' => $employeeLink !== '' ? $employeeLink : null,
             'has_direct_permissions' => $hasDirectPermissions !== '' ? $hasDirectPermissions : null,
+            'per_page' => $perPage,
         ];
     }
 
@@ -387,13 +491,16 @@ class UserController extends Controller
      *     department_id: ?int,
      *     employee_link: ?string,
      *     has_direct_permissions: ?string,
+     *     per_page: string,
      * }  $filters
      */
     private function usersIndexQuery(array $filters): Builder
     {
         $query = User::query()
             ->with(['roles:id,name', 'permissions:id,name', 'employeeProfile:id,user_id,employee_number,department_id'])
-            ->where('is_approved', $filters['approval_status'] === 'active')
+            ->whereHas('memberships', fn ($membership) => $membership
+                ->where('organization_id', app(TenantContext::class)->requireId())
+                ->where('status', $filters['approval_status'] === 'active' ? 'active' : 'invited'))
             ->when($filters['search'], function ($query) use ($filters) {
                 $search = $filters['search'];
 
@@ -415,6 +522,16 @@ class UserController extends Controller
             ->when($filters['employee_link'] === 'unlinked', fn ($query) => $query->whereDoesntHave('employeeProfile'))
             ->when($filters['has_direct_permissions'] === 'yes', fn ($query) => $query->whereHas('permissions'))
             ->when($filters['has_direct_permissions'] === 'no', fn ($query) => $query->whereDoesntHave('permissions'));
+
+        $locationIds = app(TenantContext::class)->allowedLocationIds(request()->user());
+        if ($locationIds !== null) {
+            $query->where(function (Builder $builder) use ($locationIds): void {
+                $builder->whereKey(request()->user()->id)
+                    ->orWhereHas('employeeProfile', fn (Builder $profile) => $profile
+                        ->withoutGlobalScope('location_visibility')
+                        ->whereIn('location_id', $locationIds));
+            });
+        }
 
         $sortBy = $filters['sort_by'];
         $sortDirection = $filters['sort_dir'];
@@ -444,6 +561,7 @@ class UserController extends Controller
      *     department_id: ?int,
      *     employee_link: ?string,
      *     has_direct_permissions: ?string,
+     *     per_page: string,
      * }  $filters
      * @return array<string, mixed>
      */

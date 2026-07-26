@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ReviewCycleStatus;
+use App\Models\AppraisalTemplate;
 use App\Models\Permission;
 use App\Models\ReviewCycle;
 use App\Models\User;
@@ -20,6 +21,7 @@ function reviewCyclePayload(array $overrides = []): array
         'self_assessment_deadline' => '2026-09-30',
         'manager_review_deadline' => '2026-10-31',
         'approval_deadline' => '2026-11-30',
+        'template_id' => AppraisalTemplate::factory()->create()->id,
         'status' => ReviewCycleStatus::Draft->value,
     ], $overrides);
 }

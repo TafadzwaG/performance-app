@@ -13,6 +13,7 @@ use App\Http\Requests\Performance\StoreEmployeeProfileRequest;
 use App\Http\Requests\Performance\UpdateEmployeeLineManagerRequest;
 use App\Http\Requests\Performance\UpdateEmployeeProfileRequest;
 use App\Models\EmployeeProfile;
+use App\Models\Location;
 use App\Models\Role;
 use App\Services\Performance\EmployeeFieldConfigService;
 use App\Services\Performance\EmployeeImportService;
@@ -91,6 +92,7 @@ class EmployeeProfileController extends Controller
         return Inertia::render('performance/employees/UploadPreview', [
             'preview' => $preview,
             'departmentOptions' => $this->departmentOptions(),
+            'locationOptions' => $this->locationOptions(),
             'jobTitleOptions' => $this->jobTitleOptions(),
         ]);
     }
@@ -323,6 +325,7 @@ class EmployeeProfileController extends Controller
     {
         return [
             'departmentOptions' => $this->departmentOptions(),
+            'locationOptions' => $this->locationOptions(),
             'jobTitleOptions' => $this->jobTitleOptions(),
             'userOptions' => $this->userOptions(),
             'managerOptions' => $this->managerUserOptions(),
@@ -334,6 +337,7 @@ class EmployeeProfileController extends Controller
             'can' => [
                 'assignRoles' => $request->user()->can('performance.employees.assign_roles')
                     || $request->user()->can('access.roles.assign_users'),
+                ...$this->setupQuickCreateFlags($request->user()),
             ],
         ];
     }
@@ -345,6 +349,7 @@ class EmployeeProfileController extends Controller
                 'user.roles',
                 'department',
                 'jobTitle',
+                'location',
                 'lineManager',
                 'approvingManager',
                 'latestAppraisal.reviewCycle',
@@ -395,6 +400,7 @@ class EmployeeProfileController extends Controller
             'emergency_contact_name' => $employeeProfile?->emergency_contact_name ?? '',
             'emergency_contact_phone' => $employeeProfile?->emergency_contact_phone ?? '',
             'department_id' => $employeeProfile?->department_id ? (string) $employeeProfile->department_id : '',
+            'location_id' => $employeeProfile?->location_id ? (string) $employeeProfile->location_id : (string) (Location::query()->where('is_active', true)->value('id') ?? ''),
             'job_title_id' => $employeeProfile?->job_title_id ? (string) $employeeProfile->job_title_id : '',
             'line_manager_user_id' => $employeeProfile?->line_manager_user_id ? (string) $employeeProfile->line_manager_user_id : '',
             'approving_manager_user_id' => $employeeProfile?->approving_manager_user_id ? (string) $employeeProfile->approving_manager_user_id : '',

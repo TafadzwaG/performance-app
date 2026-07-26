@@ -3,7 +3,9 @@
 namespace App\Notifications\Performance;
 
 use App\Models\Appraisal;
+use App\Notifications\Concerns\ActivatesTenantContext;
 use App\Support\Notifications\PerformanceNotificationChannels;
+use App\Support\Tenancy\TenantAwareUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -11,17 +13,18 @@ use Illuminate\Notifications\Notification;
 
 abstract class AbstractAppraisalNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use ActivatesTenantContext, Queueable;
 
     public function __construct(
         protected Appraisal $appraisal,
         protected string $title,
         protected string $message,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
+        $this->activateTenantContext($this->appraisal->organization_id);
+
         return PerformanceNotificationChannels::forAppraisalWorkflow();
     }
 
@@ -33,7 +36,7 @@ abstract class AbstractAppraisalNotification extends Notification implements Sho
             ->line($this->message)
             ->line('Employee: '.$this->appraisal->employee_name_snapshot)
             ->line('Cycle: '.$this->appraisal->cycle_name_snapshot)
-            ->action('Open appraisal', route('performance.appraisals.show', $this->appraisal))
+            ->action('Open appraisal', TenantAwareUrl::forOrganization($this->appraisal->organization_id, route('performance.appraisals.show', $this->appraisal)))
             ->line('This is an automated notification from the performance appraisal system.');
     }
 
@@ -46,7 +49,7 @@ abstract class AbstractAppraisalNotification extends Notification implements Sho
             'status' => $this->appraisal->status?->value,
             'employee' => $this->appraisal->employee_name_snapshot,
             'cycle' => $this->appraisal->cycle_name_snapshot,
-            'route' => route('performance.appraisals.show', $this->appraisal),
+            'route' => TenantAwareUrl::forOrganization($this->appraisal->organization_id, route('performance.appraisals.show', $this->appraisal)),
         ];
     }
 }

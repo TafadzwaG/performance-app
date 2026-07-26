@@ -26,6 +26,7 @@ class AppraisalWorkflowService
     public function __construct(
         private readonly AppraisalScoringService $scoringService,
         private readonly EvidenceStorageService $evidenceStorageService,
+        private readonly AppraisalWorkflowConfig $workflowConfig,
     ) {}
 
     public function submitGoalPlan(Appraisal $appraisal, User $actor): Appraisal
@@ -224,21 +225,38 @@ class AppraisalWorkflowService
 
             $scores = $this->scoringService->calculate($appraisal);
             $previousStatus = $status;
+            $skipCalibration = ! $this->workflowConfig->calibrationEnabled();
 
-            $appraisal->forceFill([
+            $attributes = [
                 'status' => AppraisalStatus::CalibrationPending,
                 'business_score' => $scores['business_score'],
                 'values_score' => $scores['values_score'],
                 'overall_score' => $scores['overall_score'],
                 'overall_rating_scale_level_id' => $scores['overall_level']?->id,
-                'calibrated_overall_score' => null,
-                'calibrated_overall_rating_scale_level_id' => null,
-                'calibration_comment' => null,
-                'calibrated_at' => null,
-                'calibrated_by_user_id' => null,
                 'approved_at' => now(),
                 'reopened_stage' => null,
-            ])->save();
+            ];
+
+            if ($skipCalibration) {
+                $attributes = [
+                    ...$attributes,
+                    ...$this->autoSkippedCalibrationAttributes(
+                        overallScore: $scores['overall_score'],
+                        overallLevelId: $scores['overall_level']?->id,
+                    ),
+                ];
+            } else {
+                $attributes = [
+                    ...$attributes,
+                    'calibrated_overall_score' => null,
+                    'calibrated_overall_rating_scale_level_id' => null,
+                    'calibration_comment' => null,
+                    'calibrated_at' => null,
+                    'calibrated_by_user_id' => null,
+                ];
+            }
+
+            $appraisal->forceFill($attributes)->save();
 
             AppraisalApproval::create([
                 'appraisal_id' => $appraisal->id,
@@ -252,10 +270,98 @@ class AppraisalWorkflowService
 
             $this->recordStatusHistory($appraisal, $actor, $previousStatus, AppraisalStatus::CalibrationPending, $comments);
 
-            event(new AppraisalStatusChanged($appraisal, $actor, 'calibration_requested'));
+            if ($skipCalibration) {
+                $this->recordStatusHistory(
+                    $appraisal,
+                    $actor,
+                    AppraisalStatus::CalibrationPending,
+                    AppraisalStatus::CalibrationPending,
+                    'Calibration skipped by tenant setting.',
+                );
+                event(new AppraisalStatusChanged($appraisal, $actor, 'calibration_skipped'));
+            } else {
+                event(new AppraisalStatusChanged($appraisal, $actor, 'calibration_requested'));
+            }
 
             return $appraisal->refresh();
         });
+    }
+
+    /**
+     * Auto-complete Calibration for appraisals waiting on it when the tenant disables the stage.
+     *
+     * @return int Number of appraisals advanced
+     */
+    public function autoSkipPendingCalibrationsForCurrentTenant(?User $actor = null): int
+    {
+        if ($this->workflowConfig->calibrationEnabled()) {
+            return 0;
+        }
+
+        $advanced = 0;
+
+        Appraisal::query()
+            ->where('status', AppraisalStatus::CalibrationPending)
+            ->whereNull('calibrated_at')
+            ->orderBy('id')
+            ->each(function (Appraisal $appraisal) use ($actor, &$advanced) {
+                $this->applyAutoSkippedCalibration($appraisal, $actor);
+                $advanced++;
+            });
+
+        return $advanced;
+    }
+
+    public function applyAutoSkippedCalibration(Appraisal $appraisal, ?User $actor = null): Appraisal
+    {
+        return DB::transaction(function () use ($appraisal, $actor) {
+            $appraisal->refresh();
+
+            if ($appraisal->status !== AppraisalStatus::CalibrationPending || $appraisal->calibrated_at !== null) {
+                return $appraisal;
+            }
+
+            $appraisal->forceFill($this->autoSkippedCalibrationAttributes(
+                overallScore: $appraisal->overall_score !== null ? (float) $appraisal->overall_score : null,
+                overallLevelId: $appraisal->overall_rating_scale_level_id,
+            ))->save();
+
+            if ($actor) {
+                AppraisalApproval::create([
+                    'appraisal_id' => $appraisal->id,
+                    'actor_user_id' => $actor->id,
+                    'stage' => ApprovalStage::Calibration,
+                    'action' => ApprovalAction::Calibrated,
+                    'comments' => 'Calibration skipped by tenant setting.',
+                    'snapshot' => $this->snapshot($appraisal->refresh()),
+                    'acted_at' => now(),
+                ]);
+
+                $this->recordStatusHistory(
+                    $appraisal->refresh(),
+                    $actor,
+                    AppraisalStatus::CalibrationPending,
+                    AppraisalStatus::CalibrationPending,
+                    'Calibration skipped by tenant setting.',
+                );
+            }
+
+            return $appraisal->refresh();
+        });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function autoSkippedCalibrationAttributes(?float $overallScore, ?int $overallLevelId): array
+    {
+        return [
+            'calibrated_overall_score' => $overallScore,
+            'calibrated_overall_rating_scale_level_id' => $overallLevelId,
+            'calibration_comment' => 'Calibration skipped by tenant setting.',
+            'calibrated_at' => now(),
+            'calibrated_by_user_id' => null,
+        ];
     }
 
     /**

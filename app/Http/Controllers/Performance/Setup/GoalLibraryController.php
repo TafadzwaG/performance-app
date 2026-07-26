@@ -9,6 +9,8 @@ use App\Http\Requests\Performance\ConfirmGoalLibraryImportRequest;
 use App\Http\Requests\Performance\PreviewGoalLibraryImportRequest;
 use App\Http\Requests\Performance\Setup\StoreGoalLibraryItemRequest;
 use App\Http\Requests\Performance\Setup\UpdateGoalLibraryItemRequest;
+use App\Http\Requests\Performance\Setup\UpdateGoalLibraryQuickUpdateRequest;
+use App\Http\Requests\Performance\Setup\UpdateGoalLibraryWeightRequest;
 use App\Models\Department;
 use App\Models\GoalLibraryItem;
 use App\Models\JobTitle;
@@ -19,6 +21,7 @@ use App\Services\Performance\GoalLibraryImportService;
 use App\Services\Performance\GoalLibraryLookupService;
 use App\Services\Performance\GoalLibraryScopeService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -171,11 +174,17 @@ class GoalLibraryController extends Controller
         ]);
     }
 
-    public function store(StoreGoalLibraryItemRequest $request): RedirectResponse
+    public function store(StoreGoalLibraryItemRequest $request): RedirectResponse|JsonResponse
     {
         $goalLibraryItem = GoalLibraryItem::create($request->validated() + [
             'is_active' => (bool) $request->boolean('is_active', true),
         ]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'item' => $this->formatGoalLibraryItemForJson($goalLibraryItem->load('perspective:id,name')),
+            ], 201);
+        }
 
         return to_route('performance.goal_library.show', $goalLibraryItem);
     }
@@ -216,6 +225,59 @@ class GoalLibraryController extends Controller
         $goalLibraryItem->delete();
 
         return to_route('performance.goal_library.index');
+    }
+
+    public function updateWeight(UpdateGoalLibraryWeightRequest $request, GoalLibraryItem $goalLibraryItem): JsonResponse
+    {
+        $this->authorize('update', $goalLibraryItem);
+
+        $goalLibraryItem->update([
+            'default_weight' => $request->validated('default_weight'),
+        ]);
+
+        return response()->json([
+            'id' => $goalLibraryItem->id,
+            'default_weight' => (float) $goalLibraryItem->default_weight,
+        ]);
+    }
+
+    public function deactivate(GoalLibraryItem $goalLibraryItem): JsonResponse
+    {
+        $this->authorize('delete', $goalLibraryItem);
+
+        $goalLibraryItem->update(['is_active' => false]);
+
+        return response()->json([
+            'id' => $goalLibraryItem->id,
+            'is_active' => false,
+        ]);
+    }
+
+    public function quickUpdate(UpdateGoalLibraryQuickUpdateRequest $request, GoalLibraryItem $goalLibraryItem): JsonResponse
+    {
+        $this->authorize('update', $goalLibraryItem);
+
+        $goalLibraryItem->update($request->validated());
+
+        return response()->json([
+            'item' => $this->formatGoalLibraryItemForJson($goalLibraryItem->load('perspective:id,name')),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatGoalLibraryItemForJson(GoalLibraryItem $goalLibraryItem): array
+    {
+        return [
+            'id' => $goalLibraryItem->id,
+            'title' => $goalLibraryItem->title,
+            'description' => $goalLibraryItem->description,
+            'default_weight' => (float) $goalLibraryItem->default_weight,
+            'perspective_id' => $goalLibraryItem->perspective_id,
+            'perspective_name' => $goalLibraryItem->perspective?->name,
+            'kpi_measure' => $goalLibraryItem->kpi_measure,
+        ];
     }
 
     private function filterValues(Request $request): array

@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Support\Access\UserExportColumnRegistry;
 use App\Support\Branding;
 use App\Support\Pdf\StudioExportPdf;
+use App\Support\Tenancy\TenantStoragePath;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -31,7 +32,7 @@ class UserExportService
         $context = $this->buildContext($rows, $actor, $columns, $filters);
 
         $fileName = $this->fileName('xlsx');
-        $filePath = storage_path('app/exports/'.$fileName);
+        $filePath = TenantStoragePath::export($fileName);
         $this->ensureDirectory(dirname($filePath));
 
         $options = new Options;
@@ -66,7 +67,7 @@ class UserExportService
         $context = $this->buildContext($rows, $actor, $columns, $filters);
 
         $fileName = $this->fileName('pdf');
-        $tempPath = storage_path('app/exports/'.$fileName);
+        $tempPath = TenantStoragePath::export($fileName);
         $this->ensureDirectory(dirname($tempPath));
 
         StudioExportPdf::configure(

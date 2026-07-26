@@ -2,18 +2,37 @@ import AppraisalSteps, { AppraisalStepSubmitActions } from '@/components/perform
 import SelfAssessmentNotesPanel from '@/components/performance/SelfAssessmentNotesPanel';
 import ObjectiveTable from '@/components/performance/ObjectiveTable';
 import PerformancePage from '@/components/performance/PerformancePage';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { BreadcrumbItem, SharedData } from '@/types';
 import type { Appraisal, Objective, Option } from '@/types/performance';
 import { useForm, router, usePage } from '@inertiajs/react';
-import { MessageSquareMore, Save, Send, Target } from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, MessageSquareMore, Save, Send, Star, Target } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
     appraisal: Appraisal;
     abilities: Record<string, boolean>;
 }
+
+type SelfAssessmentIssue = {
+    key: string;
+    title: string;
+    missingAchievement: boolean;
+    missingSelfRating: boolean;
+    instruction: string;
+};
 
 const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
     { title: 'Performance', href: '/performance/dashboard' },
@@ -25,6 +44,8 @@ const breadcrumbs = (appraisal: Appraisal): BreadcrumbItem[] => [
 export default function SelfAssessment({ appraisal, abilities }: Props) {
     const { auth } = usePage<SharedData>().props;
     const [draftSaved, setDraftSaved] = useState(false);
+    const [submitAlertOpen, setSubmitAlertOpen] = useState(false);
+    const [validationIssues, setValidationIssues] = useState<SelfAssessmentIssue[]>([]);
     const achievementNote = appraisal.comments?.find((comment) => comment.comment_type === 'achievement_note')?.body ?? '';
     const significantIssue = appraisal.comments?.find((comment) => comment.comment_type === 'significant_issue')?.body ?? '';
     const objectiveLevels = appraisal.template?.objective_rating_scale?.levels ?? [];
@@ -103,6 +124,64 @@ export default function SelfAssessment({ appraisal, abilities }: Props) {
         const next = [...data.objectives];
         next[index] = { ...next[index], [field]: value };
         setData('objectives', next);
+    };
+
+    const getSelfAssessmentIssues = (): SelfAssessmentIssue[] => {
+        if (data.objectives.length === 0) {
+            return [
+                {
+                    key: 'objectives-empty',
+                    title: 'Objectives',
+                    missingAchievement: true,
+                    missingSelfRating: true,
+                    instruction: 'This appraisal needs at least one objective before self assessment can be submitted.',
+                },
+            ];
+        }
+
+        return data.objectives
+            .map((objective, index) => {
+                const sourceObjective = (appraisal.objectives ?? [])[index];
+                const title = sourceObjective?.title?.trim() || `Objective ${index + 1}`;
+                const missingAchievement = !String(objective.performance_achieved ?? '').trim();
+                const missingSelfRating = isEmptySelection(objective.self_rating_scale_level_id);
+
+                if (!missingAchievement && !missingSelfRating) {
+                    return null;
+                }
+
+                return {
+                    key: `objective-${objective.id}`,
+                    title,
+                    missingAchievement,
+                    missingSelfRating,
+                    instruction: buildSelfAssessmentInstruction(missingAchievement, missingSelfRating),
+                };
+            })
+            .filter((issue): issue is SelfAssessmentIssue => issue !== null);
+    };
+
+    const handleSaveAndSubmit = () => {
+        const issues = getSelfAssessmentIssues();
+
+        if (issues.length > 0) {
+            setValidationIssues(issues);
+            setSubmitAlertOpen(true);
+            return;
+        }
+
+        put(route('performance.appraisals.self_assessment.update', appraisal.id), {
+            onSuccess: () =>
+                post(route('performance.appraisals.self_assessment.submit', appraisal.id), {
+                    onSuccess: () => {
+                        if (typeof window !== 'undefined') {
+                            window.localStorage.removeItem(draftStorageKey);
+                        }
+                        setDraftSaved(false);
+                        router.visit(route('performance.appraisals.show', appraisal.id));
+                    },
+                }),
+        });
     };
 
     return (
@@ -200,20 +279,7 @@ export default function SelfAssessment({ appraisal, abilities }: Props) {
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() =>
-                                    put(route('performance.appraisals.self_assessment.update', appraisal.id), {
-                                        onSuccess: () =>
-                                            post(route('performance.appraisals.self_assessment.submit', appraisal.id), {
-                                                onSuccess: () => {
-                                                    if (typeof window !== 'undefined') {
-                                                        window.localStorage.removeItem(draftStorageKey);
-                                                    }
-                                                    setDraftSaved(false);
-                                                    router.visit(route('performance.appraisals.show', appraisal.id));
-                                                },
-                                            }),
-                                    })
-                                }
+                                onClick={handleSaveAndSubmit}
                                 disabled={processing}
                             >
                                 <Send className="mr-2 h-4 w-4" />
@@ -223,6 +289,100 @@ export default function SelfAssessment({ appraisal, abilities }: Props) {
                     </AppraisalStepSubmitActions>
                 </div>
             </div>
+
+            <AlertDialog open={submitAlertOpen} onOpenChange={setSubmitAlertOpen}>
+                <AlertDialogContent className="w-[min(96vw,56rem)] max-w-[min(96vw,56rem)]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2 text-left">
+                            <AlertTriangle className="h-5 w-5 text-amber-600" />
+                            Self assessment is incomplete
+                        </AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-4 text-left">
+                                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="mt-0.5 rounded-full bg-white p-2 shadow-sm">
+                                            <ClipboardCheck className="h-4 w-4 text-amber-700" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="font-medium text-amber-900">Complete the required self-assessment fields before submitting.</p>
+                                            <p className="text-sm text-amber-800">
+                                                Each objective needs performance achieved text and a self rating. You can still save an incomplete draft.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                    <Badge variant="outline" className="gap-1.5 px-3 py-1">
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        {validationIssues.length} objective{validationIssues.length === 1 ? '' : 's'} need attention
+                                    </Badge>
+                                    <Badge variant="outline" className="gap-1.5 border-rose-200 bg-rose-50 px-3 py-1 text-rose-700">
+                                        <MessageSquareMore className="h-3.5 w-3.5" />
+                                        Missing performance achieved
+                                    </Badge>
+                                    <Badge variant="outline" className="gap-1.5 border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
+                                        <Star className="h-3.5 w-3.5" />
+                                        Missing self rating
+                                    </Badge>
+                                </div>
+
+                                <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
+                                    {validationIssues.map((issue) => (
+                                        <div key={issue.key} className="rounded-2xl border bg-background p-4 shadow-sm">
+                                            <div className="space-y-3">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="font-semibold text-foreground">{issue.title}</p>
+                                                    {issue.missingAchievement ? (
+                                                        <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">
+                                                            Performance achieved missing
+                                                        </Badge>
+                                                    ) : null}
+                                                    {issue.missingSelfRating ? (
+                                                        <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                                                            Self rating missing
+                                                        </Badge>
+                                                    ) : null}
+                                                </div>
+
+                                                <div className="flex items-start gap-2 rounded-xl border border-dashed bg-muted/20 px-3 py-2">
+                                                    <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
+                                                    <p className="text-sm text-muted-foreground">{issue.instruction}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Back to self assessment</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => setSubmitAlertOpen(false)}>Continue editing</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PerformancePage>
     );
+}
+
+function isEmptySelection(value: unknown) {
+    if (value === null || value === undefined) return true;
+
+    const normalized = String(value).trim();
+    return normalized === '' || normalized === '0';
+}
+
+function buildSelfAssessmentInstruction(missingAchievement: boolean, missingSelfRating: boolean) {
+    if (missingAchievement && missingSelfRating) {
+        return 'Add what was achieved and select a self rating before submitting this objective.';
+    }
+
+    if (missingAchievement) {
+        return 'Add what was achieved before submitting this objective.';
+    }
+
+    return 'Select a self rating before submitting this objective.';
 }

@@ -11,6 +11,7 @@ class AuditTrail extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'organization_id',
         'user_id',
         'impersonator_user_id',
         'action',

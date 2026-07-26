@@ -6,8 +6,10 @@ use App\Enums\EmploymentStatus;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\JobTitle;
+use App\Models\Location;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\Tenancy\TenantStoragePath;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -47,6 +49,7 @@ class EmployeeImportService
 
         $departmentMap = $this->nameMap(Department::query()->get(['id', 'name', 'code']));
         $jobTitleMap = $this->nameMap(JobTitle::query()->get(['id', 'name', 'code']));
+        $locationMap = $this->nameMap(Location::query()->where('is_active', true)->get(['id', 'name', 'code']));
         $departmentLabels = $this->labelMap(Department::query()->get(['id', 'name', 'code']));
         $jobTitleLabels = $this->labelMap(JobTitle::query()->get(['id', 'name', 'code']));
 
@@ -123,6 +126,9 @@ class EmployeeImportService
 
         $departmentMap = $this->nameMap(Department::query()->get(['id', 'name', 'code']));
         $jobTitleMap = $this->nameMap(JobTitle::query()->get(['id', 'name', 'code']));
+        $locations = Location::query()->where('is_active', true)->get(['id', 'name', 'code']);
+        $locationMap = $this->nameMap($locations);
+        $defaultLocationId = $locations->first()?->id;
         $normalizedDepartmentMappings = $this->normalizeMappings($departmentMappings);
         $normalizedJobTitleMappings = $this->normalizeMappings($jobTitleMappings);
         $userEmailMap = User::query()->pluck('id', 'email')
@@ -203,6 +209,23 @@ class EmployeeImportService
                 continue;
             }
 
+            if (blank($row['location_code'] ?? null)) {
+                $locationId = $defaultLocationId;
+                $locationError = $locationId ? null : 'is missing location_code and no active default location exists.';
+            } else {
+                [$locationId, $locationError] = $this->resolveReference(
+                    $row['location_code'],
+                    $locationMap,
+                    [],
+                    'location_code',
+                );
+            }
+            if ($locationError) {
+                $errors[] = "Row {$line} {$locationError}";
+
+                continue;
+            }
+
             $lineManagerId = $this->resolveManagerUserId(
                 $row,
                 'line_manager_employee_number',
@@ -245,6 +268,7 @@ class EmployeeImportService
                 'employee_number' => $employeeNumber,
                 'department_id' => $departmentId,
                 'job_title_id' => $jobTitleId,
+                'location_id' => $locationId,
                 'line_manager_user_id' => $lineManagerId,
                 'approving_manager_user_id' => $approvingManagerId,
                 'national_id' => $this->nullableString($row['national_id'] ?? null),
@@ -306,7 +330,7 @@ class EmployeeImportService
     public function storeUploadForSession(UploadedFile $file): string
     {
         $extension = $file->getClientOriginalExtension() ?: 'csv';
-        $path = 'imports/employees/'.Str::uuid().'.'.$extension;
+        $path = TenantStoragePath::privateImport('employees', Str::uuid().'.'.$extension);
 
         Storage::disk('local')->put($path, file_get_contents($file->getRealPath()));
 

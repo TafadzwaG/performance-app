@@ -3,6 +3,8 @@
 namespace App\Notifications\Issues;
 
 use App\Models\IssueReport;
+use App\Notifications\Concerns\ActivatesTenantContext;
+use App\Support\Tenancy\TenantAwareUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +12,7 @@ use Illuminate\Notifications\Notification;
 
 class IssueReportedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use ActivatesTenantContext, Queueable;
 
     public function __construct(
         public readonly IssueReport $issue,
@@ -18,6 +20,8 @@ class IssueReportedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
+        $this->activateTenantContext($this->issue->organization_id);
+
         return ['mail'];
     }
 
@@ -36,7 +40,7 @@ class IssueReportedNotification extends Notification implements ShouldQueue
             ->greeting("Hello {$notifiable->name},")
             ->line("Reference: {$this->issue->reference}")
             ->line("Title: {$this->issue->title}")
-            ->action('View issue', route('issues.show', $this->issue))
+            ->action('View issue', TenantAwareUrl::forOrganization($this->issue->organization_id, route('issues.show', $this->issue)))
             ->line('You will receive updates when the issue is assigned or progresses.');
     }
 }

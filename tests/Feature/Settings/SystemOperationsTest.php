@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\EmployeeProfile;
+use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +13,7 @@ uses(RefreshDatabase::class);
 
 test('system settings operations tab includes queue and storage summary', function () {
     $user = User::factory()->create(['is_approved' => true]);
-    grantSystemSettingsPermission($user);
+    grantOperationsPermission($user);
 
     DB::table('jobs')->insert([
         'queue' => 'default',
@@ -40,7 +41,7 @@ test('system settings operations tab includes queue and storage summary', functi
 
 test('authorized user can delete a pending queue job from settings operations', function () {
     $user = User::factory()->create(['is_approved' => true]);
-    grantSystemSettingsPermission($user);
+    grantOperationsPermission($user);
 
     $jobId = DB::table('jobs')->insertGetId([
         'queue' => 'default',
@@ -60,7 +61,7 @@ test('authorized user can delete a pending queue job from settings operations', 
 
 test('storage file actions use the storage management routes', function () {
     $user = User::factory()->create(['is_approved' => true]);
-    grantSystemSettingsPermission($user);
+    grantOperationsPermission($user);
 
     Storage::disk('local')->put('imports/employees/test.csv', 'employee_number,name');
 
@@ -76,7 +77,7 @@ test('storage file actions use the storage management routes', function () {
 
 test('authorized user can purge export storage from storage management route', function () {
     $user = User::factory()->create(['is_approved' => true]);
-    grantSystemSettingsPermission($user);
+    grantOperationsPermission($user);
 
     $directory = storage_path('app/exports');
 
@@ -104,3 +105,10 @@ test('users without system settings permission cannot manage operations', functi
         ])
         ->assertForbidden();
 });
+
+function grantOperationsPermission(User $user): void
+{
+    $user->forceFill(['is_platform_admin' => true])->save();
+    Permission::findOrCreate('system.settings.manage', 'web');
+    $user->givePermissionTo('system.settings.manage');
+}

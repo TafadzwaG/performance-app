@@ -21,7 +21,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const templateColumns =
-    'employee_number, user_email, department_name, job_title_name, line_manager_employee_number, approving_manager_employee_number, line_manager_email, approving_manager_email, national_id, date_of_birth, gender, marital_status, personal_phone, employment_status, employment_type, work_location, hire_date, is_active, is_review_eligible, role_names';
+    'employee_number, user_email, department_name, job_title_name, location_code, line_manager_employee_number, approving_manager_employee_number, line_manager_email, approving_manager_email, national_id, date_of_birth, gender, marital_status, personal_phone, employment_status, employment_type, work_location, hire_date, is_active, is_review_eligible, role_names';
 
 export default function EmployeeUpload() {
     const { data, setData, post, processing, errors } = useForm<ImportEmployeesFormData>({

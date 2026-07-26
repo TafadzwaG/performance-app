@@ -2,6 +2,7 @@
 
 namespace App\Exports\Performance;
 
+use App\Support\Tenancy\TenantStoragePath;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Writer\XLSX\Writer;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -10,7 +11,7 @@ class EmployeeImportTemplateExport
 {
     public function download(string $filename): BinaryFileResponse
     {
-        $directory = storage_path('app/exports');
+        $directory = TenantStoragePath::exportDirectory();
 
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
@@ -25,6 +26,7 @@ class EmployeeImportTemplateExport
             'user_email',
             'department_name',
             'job_title_name',
+            'location_code',
             'line_manager_employee_number',
             'approving_manager_employee_number',
             'line_manager_email',
@@ -47,6 +49,7 @@ class EmployeeImportTemplateExport
             'rutendo.moyo@example.com',
             'Human Resources',
             'HR Officer',
+            'MAIN',
             'MGR-2001',
             'APR-3001',
             'manager@example.com',

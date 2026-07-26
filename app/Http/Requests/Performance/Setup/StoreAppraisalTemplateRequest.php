@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Performance\Setup;
 
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,15 +16,15 @@ class StoreAppraisalTemplateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:100'],
+            'name' => ['required', 'string', 'max:255', TenantRule::unique('appraisal_templates', 'name')->where(fn ($query) => $query->where('version', $this->integer('version', 1)))],
+            'code' => ['required', 'string', 'max:100', TenantRule::unique('appraisal_templates', 'code')->where(fn ($query) => $query->where('version', $this->integer('version', 1)))],
             'version' => ['nullable', 'integer', 'min:1'],
             'description' => ['nullable', 'string'],
-            'department_id' => ['nullable', 'exists:departments,id'],
-            'job_title_id' => ['nullable', 'exists:job_titles,id'],
-            'objective_rating_scale_id' => ['required', 'exists:rating_scales,id'],
-            'competency_rating_scale_id' => ['required', 'exists:rating_scales,id'],
-            'overall_rating_scale_id' => ['required', 'exists:rating_scales,id'],
+            'department_id' => ['nullable', TenantRule::exists('departments')],
+            'job_title_id' => ['nullable', TenantRule::exists('job_titles')],
+            'objective_rating_scale_id' => ['required', Rule::exists('rating_scales', 'id')],
+            'competency_rating_scale_id' => ['required', Rule::exists('rating_scales', 'id')],
+            'overall_rating_scale_id' => ['required', Rule::exists('rating_scales', 'id')],
             'business_weight_percent' => ['required', 'integer', 'between:0,100'],
             'values_weight_percent' => ['required', 'integer', 'between:0,100'],
             'min_objectives' => ['required', 'integer', 'between:1,10'],
@@ -32,8 +33,8 @@ class StoreAppraisalTemplateRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_type' => ['required', Rule::in(['objective', 'competency'])],
-            'items.*.perspective_id' => ['nullable', 'exists:perspectives,id'],
-            'items.*.competency_id' => ['nullable', 'exists:competencies,id'],
+            'items.*.perspective_id' => ['nullable', TenantRule::exists('perspectives')],
+            'items.*.competency_id' => ['nullable', TenantRule::exists('competencies')],
             'items.*.title' => ['required', 'string', 'max:255'],
             'items.*.description' => ['nullable', 'string'],
             'items.*.default_weight' => ['nullable', 'numeric', 'between:0,100'],

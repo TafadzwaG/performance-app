@@ -15,8 +15,8 @@ class StoreRatingScaleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:rating_scales,name'],
-            'code' => ['required', 'string', 'max:100', 'unique:rating_scales,code'],
+            'name' => ['required', 'string', 'max:255', Rule::unique('rating_scales', 'name')],
+            'code' => ['required', 'string', 'max:100', Rule::unique('rating_scales', 'code')],
             'applies_to' => ['required', Rule::in(['objective', 'competency', 'overall'])],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],

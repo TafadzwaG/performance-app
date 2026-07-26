@@ -80,7 +80,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 </Link>
                             </SidebarMenuButton>
                             {item.badge !== undefined && item.badge !== null ? (
-                                <SidebarMenuBadge className="h-5 min-w-5 rounded-full bg-sidebar-primary px-1.5 text-[0.6875rem] font-semibold text-sidebar-primary-foreground">
+                                <SidebarMenuBadge className="h-5 min-w-5 rounded-full bg-sidebar-primary px-1.5 text-[0.6875rem] font-semibold text-sidebar-primary-foreground peer-hover/menu-button:bg-sidebar-primary peer-hover/menu-button:text-sidebar-primary-foreground peer-data-[active=true]/menu-button:bg-sidebar-primary peer-data-[active=true]/menu-button:text-sidebar-primary-foreground">
                                     {item.badge}
                                 </SidebarMenuBadge>
                             ) : null}

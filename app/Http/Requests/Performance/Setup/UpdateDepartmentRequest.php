@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Performance\Setup;
 
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateDepartmentRequest extends FormRequest
 {
@@ -17,8 +17,8 @@ class UpdateDepartmentRequest extends FormRequest
         $department = $this->route('department');
 
         return [
-            'name' => ['required', 'string', 'max:255', Rule::unique('departments', 'name')->ignore($department?->id)],
-            'code' => ['required', 'string', 'max:100', Rule::unique('departments', 'code')->ignore($department?->id)],
+            'name' => ['required', 'string', 'max:255', TenantRule::unique('departments', 'name', $department?->id)],
+            'code' => ['required', 'string', 'max:100', TenantRule::unique('departments', 'code', $department?->id)],
             'description' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ];

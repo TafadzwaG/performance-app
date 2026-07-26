@@ -11,7 +11,7 @@ class AppraisalTemplateInstantiationService
     {
         $appraisal->loadMissing('template.items');
 
-        if ($appraisal->objectives()->exists() || $appraisal->competencyRatings()->exists()) {
+        if ($appraisal->competencyRatings()->exists()) {
             return;
         }
 

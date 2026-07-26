@@ -6,8 +6,8 @@ use App\Enums\EmploymentStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EmployeeProfile extends Model
@@ -31,6 +31,8 @@ class EmployeeProfile extends Model
         'emergency_contact_name',
         'emergency_contact_phone',
         'department_id',
+        'organization_id',
+        'location_id',
         'job_title_id',
         'line_manager_user_id',
         'approving_manager_user_id',
@@ -68,6 +70,16 @@ class EmployeeProfile extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
     }
 
     public function jobTitle(): BelongsTo

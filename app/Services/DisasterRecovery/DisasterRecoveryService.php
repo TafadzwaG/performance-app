@@ -10,8 +10,7 @@ use App\Jobs\DisasterRecovery\RunDisasterRecoveryRestoreJob;
 use App\Models\DisasterRecoveryBackup;
 use App\Models\DisasterRecoveryRestoreRequest;
 use App\Models\User;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Number;
+use App\Support\FormatBytes;
 
 class DisasterRecoveryService
 {
@@ -141,7 +140,7 @@ class DisasterRecoveryService
             'path' => $backup->path,
             'filename' => $backup->filename,
             'size_bytes' => $backup->size_bytes,
-            'size_human' => $backup->size_bytes ? Number::fileSize((int) $backup->size_bytes) : null,
+            'size_human' => $backup->size_bytes ? FormatBytes::format((int) $backup->size_bytes) : null,
             'checksum' => $backup->checksum,
             'error_message' => $backup->error_message,
             'created_by' => $backup->creator?->only(['id', 'name', 'email']),
@@ -150,7 +149,7 @@ class DisasterRecoveryService
             'download_available' => $backup->status === BackupStatus::Completed
                 && $backup->disk
                 && $backup->path
-                && Storage::disk($backup->disk)->exists($backup->path),
+                && BackupStorage::exists($backup->disk, $backup->path),
         ];
     }
 

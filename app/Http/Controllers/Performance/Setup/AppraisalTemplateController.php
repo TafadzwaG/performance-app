@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Performance\Setup;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\OrganizationContextController;
 use App\Http\Controllers\Performance\Concerns\BuildsPerformanceViewData;
 use App\Http\Requests\Performance\Setup\StoreAppraisalTemplateRequest;
 use App\Http\Requests\Performance\Setup\UpdateAppraisalTemplateRequest;
 use App\Models\AppraisalTemplate;
+use App\Models\Organization;
+use App\Services\Performance\AppraisalTemplateCloneService;
+use App\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,14 +21,16 @@ class AppraisalTemplateController extends Controller
 {
     use BuildsPerformanceViewData;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly AppraisalTemplateCloneService $cloneService,
+    ) {
         $this->authorizeResource(AppraisalTemplate::class, 'template');
     }
 
     public function index(Request $request): Response
     {
         $search = (string) $request->string('search');
+        $currentOrganizationId = app(TenantContext::class)->requireId();
 
         $templates = AppraisalTemplate::query()
             ->with(['department', 'jobTitle', 'objectiveRatingScale', 'competencyRatingScale', 'overallRatingScale'])
@@ -33,11 +39,54 @@ class AppraisalTemplateController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $sourceOrganizationId = $request->integer('source_organization_id');
+        $sharedTemplates = null;
+        $selectedSourceOrganization = null;
+
+        if (
+            $sourceOrganizationId > 0
+            && $sourceOrganizationId !== $currentOrganizationId
+            && $this->cloneService->userCanAccessOrganization($request->user(), $sourceOrganizationId)
+        ) {
+            $selectedSourceOrganization = Organization::query()
+                ->whereKey($sourceOrganizationId)
+                ->where('status', 'active')
+                ->first(['id', 'name', 'slug']);
+
+            if ($selectedSourceOrganization) {
+                $sharedTemplates = AppraisalTemplate::withoutGlobalScopes()
+                    ->with(['department', 'jobTitle'])
+                    ->where('organization_id', $sourceOrganizationId)
+                    ->when($search, fn ($query) => $query->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+                    ->orderByDesc('is_default')
+                    ->orderBy('name')
+                    ->paginate(10, ['*'], 'shared_page')
+                    ->withQueryString();
+            }
+        }
+
+        $sourceOrganizations = OrganizationContextController::availableOrganizationsFor($request->user())
+            ->filter(fn (Organization $organization) => $organization->id !== $currentOrganizationId)
+            ->map(fn (Organization $organization) => [
+                'id' => $organization->id,
+                'name' => $organization->name,
+                'slug' => $organization->slug,
+            ])
+            ->values();
+
         return Inertia::render('performance/templates/Index', [
             'templates' => $templates,
-            'filters' => ['search' => $search],
+            'sharedTemplates' => $sharedTemplates,
+            'sourceOrganizations' => $sourceOrganizations,
+            'selectedSourceOrganization' => $selectedSourceOrganization,
+            'filters' => [
+                'search' => $search,
+                'source_organization_id' => $selectedSourceOrganization?->id,
+            ],
             'can' => [
                 'create' => $request->user()->can('performance.templates.create'),
+                'import' => $request->user()->can('performance.templates.create'),
+                'archive' => $request->user()->can('performance.templates.archive'),
             ],
         ]);
     }

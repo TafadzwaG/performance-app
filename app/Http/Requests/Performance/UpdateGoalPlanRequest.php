@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Performance;
 
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateGoalPlanRequest extends FormRequest
@@ -15,9 +16,9 @@ class UpdateGoalPlanRequest extends FormRequest
     {
         return [
             'objectives' => ['required', 'array', 'min:1'],
-            'objectives.*.id' => ['nullable', 'distinct', 'exists:appraisal_objectives,id'],
-            'objectives.*.perspective_id' => ['required', 'exists:perspectives,id'],
-            'objectives.*.goal_library_item_id' => ['nullable', 'exists:goal_library_items,id'],
+            'objectives.*.id' => ['nullable', 'distinct', TenantRule::exists('appraisal_objectives')],
+            'objectives.*.perspective_id' => ['required', TenantRule::exists('perspectives')],
+            'objectives.*.goal_library_item_id' => ['nullable', TenantRule::exists('goal_library_items')],
             'objectives.*.objective_type' => ['nullable', 'string', 'max:50'],
             'objectives.*.title' => ['required', 'string', 'max:255'],
             'objectives.*.kpi_measure' => ['nullable', 'string'],

@@ -6,6 +6,7 @@ use App\Enums\AppraisalStatus;
 use App\Enums\WorkflowStage;
 use App\Models\Appraisal;
 use App\Models\User;
+use App\Services\Performance\AppraisalWorkflowConfig;
 
 class AppraisalPolicy
 {
@@ -79,7 +80,7 @@ class AppraisalPolicy
         return $user->can('performance.appraisals.view_all')
             || ($user->can('performance.appraisals.view_own') && $this->isEmployee($user, $appraisal))
             || ($user->can('performance.appraisals.manager_review') && $appraisal->line_manager_user_id === $user->id)
-            || ($user->can('performance.appraisals.approve') && $appraisal->approving_manager_user_id === $user->id)
+            || $appraisal->approving_manager_user_id === $user->id
             || $user->can('performance.appraisals.calibrate')
             || $user->can('performance.appraisals.finalize');
     }
@@ -182,10 +183,13 @@ class AppraisalPolicy
             return false;
         }
 
+        if ($appraisal->approving_manager_user_id === $user->id) {
+            return true;
+        }
+
         return $user->can('performance.appraisals.approve')
             && (
-                $appraisal->approving_manager_user_id === $user->id
-                || $appraisal->line_manager_user_id === $user->id
+                $appraisal->line_manager_user_id === $user->id
                 || $this->hasGlobalAppraisalManagementAccess($user)
             );
     }
@@ -204,6 +208,10 @@ class AppraisalPolicy
 
     public function viewCalibrate(User $user, Appraisal $appraisal): bool
     {
+        if (! app(AppraisalWorkflowConfig::class)->calibrationEnabled()) {
+            return false;
+        }
+
         if (! $this->view($user, $appraisal) || ! $this->calibrationUnlocked($appraisal)) {
             return false;
         }
@@ -274,43 +282,9 @@ class AppraisalPolicy
     {
         return match ($appraisal->status) {
             AppraisalStatus::Draft, AppraisalStatus::GoalSetting => true,
-            AppraisalStatus::SelfAssessmentPending => ! $this->hasStartedSelfAssessment($appraisal),
+            AppraisalStatus::SelfAssessmentPending => false,
             AppraisalStatus::SentBack => $appraisal->reopened_stage === WorkflowStage::GoalSetting,
             default => false,
         };
-    }
-
-    private function hasStartedSelfAssessment(Appraisal $appraisal): bool
-    {
-        if ($appraisal->objectives()
-            ->where(function ($query) {
-                $query
-                    ->whereNotNull('self_rating_scale_level_id')
-                    ->orWhere(function ($nested) {
-                        $nested->whereNotNull('performance_achieved')->where('performance_achieved', '!=', '');
-                    })
-                    ->orWhere(function ($nested) {
-                        $nested->whereNotNull('employee_comment')->where('employee_comment', '!=', '');
-                    });
-            })
-            ->exists()) {
-            return true;
-        }
-
-        if ($appraisal->competencyRatings()
-            ->where(function ($query) {
-                $query
-                    ->whereNotNull('self_rating_scale_level_id')
-                    ->orWhere(function ($nested) {
-                        $nested->whereNotNull('employee_comment')->where('employee_comment', '!=', '');
-                    });
-            })
-            ->exists()) {
-            return true;
-        }
-
-        return $appraisal->comments()
-            ->whereIn('comment_type', ['achievement_note', 'significant_issue'])
-            ->exists();
     }
 }

@@ -27,7 +27,7 @@ test('employee only sees their own appraisals on the index', function () {
             ->where('appraisals.data.0.id', $own->id));
 });
 
-test('line manager only sees direct reports that need manager action', function () {
+test('line manager sees all direct report appraisals while action filtering remains stage specific', function () {
     $manager = User::factory()->create(['is_approved' => true]);
     $employee = User::factory()->create(['is_approved' => true]);
     grantAppraisalIndexPermissions($manager, [
@@ -49,7 +49,7 @@ test('line manager only sees direct reports that need manager action', function 
         'self_assessment_submitted_at' => now(),
     ]);
 
-    Appraisal::factory()->create([
+    $finalizedReview = Appraisal::factory()->create([
         'review_cycle_id' => $cycle->id,
         'employee_profile_id' => $profile->id,
         'employee_user_id' => $employee->id,
@@ -65,11 +65,25 @@ test('line manager only sees direct reports that need manager action', function 
         ->get(route('performance.appraisals.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
+            ->has('appraisals.data', 2)
+            ->where('appraisals.data', fn ($appraisals) => $appraisals
+                ->pluck('id')
+                ->contains($pendingReview->id)
+                && $appraisals->pluck('id')->contains($finalizedReview->id))
+            ->missing('appraisals.data.0.review_cycle')
+            ->missing('appraisals.data.0.employee_profile')
+            ->missing('appraisals.data.0.template')
+            ->missing('appraisals.data.0.overall_rating_level'));
+
+    $this->actingAs($manager)
+        ->get(route('performance.appraisals.index', ['needs_action' => 1]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
             ->has('appraisals.data', 1)
             ->where('appraisals.data.0.id', $pendingReview->id));
 });
 
-test('approving manager only sees appraisals awaiting their approval decision', function () {
+test('approving manager sees assigned appraisals while action filtering remains stage specific', function () {
     $approver = User::factory()->create(['is_approved' => true]);
     $employee = User::factory()->create(['is_approved' => true]);
     grantAppraisalIndexPermissions($approver, [
@@ -90,7 +104,7 @@ test('approving manager only sees appraisals awaiting their approval decision', 
         'manager_reviewed_at' => now(),
     ]);
 
-    Appraisal::factory()->create([
+    $calibrationPending = Appraisal::factory()->create([
         'review_cycle_id' => $cycle->id,
         'employee_profile_id' => $profile->id,
         'employee_user_id' => $employee->id,
@@ -102,6 +116,16 @@ test('approving manager only sees appraisals awaiting their approval decision', 
 
     $this->actingAs($approver)
         ->get(route('performance.appraisals.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('appraisals.data', 2)
+            ->where('appraisals.data', fn ($appraisals) => $appraisals
+                ->pluck('id')
+                ->contains($awaitingApproval->id)
+                && $appraisals->pluck('id')->contains($calibrationPending->id)));
+
+    $this->actingAs($approver)
+        ->get(route('performance.appraisals.index', ['needs_action' => 1]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('appraisals.data', 1)

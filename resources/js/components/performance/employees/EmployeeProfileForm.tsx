@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import CreatableOptionSelect from '@/components/performance/setup/CreatableOptionSelect';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,6 +18,7 @@ interface EmployeeProfileFormProps {
     mode: 'create' | 'edit';
     fieldConfig: EmployeeFieldConfigItem[];
     departmentOptions: Option[];
+    locationOptions?: Option[];
     jobTitleOptions: Option[];
     userOptions: Option[];
     managerOptions: Option[];
@@ -26,6 +28,8 @@ interface EmployeeProfileFormProps {
     maritalStatusOptions: Option[];
     employmentTypeOptions: Option[];
     canAssignRoles: boolean;
+    canCreateDepartment?: boolean;
+    canCreateJobTitle?: boolean;
     sectionFilter?: EmployeeProfileSectionKey[];
 }
 
@@ -62,6 +66,7 @@ export default function EmployeeProfileForm({
     mode,
     fieldConfig,
     departmentOptions,
+    locationOptions = [],
     jobTitleOptions,
     userOptions,
     managerOptions,
@@ -71,15 +76,27 @@ export default function EmployeeProfileForm({
     maritalStatusOptions,
     employmentTypeOptions,
     canAssignRoles,
+    canCreateDepartment = false,
+    canCreateJobTitle = false,
     sectionFilter,
 }: EmployeeProfileFormProps) {
     const selectedUser = userOptions.find((option) => String(option.value) === String(form.data.user_id));
     const countryOptions = useMemo<Option[]>(() => buildCountryOptions(), []);
     const phoneCodeOptions = useMemo<Option[]>(() => buildCountryCodeOptions(), []);
+    const [departmentList, setDepartmentList] = useState(departmentOptions);
+    const [jobTitleList, setJobTitleList] = useState(jobTitleOptions);
     const [personalPhoneCode, setPersonalPhoneCode] = useState('+263');
     const [personalPhoneLocal, setPersonalPhoneLocal] = useState('');
     const [emergencyPhoneCode, setEmergencyPhoneCode] = useState('+263');
     const [emergencyPhoneLocal, setEmergencyPhoneLocal] = useState('');
+
+    useEffect(() => {
+        setDepartmentList(departmentOptions);
+    }, [departmentOptions]);
+
+    useEffect(() => {
+        setJobTitleList(jobTitleOptions);
+    }, [jobTitleOptions]);
 
     useEffect(() => {
         const personalPhone = parsePhoneInput(form.data.personal_phone, phoneCodeOptions);
@@ -99,8 +116,9 @@ export default function EmployeeProfileForm({
         .filter((section) => visibleFields.some((field) => field.section === section));
 
     const optionMap: Record<string, Option[]> = {
-        departmentOptions,
-        jobTitleOptions,
+        departmentOptions: departmentList,
+        locationOptions,
+        jobTitleOptions: jobTitleList,
         userOptions,
         managerOptions,
         roleOptions,
@@ -207,6 +225,50 @@ export default function EmployeeProfileForm({
 
                                 if (field.input_type === 'select') {
                                     const options = optionMap[field.options_key ?? ''] ?? [];
+
+                                    if (field.field_key === 'department_id') {
+                                        return (
+                                            <CreatableOptionSelect
+                                                key={field.field_key}
+                                                label={field.label}
+                                                required={field.required}
+                                                value={String(form.data.department_id ?? '')}
+                                                onChange={(value) => form.setData('department_id', value)}
+                                                options={departmentList}
+                                                onOptionCreated={(option) =>
+                                                    setDepartmentList((current) =>
+                                                        [...current, option].sort((left, right) => left.label.localeCompare(right.label)),
+                                                    )
+                                                }
+                                                error={form.errors.department_id}
+                                                placeholder="Select department"
+                                                canCreate={canCreateDepartment}
+                                                entityType="department"
+                                            />
+                                        );
+                                    }
+
+                                    if (field.field_key === 'job_title_id') {
+                                        return (
+                                            <CreatableOptionSelect
+                                                key={field.field_key}
+                                                label={field.label}
+                                                required={field.required}
+                                                value={String(form.data.job_title_id ?? '')}
+                                                onChange={(value) => form.setData('job_title_id', value)}
+                                                options={jobTitleList}
+                                                onOptionCreated={(option) =>
+                                                    setJobTitleList((current) =>
+                                                        [...current, option].sort((left, right) => left.label.localeCompare(right.label)),
+                                                    )
+                                                }
+                                                error={form.errors.job_title_id}
+                                                placeholder="Select job title"
+                                                canCreate={canCreateJobTitle}
+                                                entityType="job_title"
+                                            />
+                                        );
+                                    }
 
                                     return (
                                         <SelectField

@@ -2,6 +2,7 @@
 
 namespace App\Services\Settings;
 
+use App\Support\FormatBytes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +41,7 @@ class SystemOperationsService
                 'description' => $zone['description'],
                 'file_count' => $fileCount,
                 'size_bytes' => $sizeBytes,
-                'size_human' => $this->formatBytes($sizeBytes),
+                'size_human' => FormatBytes::format($sizeBytes),
             ];
         }
 
@@ -50,7 +51,7 @@ class SystemOperationsService
             'default_disk' => (string) config('filesystems.default'),
             'zones' => $zones,
             'total_size_bytes' => $totalBytes,
-            'total_size_human' => $this->formatBytes($totalBytes),
+            'total_size_human' => FormatBytes::format($totalBytes),
             'storage_linked' => is_link(public_path('storage')),
         ];
     }
@@ -313,7 +314,7 @@ class SystemOperationsService
             'name' => basename($relativePath),
             'path' => $relativePath,
             'size_bytes' => $size,
-            'size_human' => $this->formatBytes($size),
+            'size_human' => FormatBytes::format($size),
             'modified_at' => Carbon::createFromTimestamp(filemtime($absolutePath))->toDateTimeString(),
             'download_url' => Route::has('access.storage.download')
                 ? route('access.storage.download', $downloadParams)
@@ -585,23 +586,5 @@ class SystemOperationsService
         }
 
         return trim(Str::after($absolute, $rootPrefix), '/');
-    }
-
-    private function formatBytes(int $bytes): string
-    {
-        if ($bytes < 1024) {
-            return "{$bytes} B";
-        }
-
-        $units = ['KB', 'MB', 'GB', 'TB'];
-        $value = (float) $bytes;
-        $unit = 0;
-
-        while ($value >= 1024 && $unit < count($units) - 1) {
-            $value /= 1024;
-            $unit++;
-        }
-
-        return number_format($value, $value >= 10 ? 0 : 1).' '.$units[$unit];
     }
 }
